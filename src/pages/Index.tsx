@@ -2284,13 +2284,226 @@ function injectHierarchySupport(html: string): string {
     }
   })();
 
+  // Helpers para lista plana de pastas e tabela detalhada de desempenho
+  function getFlattenedFoldersList() {
+    const list = [];
+    try {
+      const hierarchy = typeof getAllFoldersHierarchy === 'function' ? getAllFoldersHierarchy() : [];
+      function traverse(nodes, depth, pathPrefix) {
+        if (!Array.isArray(nodes)) return;
+        nodes.forEach(node => {
+          if (!node) return;
+          const currentPath = pathPrefix ? (pathPrefix + ' > ' + node.name) : node.name;
+          list.push({
+            id: node.id,
+            name: node.name,
+            path: currentPath,
+            depth: depth,
+            icon: node.icon || '📁'
+          });
+          if (Array.isArray(node.children) && node.children.length > 0) {
+            traverse(node.children, depth + 1, currentPath);
+          }
+        });
+      }
+      traverse(hierarchy, 0, '');
+    } catch (e) {
+      console.warn('Erro ao montar lista de pastas para estatísticas:', e);
+    }
+    return list;
+  }
+
+  function renderDetailedFoldersPerformanceTable() {
+    const folders = getFlattenedFoldersList();
+    if (folders.length === 0) return '';
+
+    const history = getStoredFolderEvalHistory();
+    const historyMap = new Map();
+    history.forEach(h => {
+      if (!h || !h.cardId) return;
+      if (!historyMap.has(h.cardId)) historyMap.set(h.cardId, []);
+      historyMap.get(h.cardId).push(h);
+    });
+
+    const rows = [];
+    const now = Date.now();
+
+    folders.forEach(f => {
+      const cards = getFolderAllCards(f.id);
+      if (!cards || cards.length === 0) return;
+
+      let pending = 0;
+      let newCount = 0;
+      let learningCount = 0;
+      let masteredCount = 0;
+
+      cards.forEach(c => {
+        const isNew = (!c.repetitions || c.repetitions === 0) && (!c.fsrsS || c.fsrsS === 0);
+        const isDue = (c.dueDate || 0) <= now;
+        if (isNew) {
+          newCount++;
+          pending++;
+        } else {
+          if (isDue) pending++;
+          const ivl = typeof c.interval === 'number' ? c.interval : (typeof c.fsrsS === 'number' ? c.fsrsS : 0);
+          if (ivl >= 21) masteredCount++;
+          else learningCount++;
+        }
+      });
+
+      let fSuccess = 0;
+      let fTotalReviews = 0;
+      cards.forEach(c => {
+        const cReviews = historyMap.get(c.id);
+        if (cReviews && cReviews.length > 0) {
+          cReviews.forEach(h => {
+            fTotalReviews++;
+            const q = String(h.quality || '').toLowerCase();
+            const r = typeof h.rating === 'number' ? h.rating : 0;
+            if (q === 'good' || q === 'easy' || r === 3 || r === 4) {
+              fSuccess++;
+            }
+          });
+        }
+      });
+
+      const accRate = fTotalReviews > 0 ? Math.round((fSuccess / fTotalReviews) * 100) : 100;
+      const domRate = cards.length > 0 ? Math.round((masteredCount / cards.length) * 100) : 0;
+
+      rows.push({
+        id: f.id,
+        name: f.name,
+        path: f.path,
+        depth: f.depth,
+        total: cards.length,
+        pending: pending,
+        mastered: masteredCount,
+        accuracy: accRate,
+        domRate: domRate,
+        reviews: fTotalReviews
+      });
+    });
+
+    if (rows.length === 0) return '';
+
+    let tableHtml = '<div style="margin-top:1.5rem; padding-top:1.2rem; border-top:1.5px solid #d1fae5;">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.4rem;">' +
+      '<div style="font-size:0.95rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.4rem;">' +
+      '<span>📋</span> Desempenho Detalhado por Pasta' +
+      '</div>' +
+      '<span style="font-size:0.75rem; color:#64748b;">' + rows.length + ' pasta' + (rows.length !== 1 ? 's' : '') + ' com cartas</span>' +
+      '</div>' +
+      '<div style="overflow-x:auto; border:1px solid #e2e8f0; border-radius:12px; background:#ffffff; box-shadow:0 1px 4px rgba(0,0,0,0.02);">' +
+      '<table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.82rem;">' +
+      '<thead>' +
+      '<tr style="background:#f8fafc; border-bottom:1.5px solid #e2e8f0; color:#475569; font-weight:700;">' +
+      '<th style="padding:0.65rem 0.85rem;">Pasta / Caminho</th>' +
+      '<th style="padding:0.65rem 0.6rem; text-align:center;">Total</th>' +
+      '<th style="padding:0.65rem 0.6rem; text-align:center;">Pendentes</th>' +
+      '<th style="padding:0.65rem 0.6rem; text-align:center;">Taxa de Acerto</th>' +
+      '<th style="padding:0.65rem 0.6rem; text-align:center;">Dominadas</th>' +
+      '<th style="padding:0.65rem 0.75rem; text-align:center;">Ação</th>' +
+      '</tr>' +
+      '</thead>' +
+      '<tbody>';
+
+    rows.forEach((r, idx) => {
+      const bg = idx % 2 === 0 ? '#ffffff' : '#fcfdfd';
+      const indent = r.depth > 0 ? (r.depth * 14) : 0;
+      tableHtml += '<tr style="background:' + bg + '; border-bottom:1px solid #f1f5f9; transition:background 0.12s ease;" onmouseover="this.style.background=\\'#f0fdf4\\'" onmouseout="this.style.background=\\'' + bg + '\\'">' +
+        '<td style="padding:0.6rem 0.85rem; font-weight:600; color:#1e293b;">' +
+        '<div style="padding-left:' + indent + 'px; display:flex; align-items:center; gap:0.35rem;" title="' + escapeHtml(r.path) + '">' +
+        '<span>📁</span>' +
+        '<span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px;">' + escapeHtml(r.name) + '</span>' +
+        (r.depth > 0 ? '<span style="font-size:0.7rem; color:#94a3b8; font-weight:400; margin-left:0.25rem;">(' + escapeHtml(r.path) + ')</span>' : '') +
+        '</div>' +
+        '</td>' +
+        '<td style="padding:0.6rem 0.6rem; text-align:center; font-weight:700; color:#334155;">' + r.total + '</td>' +
+        '<td style="padding:0.6rem 0.6rem; text-align:center;">' +
+        '<span style="background:' + (r.pending > 0 ? '#e0f2fe' : '#f1f5f9') + '; color:' + (r.pending > 0 ? '#0369a1' : '#64748b') + '; font-weight:800; font-size:0.74rem; padding:0.18rem 0.5rem; border-radius:9999px;">' +
+        r.pending +
+        '</span>' +
+        '</td>' +
+        '<td style="padding:0.6rem 0.6rem; text-align:center; font-weight:800; color:' + (r.accuracy >= 80 ? '#15803d' : (r.accuracy >= 60 ? '#d97706' : '#dc2626')) + ';">' +
+        r.accuracy + '%' +
+        '</td>' +
+        '<td style="padding:0.6rem 0.6rem; text-align:center;">' +
+        '<span style="font-weight:700; color:#15803d;">' + r.mastered + '</span> ' +
+        '<span style="font-size:0.7rem; color:#94a3b8;">(' + r.domRate + '%)</span>' +
+        '</td>' +
+        '<td style="padding:0.6rem 0.75rem; text-align:center;">' +
+        '<button type="button" onclick="selectStatsFolder(\\'' + r.id + '\\')" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:0.22rem 0.55rem; font-size:0.75rem; font-weight:700; cursor:pointer;" title="Filtrar métricas por esta pasta">' +
+        'Filtrar 📊' +
+        '</button>' +
+        '</td>' +
+        '</tr>';
+    });
+
+    tableHtml += '</tbody></table></div></div>';
+    return tableHtml;
+  }
+
+  // Estado da pasta atualmente selecionada no modal
+  window.__selectedStatsFolderId = null;
+
+  window.selectStatsFolder = function(targetFolderId) {
+    window.__selectedStatsFolderId = (targetFolderId && targetFolderId !== 'all') ? targetFolderId : null;
+    renderGlobalStatsModalContent();
+  };
+
+  function renderGlobalStatsModalContent() {
+    const content = document.getElementById('global-stats-content');
+    if (!content) return;
+
+    const currentFolderId = window.__selectedStatsFolderId;
+    const folders = getFlattenedFoldersList();
+
+    let currentName = 'Visão Geral';
+    if (currentFolderId) {
+      const match = folders.find(f => f.id === currentFolderId);
+      if (match) currentName = match.name;
+      else {
+        const info = resolveFolderInfo(currentFolderId);
+        if (info) currentName = info.name;
+      }
+    }
+
+    // Seletor de Pastas no topo
+    let selectorHtml = '<div style="background:#f8fafc; border:1.5px solid #d1fae5; border-radius:14px; padding:0.85rem 1.1rem; margin-bottom:1.3rem; display:flex; align-items:center; justify-content:space-between; gap:0.9rem; flex-wrap:wrap;">' +
+      '<div style="display:flex; align-items:center; gap:0.5rem;">' +
+      '<span style="font-size:1.25rem;">🔍</span>' +
+      '<div>' +
+      '<div style="font-size:0.82rem; font-weight:800; color:#14532d;">Escopo das Estatísticas:</div>' +
+      '<div style="font-size:0.74rem; color:#64748b;">Selecione todo o app ou uma pasta/subpasta específica</div>' +
+      '</div></div>' +
+      '<div style="min-width:240px; flex:1; max-width:380px;">' +
+      '<select id="stats-folder-scope-select" onchange="selectStatsFolder(this.value)" style="width:100%; box-sizing:border-box; padding:0.55rem 0.85rem; border:1.5px solid #86efac; border-radius:8px; font-size:0.86rem; font-weight:700; color:#14532d; background:#ffffff; outline:none; cursor:pointer;" onfocus="this.style.borderColor=\\'#16a34a\\'" onblur="this.style.borderColor=\\'#86efac\\'">' +
+      '<option value="all"' + (!currentFolderId ? ' selected' : '') + '>🌐 Visão Geral (Todo o App)</option>';
+
+    folders.forEach(f => {
+      const isSel = currentFolderId === f.id ? ' selected' : '';
+      const indentStr = '&nbsp;&nbsp;'.repeat(f.depth);
+      const prefix = f.depth > 0 ? '↳ ' : '📁 ';
+      selectorHtml += '<option value="' + escapeHtml(f.id) + '"' + isSel + '>' +
+        indentStr + prefix + escapeHtml(f.name) + (f.depth > 0 ? (' (' + escapeHtml(f.path) + ')') : '') +
+        '</option>';
+    });
+
+    selectorHtml += '</select></div></div>';
+
+    // Painel isolado com as métricas da pasta escolhida ou visão geral
+    const statsPanelHtml = renderFolderStatsPanelHtml(currentFolderId, currentName);
+
+    // Tabela completa de Desempenho Detalhado por Pasta
+    const detailedTableHtml = renderDetailedFoldersPerformanceTable();
+
+    content.innerHTML = selectorHtml + statsPanelHtml + detailedTableHtml;
+  }
+
   // Handlers para Modal de Estatísticas Globais
   window.openGlobalStatsModal = function() {
     const modal = document.getElementById('global-stats-modal');
-    const content = document.getElementById('global-stats-content');
-    if (content) {
-      content.innerHTML = renderFolderStatsPanelHtml(null, 'Visão Geral');
-    }
+    renderGlobalStatsModalContent();
     if (modal) {
       modal.style.display = 'flex';
     }
