@@ -75,7 +75,7 @@
     [
       "t",
       "        <button class=\"med-nav-btn med-nav-btn-accent\" onclick=\"openNewFolderModal(currentFolderContext())\">\n          ➕ Nova Pasta\n        </button>\n      </div>\n    </div>\n  </header>",
-      "        <button class=\"med-nav-btn med-nav-btn-accent\" onclick=\"openNewFolderModal(currentFolderContext())\">\n          ➕ Nova Pasta\n        </button>\n        <button type=\"button\" class=\"med-settings-btn\" onclick=\"openSettingsModal()\" title=\"Configurações (retenção, frequência, leech, backup, reset)\" aria-label=\"Configurações\">\n          ⚙️\n        </button>\n      </div>\n    </div>\n  </header>",
+      "        <button class=\"med-nav-btn med-nav-btn-accent\" onclick=\"openCreateChoice(typeof currentFolderContext === 'function' ? currentFolderContext() : null)\">\n          ➕ Nova Pasta\n        </button>\n        <button type=\"button\" class=\"med-settings-btn\" onclick=\"openSettingsModal()\" title=\"Configurações (retenção, frequência, leech, backup, reset)\" aria-label=\"Configurações\">\n          ⚙️\n        </button>\n      </div>\n    </div>\n  </header>",
       false
     ],
     [
