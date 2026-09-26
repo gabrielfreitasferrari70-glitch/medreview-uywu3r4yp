@@ -176,10 +176,117 @@ function injectHierarchySupport(html: string): string {
           </div>
           <span style="font-size:1.15rem; color:#64748b; font-weight:800;">➜</span>
         </button>
+
+        <button type="button" class="mr-btn-choice" onclick="handleChoiceImportCsv()" style="background:#f0fdf4; border:1.5px solid #86efac;" onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#16a34a'" onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#86efac'">
+          <span style="font-size:2rem; line-height:1;">📥</span>
+          <div style="flex:1;">
+            <div style="font-weight:800; font-size:0.98rem; color:#14532d;">Importar Flashcards via CSV</div>
+            <div style="font-size:0.79rem; color:#15803d; margin-top:0.15rem;">Upload ou colar CSV do Adapta com suporte FSRS-5</div>
+          </div>
+          <span style="font-size:1.15rem; color:#15803d; font-weight:800;">➜</span>
+        </button>
       </div>
     </div>
   </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalChoiceHtml);
+
+  // Injeta Modal de Importação de Flashcards via CSV
+  const modalCsvImportHtml = \`
+  <div id="csv-import-modal" style="display:none; position:fixed; inset:0; z-index:195; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCsvImportModal()">
+    <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
+      <!-- Header do Modal -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
+        <div style="display:flex; align-items:center; gap:0.55rem;">
+          <span style="font-size:1.4rem;">📥</span>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d;">Importar Flashcards via CSV</h3>
+            <div id="csv-import-target-label" style="font-size:0.8rem; color:#15803d; margin-top:0.15rem; font-weight:600;">Destino: Pasta Atual</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeCsvImportModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#047857; line-height:1;" title="Fechar">&times;</button>
+      </div>
+
+      <!-- Abas de Entrada (Upload vs Colar) -->
+      <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#f8fafc; padding:0 1.4rem;">
+        <button type="button" id="csv-tab-file" onclick="setCsvImportTab('file')" style="padding:0.75rem 1.1rem; border:none; background:transparent; font-weight:800; font-size:0.88rem; cursor:pointer; border-bottom:2.5px solid #16a34a; color:#15803d; display:inline-flex; align-items:center; gap:0.4rem;">
+          📁 Arquivo .csv
+        </button>
+        <button type="button" id="csv-tab-text" onclick="setCsvImportTab('text')" style="padding:0.75rem 1.1rem; border:none; background:transparent; font-weight:700; font-size:0.88rem; cursor:pointer; border-bottom:2.5px solid transparent; color:#64748b; display:inline-flex; align-items:center; gap:0.4rem;">
+          📝 Colar Texto CSV
+        </button>
+      </div>
+
+      <!-- Conteúdo do Modal rolável -->
+      <div style="padding:1.35rem 1.4rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:1rem;">
+        <!-- Painel Tab Arquivo -->
+        <div id="csv-panel-file">
+          <label style="display:block; font-size:0.84rem; font-weight:700; color:#1e293b; margin-bottom:0.45rem;">
+            Selecione o arquivo CSV do seu computador:
+          </label>
+          <div style="border:2px dashed #86efac; border-radius:12px; padding:1.3rem; text-align:center; background:#f0fdf4; cursor:pointer; transition:all 0.15s ease;" onclick="document.getElementById('csv-file-input').click()" ondragover="event.preventDefault(); this.style.borderColor='#16a34a'; this.style.background='#dcfce7';" ondragleave="this.style.borderColor='#86efac'; this.style.background='#f0fdf4';" ondrop="handleCsvDrop(event)">
+            <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain" style="display:none;" onchange="handleCsvFileSelected(event)">
+            <div style="font-size:2rem; margin-bottom:0.35rem;">📄</div>
+            <div id="csv-file-name-display" style="font-weight:700; font-size:0.92rem; color:#14532d;">Clique para selecionar ou arraste o arquivo CSV</div>
+            <div style="font-size:0.77rem; color:#15803d; margin-top:0.25rem;">Padrão UTF-8 com colunas: pasta, grupo, frente, verso, referencia</div>
+          </div>
+        </div>
+
+        <!-- Painel Tab Texto -->
+        <div id="csv-panel-text" style="display:none;">
+          <label style="display:block; font-size:0.84rem; font-weight:700; color:#1e293b; margin-bottom:0.45rem;">
+            Cole aqui o texto CSV completo (com cabeçalho):
+          </label>
+          <textarea id="csv-text-input" rows="7" placeholder="pasta,grupo,frente,verso,referencia&#10;&quot;Tutoria 10&quot;,&quot;Objetivo 1&quot;,&quot;Pergunta clínica?&quot;,&quot;Gabarito detalhado...&quot;,&quot;Moore; Netter&quot;" style="width:100%; box-sizing:border-box; font-family:monospace; font-size:0.82rem; padding:0.75rem; border:1.5px solid #cbd5e1; border-radius:10px; outline:none; resize:vertical;" oninput="handleCsvTextInput()"></textarea>
+        </div>
+
+        <!-- Informação sobre fidelidade & formato -->
+        <div style="background:#f1f5f9; border-radius:10px; padding:0.75rem 0.9rem; font-size:0.8rem; color:#475569; line-height:1.45; border-left:3.5px solid #16a34a;">
+          <div style="font-weight:700; color:#14532d; margin-bottom:0.15rem;">🔒 Fidelidade Total Garantida</div>
+          <div>O enunciado e o gabarito serão preservados exatamente como constam no arquivo. Todas as cartas entram automaticamente no algoritmo <strong>FSRS-5</strong> (estado inicial "Novo").</div>
+        </div>
+
+        <!-- Área de Preview e Validação -->
+        <div id="csv-preview-container" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.9rem 1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; flex-wrap:wrap; gap:0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+              <span id="csv-preview-badge-valid" style="background:#dcfce7; color:#15803d; font-size:0.78rem; font-weight:800; padding:0.25rem 0.6rem; border-radius:6px; border:1px solid #86efac;">
+                0 cartas válidas
+              </span>
+              <span id="csv-preview-badge-skipped" style="background:#fef3c7; color:#92400e; font-size:0.78rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:6px; border:1px solid #fde68a;">
+                0 vazias ignoradas
+              </span>
+              <span id="csv-preview-delim-info" style="font-size:0.75rem; color:#64748b; font-family:monospace;">
+                Delimitador: ,
+              </span>
+            </div>
+            <span id="csv-preview-sample-count" style="font-size:0.75rem; color:#64748b;">
+              Amostra das primeiras cartas:
+            </span>
+          </div>
+
+          <!-- Lista de cards de amostra -->
+          <div id="csv-preview-cards-list" style="display:flex; flex-direction:column; gap:0.5rem; max-height:180px; overflow-y:auto; padding-right:0.2rem;"></div>
+        </div>
+
+        <!-- Mensagem de Erro -->
+        <div id="csv-import-error" style="display:none; background:#fef2f2; border:1.5px solid #fca5a5; border-radius:10px; padding:0.8rem 1rem; color:#991b1b; font-size:0.84rem; line-height:1.45;">
+          <strong>⚠️ Não foi possível processar o CSV:</strong>
+          <div id="csv-import-error-msg" style="margin-top:0.25rem;"></div>
+        </div>
+      </div>
+
+      <!-- Footer do Modal -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:1.1rem 1.4rem; border-top:1px solid #e2e8f0; background:#f8fafc; gap:0.6rem;">
+        <button type="button" onclick="closeCsvImportModal()" style="background:#e2e8f0; color:#334155; border:none; padding:0.55rem 1.1rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">
+          Cancelar
+        </button>
+        <button type="button" id="csv-import-submit-btn" onclick="executeCsvImport()" disabled style="background:#94a3b8; color:#ffffff; border:none; padding:0.55rem 1.4rem; border-radius:8px; font-weight:800; font-size:0.9rem; cursor:not-allowed; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+          <span>📥</span> Importar tudo
+        </button>
+      </div>
+    </div>
+  </div>\`;
+  document.body.insertAdjacentHTML('beforeend', modalCsvImportHtml);
 
   // Injeta Modal de Criação de Subpasta
   const modalSubfolderHtml = \`
@@ -388,6 +495,484 @@ function injectHierarchySupport(html: string): string {
     }
   };
 
+  window.handleChoiceImportCsv = function() {
+    closeCreateChoiceModal();
+    openCsvImportModal(window.__activeFolderContext);
+  };
+
+  // ========================================================
+  // Lógica do Modal e Parser de Importação CSV
+  // ========================================================
+  window.__activeCsvCards = [];
+  window.__activeCsvTab = 'file';
+
+  window.decodeHtmlEntities = function(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#(\\d+);/g, function(_, dec) {
+        try { return String.fromCharCode(parseInt(dec, 10)); } catch(e) { return _; }
+      })
+      .replace(/&#x([0-9a-fA-F]+);/g, function(_, hex) {
+        try { return String.fromCharCode(parseInt(hex, 16)); } catch(e) { return _; }
+      });
+  };
+
+  window.detectCsvDelimiter = function(text) {
+    let inQuotes = false;
+    let commas = 0;
+    let semicolons = 0;
+    const max = Math.min(text.length, 4096);
+    for (let i = 0; i < max; i++) {
+      const c = text[i];
+      if (c === '"') {
+        inQuotes = !inQuotes;
+      } else if (!inQuotes) {
+        if (c === ',') commas++;
+        else if (c === ';') semicolons++;
+        else if (c === '\\n' && (commas > 0 || semicolons > 0)) break;
+      }
+    }
+    return semicolons > commas ? ';' : ',';
+  };
+
+  window.parseCsvRows = function(text, delim) {
+    const rows = [];
+    let currentRow = [];
+    let cell = '';
+    let inQuotes = false;
+    const len = text.length;
+
+    for (let i = 0; i < len; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (i + 1 < len && text[i + 1] === '"') {
+            cell += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          cell += c;
+        }
+      } else {
+        if (c === '"') {
+          inQuotes = true;
+        } else if (c === delim) {
+          currentRow.push(cell);
+          cell = '';
+        } else if (c === '\\r') {
+          if (i + 1 < len && text[i + 1] === '\\n') i++;
+          currentRow.push(cell);
+          rows.push(currentRow);
+          currentRow = [];
+          cell = '';
+        } else if (c === '\\n') {
+          currentRow.push(cell);
+          rows.push(currentRow);
+          currentRow = [];
+          cell = '';
+        } else {
+          cell += c;
+        }
+      }
+    }
+    if (cell.length > 0 || currentRow.length > 0) {
+      currentRow.push(cell);
+      rows.push(currentRow);
+    }
+    return rows;
+  };
+
+  window.parseCsvInputText = function(text) {
+    if (!text || !text.trim()) {
+      return { cards: [], validCount: 0, skippedCount: 0, error: 'O conteúdo CSV está vazio.' };
+    }
+    const delim = detectCsvDelimiter(text);
+    const rows = parseCsvRows(text, delim);
+
+    let headerIdx = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].some(c => c && c.trim().length > 0)) {
+        headerIdx = i;
+        break;
+      }
+    }
+    if (headerIdx === -1) {
+      return { cards: [], validCount: 0, skippedCount: 0, error: 'Nenhum cabeçalho encontrado.' };
+    }
+
+    const rawHeaders = rows[headerIdx];
+    const normHeaders = rawHeaders.map(h => (h || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]/g, ''));
+
+    let frenteIdx = -1;
+    let versoIdx = -1;
+    let grupoIdx = -1;
+    let refIdx = -1;
+    let pastaIdx = -1;
+
+    normHeaders.forEach((nh, idx) => {
+      if (nh === 'frente' || nh === 'pergunta' || nh === 'question' || nh === 'front') frenteIdx = idx;
+      else if (nh === 'verso' || nh === 'resposta' || nh === 'answer' || nh === 'back' || nh === 'gabarito') versoIdx = idx;
+      else if (nh === 'grupo' || nh === 'group' || nh === 'objetivo' || nh === 'topico') grupoIdx = idx;
+      else if (nh === 'referencia' || nh === 'ref' || nh === 'referencias' || nh === 'fontes') refIdx = idx;
+      else if (nh === 'pasta' || nh === 'folder' || nh === 'modulo' || nh === 'deck') pastaIdx = idx;
+    });
+
+    if (frenteIdx === -1 || versoIdx === -1) {
+      return {
+        cards: [],
+        validCount: 0,
+        skippedCount: 0,
+        delimiter: delim,
+        error: 'O CSV precisa ter as colunas: pasta, grupo, frente, verso, referencia'
+      };
+    }
+
+    const validCards = [];
+    let skippedCount = 0;
+    const dataRows = rows.slice(headerIdx + 1);
+
+    dataRows.forEach(row => {
+      if (row.length === 0 || row.every(c => !c || c.trim().length === 0)) return;
+
+      const rawF = frenteIdx < row.length ? row[frenteIdx] : '';
+      const rawV = versoIdx < row.length ? row[versoIdx] : '';
+      const rawG = grupoIdx >= 0 && grupoIdx < row.length ? row[grupoIdx] : '';
+      const rawR = refIdx >= 0 && refIdx < row.length ? row[refIdx] : '';
+
+      const f = decodeHtmlEntities(rawF).trim();
+      const v = decodeHtmlEntities(rawV).trim();
+
+      if (!f || !v) {
+        skippedCount++;
+        return;
+      }
+
+      validCards.push({
+        q: f,
+        a: v,
+        group: decodeHtmlEntities(rawG).trim(),
+        ref: decodeHtmlEntities(rawR).trim() || 'Referência Médica'
+      });
+    });
+
+    return {
+      cards: validCards,
+      validCount: validCards.length,
+      skippedCount: skippedCount,
+      delimiter: delim
+    };
+  };
+
+  window.openCsvImportModal = function(targetFolderId) {
+    const targetCtx = targetFolderId || window.__activeFolderContext || (typeof currentFolderContext === 'function' ? currentFolderContext() : 'tutoria');
+    window.__activeFolderContext = targetCtx;
+
+    const info = resolveFolderInfo(targetCtx);
+    const folderName = info ? info.name : 'Pasta Atual';
+
+    const lbl = document.getElementById('csv-import-target-label');
+    if (lbl) {
+      lbl.innerHTML = 'Destino das cartas: <strong>' + escapeHtml(folderName) + '</strong>';
+    }
+
+    // Reset estado interno do modal
+    window.__activeCsvCards = [];
+    const fileInput = document.getElementById('csv-file-input');
+    if (fileInput) fileInput.value = '';
+    const txtArea = document.getElementById('csv-text-input');
+    if (txtArea) txtArea.value = '';
+    const nameDisp = document.getElementById('csv-file-name-display');
+    if (nameDisp) nameDisp.textContent = 'Clique para selecionar ou arraste o arquivo CSV';
+
+    hideCsvError();
+    hideCsvPreview();
+    updateCsvSubmitBtn(0);
+
+    setCsvImportTab('file');
+
+    const modal = document.getElementById('csv-import-modal');
+    if (modal) modal.style.display = 'flex';
+  };
+
+  window.closeCsvImportModal = function() {
+    const modal = document.getElementById('csv-import-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  window.setCsvImportTab = function(tab) {
+    window.__activeCsvTab = tab;
+    const tabFile = document.getElementById('csv-tab-file');
+    const tabText = document.getElementById('csv-tab-text');
+    const panelFile = document.getElementById('csv-panel-file');
+    const panelText = document.getElementById('csv-panel-text');
+
+    if (tab === 'file') {
+      if (tabFile) {
+        tabFile.style.borderBottom = '2.5px solid #16a34a';
+        tabFile.style.color = '#15803d';
+        tabFile.style.fontWeight = '800';
+      }
+      if (tabText) {
+        tabText.style.borderBottom = '2.5px solid transparent';
+        tabText.style.color = '#64748b';
+        tabText.style.fontWeight = '700';
+      }
+      if (panelFile) panelFile.style.display = 'block';
+      if (panelText) panelText.style.display = 'none';
+    } else {
+      if (tabFile) {
+        tabFile.style.borderBottom = '2.5px solid transparent';
+        tabFile.style.color = '#64748b';
+        tabFile.style.fontWeight = '700';
+      }
+      if (tabText) {
+        tabText.style.borderBottom = '2.5px solid #16a34a';
+        tabText.style.color = '#15803d';
+        tabText.style.fontWeight = '800';
+      }
+      if (panelFile) panelFile.style.display = 'none';
+      if (panelText) panelText.style.display = 'block';
+      setTimeout(() => {
+        const ta = document.getElementById('csv-text-input');
+        if (ta) ta.focus();
+      }, 50);
+    }
+  };
+
+  function showCsvError(msg) {
+    const errBox = document.getElementById('csv-import-error');
+    const errMsg = document.getElementById('csv-import-error-msg');
+    if (errBox && errMsg) {
+      errMsg.textContent = msg;
+      errBox.style.display = 'block';
+    }
+    hideCsvPreview();
+    updateCsvSubmitBtn(0);
+  }
+
+  function hideCsvError() {
+    const errBox = document.getElementById('csv-import-error');
+    if (errBox) errBox.style.display = 'none';
+  }
+
+  function hideCsvPreview() {
+    const prev = document.getElementById('csv-preview-container');
+    if (prev) prev.style.display = 'none';
+  }
+
+  function updateCsvSubmitBtn(count) {
+    const btn = document.getElementById('csv-import-submit-btn');
+    if (!btn) return;
+    if (count > 0) {
+      btn.disabled = false;
+      btn.style.background = '#16a34a';
+      btn.style.cursor = 'pointer';
+      btn.innerHTML = '<span>📥</span> Importar ' + count + ' carta' + (count !== 1 ? 's' : '');
+    } else {
+      btn.disabled = true;
+      btn.style.background = '#94a3b8';
+      btn.style.cursor = 'not-allowed';
+      btn.innerHTML = '<span>📥</span> Importar tudo';
+    }
+  }
+
+  function displayCsvResult(parsed) {
+    if (parsed.error) {
+      showCsvError(parsed.error);
+      window.__activeCsvCards = [];
+      return;
+    }
+    hideCsvError();
+
+    window.__activeCsvCards = parsed.cards || [];
+    const validCount = parsed.validCount || 0;
+    const skippedCount = parsed.skippedCount || 0;
+
+    const prev = document.getElementById('csv-preview-container');
+    const badgeValid = document.getElementById('csv-preview-badge-valid');
+    const badgeSkipped = document.getElementById('csv-preview-badge-skipped');
+    const delimInfo = document.getElementById('csv-preview-delim-info');
+    const listEl = document.getElementById('csv-preview-cards-list');
+
+    if (badgeValid) badgeValid.textContent = validCount + ' carta' + (validCount !== 1 ? 's' : '') + ' detectada' + (validCount !== 1 ? 's' : '');
+    if (badgeSkipped) badgeSkipped.textContent = skippedCount + ' linha' + (skippedCount !== 1 ? 's' : '') + ' vazia' + (skippedCount !== 1 ? 's' : '') + ' ignorada' + (skippedCount !== 1 ? 's' : '');
+    if (delimInfo) delimInfo.textContent = 'Delimitador: "' + (parsed.delimiter === ';' ? ';' : ',') + '"';
+
+    if (listEl) {
+      let cardsHtml = '';
+      const sample = window.__activeCsvCards.slice(0, 3);
+      sample.forEach((c, idx) => {
+        cardsHtml += \`
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.6rem 0.8rem; font-size:0.8rem;">
+            <div style="font-weight:700; color:#14532d; margin-bottom:0.2rem;">#\${idx + 1} \${c.group ? '<span style="font-size:0.72rem; background:#f0fdf4; color:#166534; padding:0.1rem 0.35rem; border-radius:4px; margin-right:0.3rem;">' + escapeHtml(c.group) + '</span>' : ''}\${escapeHtml(c.q)}</div>
+            <div style="color:#475569; font-size:0.77rem; white-space:pre-wrap;">\${escapeHtml(c.a.length > 120 ? c.a.slice(0, 120) + '...' : c.a)}</div>
+          </div>
+        \`;
+      });
+      if (window.__activeCsvCards.length > 3) {
+        cardsHtml += \`<div style="text-align:center; font-size:0.75rem; color:#64748b; padding-top:0.2rem;">... e mais \${window.__activeCsvCards.length - 3} carta\${window.__activeCsvCards.length - 3 !== 1 ? 's' : ''}</div>\`;
+      }
+      listEl.innerHTML = cardsHtml;
+    }
+
+    if (prev) prev.style.display = 'block';
+    updateCsvSubmitBtn(validCount);
+  }
+
+  window.handleCsvFileSelected = function(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const nameDisp = document.getElementById('csv-file-name-display');
+    if (nameDisp) nameDisp.textContent = '📄 ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const text = evt.target.result;
+        const result = parseCsvInputText(text);
+        displayCsvResult(result);
+      } catch (err) {
+        showCsvError('Erro ao ler arquivo: ' + err.message);
+      }
+    };
+    reader.onerror = function() {
+      showCsvError('Falha na leitura do arquivo CSV.');
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  window.handleCsvDrop = function(e) {
+    e.preventDefault();
+    e.currentTarget.style.borderColor = '#86efac';
+    e.currentTarget.style.background = '#f0fdf4';
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      const fileInput = document.getElementById('csv-file-input');
+      if (fileInput) {
+        fileInput.files = e.dataTransfer.files;
+      }
+      handleCsvFileSelected({ target: { files: [file] } });
+    }
+  };
+
+  window.handleCsvTextInput = function() {
+    const ta = document.getElementById('csv-text-input');
+    const val = ta ? ta.value : '';
+    if (!val.trim()) {
+      hideCsvError();
+      hideCsvPreview();
+      updateCsvSubmitBtn(0);
+      window.__activeCsvCards = [];
+      return;
+    }
+    const result = parseCsvInputText(val);
+    displayCsvResult(result);
+  };
+
+  // 12B. Executa importação e salva no state FSRS
+  window.executeCsvImport = function() {
+    if (!window.__activeCsvCards || window.__activeCsvCards.length === 0) {
+      alert('Nenhuma carta válida detectada para importação.');
+      return;
+    }
+
+    const targetCtx = window.__activeFolderContext || (typeof currentFolderContext === 'function' ? currentFolderContext() : 'tutoria');
+    const info = resolveFolderInfo(targetCtx);
+
+    if (!info) {
+      alert('Não foi possível identificar a pasta de destino selecionada.');
+      return;
+    }
+
+    const folderTitle = info.name || 'Pasta de Estudo';
+    let targetCardsArray = null;
+
+    // Localiza array de cartas correspondente na estrutura de state do MedReview
+    if (targetCtx === 'tutoria') {
+      if (!state.tutoria_highlight) state.tutoria_highlight = { cards: [] };
+      if (!Array.isArray(state.tutoria_highlight.cards)) state.tutoria_highlight.cards = [];
+      targetCardsArray = state.tutoria_highlight.cards;
+    } else if (state.tutorias_numbered && state.tutorias_numbered[targetCtx]) {
+      if (!Array.isArray(state.tutorias_numbered[targetCtx].cards)) state.tutorias_numbered[targetCtx].cards = [];
+      targetCardsArray = state.tutorias_numbered[targetCtx].cards;
+    } else if (state.custom_tutoria_folders && state.custom_tutoria_folders[targetCtx]) {
+      if (!Array.isArray(state.custom_tutoria_folders[targetCtx].cards)) state.custom_tutoria_folders[targetCtx].cards = [];
+      targetCardsArray = state.custom_tutoria_folders[targetCtx].cards;
+    } else if (state.custom_prova_folders && state.custom_prova_folders[targetCtx]) {
+      if (!Array.isArray(state.custom_prova_folders[targetCtx].cards)) state.custom_prova_folders[targetCtx].cards = [];
+      targetCardsArray = state.custom_prova_folders[targetCtx].cards;
+    } else if (state.custom_root_folders && state.custom_root_folders[targetCtx]) {
+      if (!Array.isArray(state.custom_root_folders[targetCtx].cards)) state.custom_root_folders[targetCtx].cards = [];
+      targetCardsArray = state.custom_root_folders[targetCtx].cards;
+    } else if (state.provas && state.provas[targetCtx]) {
+      if (!Array.isArray(state.provas[targetCtx].cards)) state.provas[targetCtx].cards = [];
+      targetCardsArray = state.provas[targetCtx].cards;
+    } else {
+      const sfStore = getSubfolderStore();
+      if (sfStore[targetCtx]) {
+        if (!Array.isArray(sfStore[targetCtx].cards)) sfStore[targetCtx].cards = [];
+        targetCardsArray = sfStore[targetCtx].cards;
+      }
+    }
+
+    if (!targetCardsArray) {
+      alert('Não foi possível adicionar cartas a esta pasta (formato não suportado).');
+      return;
+    }
+
+    const importedCount = window.__activeCsvCards.length;
+
+    // Cria as cartas no formato estrito FSRS-5
+    window.__activeCsvCards.forEach(c => {
+      const newCard = {
+        id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7) + '_' + Math.random().toString(36).substring(2, 5),
+        q: c.q,
+        a: c.a,
+        ref: c.ref || 'Referência Médica',
+        group: c.group || '',
+        clinical: false,
+        repetitions: 0,
+        interval: 0,
+        easeFactor: 2.5,
+        dueDate: Date.now(),
+        fsrsS: null,
+        fsrsD: null,
+        fsrsState: 'new',
+        lapses: 0,
+        containerId: targetCtx,
+        folderTitle: folderTitle
+      };
+      targetCardsArray.push(newCard);
+    });
+
+    saveState();
+    closeCsvImportModal();
+
+    if (typeof showToast === 'function') {
+      showToast(importedCount + ' cartas importadas com sucesso!');
+    } else {
+      alert(importedCount + ' cartas importadas com sucesso!');
+    }
+
+    // Re-render imediato da visualização
+    const sfStore = getSubfolderStore();
+    if (sfStore[targetCtx]) {
+      renderSubfolderView(targetCtx);
+    } else {
+      renderRoute();
+    }
+  };
+
   // 8. Modal de criação de Subpasta
   window.openSubfolderCreateModal = function(parentId) {
     window.__activeFolderContext = parentId;
@@ -510,6 +1095,9 @@ function injectHierarchySupport(html: string): string {
               <p style="margin:0; color:#64748b; font-size:0.92rem;">\${escapeHtml(sf.description || 'Subpasta de estudo médica')}</p>
             </div>
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm mr-import-csv-btn" onclick="openCsvImportModal('\${subfolderId}')" style="background:#f0fdf4; color:#15803d; font-weight:800; padding:0.55rem 1.1rem; border-radius:9px; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                <span>📥</span> Importar CSV
+              </button>
               <button type="button" class="btn btn-sm" onclick="openCreateChoice('\${subfolderId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.55rem 1.15rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
                 <span>➕</span> Criar (Pasta ou Carta)
               </button>
@@ -568,9 +1156,14 @@ function injectHierarchySupport(html: string): string {
           <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
             <span>🗂️</span> Cartas de Revisão (\${cards.length})
           </h3>
-          <button type="button" onclick="openNewCardModal('\${subfolderId}')" style="background:#16a34a; color:#fff; border:none; border-radius:8px; padding:0.35rem 0.85rem; font-size:0.83rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
-            ➕ Nova Carta
-          </button>
+          <div style="display:flex; gap:0.45rem; align-items:center;">
+            <button type="button" onclick="openCsvImportModal('\${subfolderId}')" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.75rem; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.25rem;">
+              📥 Importar CSV
+            </button>
+            <button type="button" onclick="openNewCardModal('\${subfolderId}')" style="background:#16a34a; color:#fff; border:none; border-radius:8px; padding:0.35rem 0.85rem; font-size:0.83rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+              ➕ Nova Carta
+            </button>
+          </div>
         </div>
     \`;
 
@@ -738,9 +1331,18 @@ function injectHierarchySupport(html: string): string {
       }
     }
 
-    // B. Botão de Criar inteligente no header da pasta
+    // B. Botão de Criar inteligente e Importar CSV no header da pasta
     const actionHeaders = document.querySelectorAll('.folder-header-actions, .header-actions, .deck-header-actions, .med-deck-actions');
     actionHeaders.forEach(header => {
+      if (!header.querySelector('.mr-import-csv-btn')) {
+        const csvBtn = document.createElement('button');
+        csvBtn.className = 'mr-import-csv-btn btn btn-sm';
+        csvBtn.type = 'button';
+        csvBtn.style.cssText = 'background:#f0fdf4; color:#15803d; font-weight:800; border-radius:9px; padding:0.5rem 0.95rem; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; box-shadow:0 1px 3px rgba(0,0,0,0.04);';
+        csvBtn.innerHTML = '<span>📥</span> Importar CSV';
+        csvBtn.onclick = () => openCsvImportModal(currentId);
+        header.prepend(csvBtn);
+      }
       if (!header.querySelector('.mr-smart-create-btn')) {
         const btn = document.createElement('button');
         btn.className = 'mr-smart-create-btn btn btn-sm';
