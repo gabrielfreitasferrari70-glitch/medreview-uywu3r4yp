@@ -6,9 +6,24 @@ import { useEffect } from 'react'
 if (typeof window !== 'undefined') {
   const w = window as unknown as Record<string, unknown>
 
+  if (typeof w.openImportFlow !== 'function') {
+    w.openImportFlow = function (ctx?: unknown) {
+      if (
+        typeof (w as { __realOpenImportFlow?: (c?: unknown) => void }).__realOpenImportFlow ===
+        'function'
+      ) {
+        ;(w as { __realOpenImportFlow: (c?: unknown) => void }).__realOpenImportFlow(ctx)
+      } else {
+        w.__pendingImportFlowCtx = ctx
+      }
+    }
+  }
+
   if (typeof w.openCsvImport !== 'function') {
     w.openCsvImport = function (ctx?: unknown) {
-      if (typeof w.openCsvImportModal === 'function') {
+      if (typeof w.openImportFlow === 'function') {
+        ;(w.openImportFlow as (c?: unknown) => void)(ctx)
+      } else if (typeof w.openCsvImportModal === 'function') {
         ;(w.openCsvImportModal as (c?: unknown) => void)(ctx)
       } else {
         w.__pendingCsvImportCtx = ctx
@@ -245,10 +260,60 @@ function injectHierarchySupport(html: string): string {
   </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalChoiceHtml);
 
-  // Injeta Modal de Importação de Flashcards via CSV
-  const modalCsvImportHtml = \`
-  <div id="csv-import-modal" style="display:none; position:fixed; inset:0; z-index:195; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCsvImportModal()">
+  // Injeta Modal de Seleção de Pasta/Destino para Importação
+  const modalImportTargetSelectHtml = `
+  <div id="import-target-modal" style="display:none; position:fixed; inset:0; z-index:194; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeImportTargetModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
+      <!-- Header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.45rem;">📥</span>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d;">Importar Flashcards — Escolha a Pasta de Destino</h3>
+            <div style="font-size:0.8rem; color:#15803d; margin-top:0.15rem;">Passo 1 de 2: Para qual pasta ou subpasta as cartas serão enviadas?</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeImportTargetModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#047857; line-height:1;" title="Fechar">&times;</button>
+      </div>
+
+      <!-- Info e Busca rápida -->
+      <div style="padding:1rem 1.4rem 0.5rem 1.4rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
+          <span style="font-size:0.82rem; color:#475569; font-weight:600;">Selecione qualquer nível da árvore abaixo ou crie uma nova pasta:</span>
+          <button type="button" onclick="openCreateFolderFromImportPicker()" style="background:#f0fdf4; color:#15803d; border:1px solid #86efac; padding:0.35rem 0.75rem; border-radius:7px; font-size:0.8rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+            ➕ Nova Pasta / Subpasta
+          </button>
+        </div>
+        <input type="text" id="import-target-search" placeholder="🔍 Filtrar pastas por nome..." oninput="filterImportTree(this.value)" style="width:100%; box-sizing:border-box; padding:0.55rem 0.85rem; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.88rem; outline:none;" onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#cbd5e1'">
+      </div>
+
+      <!-- Lista / Árvore Hierárquica -->
+      <div id="import-target-tree-container" style="padding:1.1rem 1.4rem; overflow-y:auto; flex:1; max-height:420px; display:flex; flex-direction:column; gap:0.4rem;">
+        <!-- Preenchido dinamicamente via renderImportFolderTree() -->
+      </div>
+
+      <!-- Seleção Atual e Botão Continuar -->
+      <div style="padding:1.1rem 1.4rem; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+        <div style="font-size:0.86rem; color:#1e293b; display:flex; align-items:center; gap:0.4rem;">
+          <span style="color:#64748b;">Pasta selecionada:</span>
+          <span id="import-target-selected-name" style="font-weight:800; color:#15803d; background:#dcfce7; padding:0.25rem 0.65rem; border-radius:6px; border:1px solid #86efac;">Tutoria</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <button type="button" onclick="closeImportTargetModal()" style="background:#e2e8f0; color:#334155; border:none; padding:0.55rem 1.1rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">
+            Cancelar
+          </button>
+          <button type="button" id="import-target-proceed-btn" onclick="proceedFromTargetToCsvModal()" style="background:#16a34a; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22,163,74,0.25);">
+            Continuar para o CSV ➜
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', modalImportTargetSelectHtml);
+
+  // Injeta Modal de Importação de Flashcards via CSV
+  const modalCsvImportHtml = `
+  <div id="csv-import-modal" style="display:none; position:fixed; inset:0; z-index:195; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCsvImportModal()">    <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
       <!-- Header do Modal -->
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
         <div style="display:flex; align-items:center; gap:0.55rem;">
@@ -734,16 +799,331 @@ function injectHierarchySupport(html: string): string {
     };
   };
 
+  // ========================================================
+  // Árvore Hierárquica e Fluxo de Importação com Escolha de Destino
+  // ========================================================
+  window.__importSelectedTargetFolderId = 'tutoria';
+  window.__importTreeFilterTerm = '';
+
+  // Constrói lista hierárquica unificada de todas as pastas e subpastas
+  window.getAllFoldersHierarchy = function() {
+    const rootNodes = [];
+    const sfStore = getSubfolderStore();
+
+    // 1. PBL / Tutoria (Raiz de Tutoria)
+    const tutoriaNode = {
+      id: 'tutoria',
+      name: 'PBL / Tutoria',
+      icon: '🩺',
+      type: 'tutoria_root',
+      badge: 'Pasta Principal',
+      cardCount: (state.tutoria_highlight && Array.isArray(state.tutoria_highlight.cards)) ? state.tutoria_highlight.cards.length : 0,
+      children: []
+    };
+
+    // Tutorias numeradas padrão
+    if (state.tutorias_numbered) {
+      Object.entries(state.tutorias_numbered).forEach(([id, obj]) => {
+        if (!obj) return;
+        tutoriaNode.children.push({
+          id: id,
+          name: obj.title || obj.name || id.replace('_', ' ').toUpperCase(),
+          icon: '📁',
+          type: 'tutoria_numbered',
+          badge: 'Tutoria',
+          cardCount: Array.isArray(obj.cards) ? obj.cards.length : 0,
+          children: []
+        });
+      });
+    }
+
+    // Pastas customizadas em tutoria
+    if (state.custom_tutoria_folders) {
+      Object.entries(state.custom_tutoria_folders).forEach(([id, obj]) => {
+        if (!obj) return;
+        tutoriaNode.children.push({
+          id: id,
+          name: obj.name || obj.title || 'Pasta',
+          icon: '📂',
+          type: 'custom_tutoria',
+          badge: 'Personalizada',
+          cardCount: Array.isArray(obj.cards) ? obj.cards.length : 0,
+          children: []
+        });
+      });
+    }
+    rootNodes.push(tutoriaNode);
+
+    // 2. Módulos / Provas (Raiz de Provas)
+    const provasNode = {
+      id: 'provas',
+      name: 'Módulos / Prova de Módulo',
+      icon: '📝',
+      type: 'provas_root',
+      badge: 'Pasta Principal',
+      cardCount: 0,
+      children: []
+    };
+
+    if (state.provas) {
+      Object.entries(state.provas).forEach(([id, obj]) => {
+        if (!obj) return;
+        provasNode.children.push({
+          id: id,
+          name: obj.title || obj.name || id,
+          icon: '📁',
+          type: 'prova_item',
+          badge: 'Módulo',
+          cardCount: Array.isArray(obj.cards) ? obj.cards.length : 0,
+          children: []
+        });
+      });
+    }
+
+    if (state.custom_prova_folders) {
+      Object.entries(state.custom_prova_folders).forEach(([id, obj]) => {
+        if (!obj) return;
+        provasNode.children.push({
+          id: id,
+          name: obj.name || obj.title || 'Pasta',
+          icon: '📂',
+          type: 'custom_prova',
+          badge: 'Personalizada',
+          cardCount: Array.isArray(obj.cards) ? obj.cards.length : 0,
+          children: []
+        });
+      });
+    }
+    rootNodes.push(provasNode);
+
+    // 3. Outras pastas raiz personalizadas (se houver)
+    if (state.custom_root_folders) {
+      Object.entries(state.custom_root_folders).forEach(([id, obj]) => {
+        if (!obj) return;
+        rootNodes.push({
+          id: id,
+          name: obj.name || obj.title || 'Pasta Raiz',
+          icon: '🗂️',
+          type: 'custom_root',
+          badge: 'Personalizada',
+          cardCount: Array.isArray(obj.cards) ? obj.cards.length : 0,
+          children: []
+        });
+      });
+    }
+
+    // 4. Anexa recursivamente todas as subpastas criadas em getSubfolderStore()
+    const allKnownMap = new Map();
+    function registerMap(node) {
+      allKnownMap.set(node.id, node);
+      if (node.children) {
+        node.children.forEach(registerMap);
+      }
+    }
+    rootNodes.forEach(registerMap);
+
+    // Adiciona cada subpasta ao seu pai correspondente
+    const pendingSubfolders = Object.values(sfStore);
+    let passes = 0;
+    while (pendingSubfolders.length > 0 && passes < 10) {
+      passes++;
+      for (let i = pendingSubfolders.length - 1; i >= 0; i--) {
+        const sf = pendingSubfolders[i];
+        if (!sf || !sf.id) {
+          pendingSubfolders.splice(i, 1);
+          continue;
+        }
+        const parentId = sf.parentId || sf.parent || 'tutoria';
+        const parentNode = allKnownMap.get(parentId);
+        if (parentNode) {
+          const sfNode = {
+            id: sf.id,
+            name: sf.name || sf.title || 'Subpasta',
+            icon: '📁',
+            type: 'subfolder',
+            badge: 'Subpasta',
+            cardCount: Array.isArray(sf.cards) ? sf.cards.length : 0,
+            children: []
+          };
+          parentNode.children.push(sfNode);
+          allKnownMap.set(sf.id, sfNode);
+          pendingSubfolders.splice(i, 1);
+        }
+      }
+    }
+
+    // Se sobrou alguma subpasta órfã, anexa em tutoria
+    if (pendingSubfolders.length > 0) {
+      pendingSubfolders.forEach(sf => {
+        const orphanNode = {
+          id: sf.id,
+          name: sf.name || sf.title || 'Subpasta',
+          icon: '📁',
+          type: 'subfolder',
+          badge: 'Subpasta',
+          cardCount: Array.isArray(sf.cards) ? sf.cards.length : 0,
+          children: []
+        };
+        tutoriaNode.children.push(orphanNode);
+      });
+    }
+
+    return rootNodes;
+  };
+
+  // Renderiza a árvore de pastas no modal
+  window.renderImportFolderTree = function() {
+    const container = document.getElementById('import-target-tree-container');
+    if (!container) return;
+
+    const roots = getAllFoldersHierarchy();
+    const filter = (window.__importTreeFilterTerm || '').toLowerCase().trim();
+    const selectedId = window.__importSelectedTargetFolderId || 'tutoria';
+
+    function matchesFilter(node) {
+      if (!filter) return true;
+      if ((node.name || '').toLowerCase().includes(filter)) return true;
+      if (node.children && node.children.some(matchesFilter)) return true;
+      return false;
+    }
+
+    function renderNode(node, depth = 0) {
+      if (!matchesFilter(node)) return '';
+      const isSelected = node.id === selectedId;
+      const indent = depth * 22;
+
+      let html = \`
+        <div class="mr-tree-row \${isSelected ? 'mr-tree-row-selected' : ''}" onclick="selectImportTargetFolder('\${node.id}')" style="display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.85rem; padding-left:\${indent + 14}px; border-radius:10px; cursor:pointer; transition:all 0.15s ease; border:1.5px solid \${isSelected ? '#16a34a' : 'transparent'}; background:\${isSelected ? '#dcfce7' : '#ffffff'}; margin-bottom:0.25rem;">
+          <div style="display:flex; align-items:center; gap:0.6rem; min-width:0; flex:1;">
+            <input type="radio" name="import_target_radio" \${isSelected ? 'checked' : ''} style="accent-color:#16a34a; cursor:pointer; width:1.05rem; height:1.05rem;" onclick="event.stopPropagation(); selectImportTargetFolder('\${node.id}')">
+            <span style="font-size:1.15rem; line-height:1;">\${node.icon || '📁'}</span>
+            <div style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <span style="font-size:0.9rem; font-weight:\${isSelected ? '800' : '600'}; color:\${isSelected ? '#14532d' : '#0f172a'};">\${escapeHtml(node.name)}</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.45rem; flex-shrink:0;">
+            <span style="font-size:0.72rem; font-weight:700; background:\${isSelected ? '#bbf7d0' : '#f1f5f9'}; color:\${isSelected ? '#14532d' : '#64748b'}; padding:0.18rem 0.5rem; border-radius:5px;">
+              \${node.cardCount} carta\${node.cardCount !== 1 ? 's' : ''}
+            </span>
+            <span style="font-size:0.7rem; font-weight:700; background:\${node.type === 'subfolder' ? '#fef3c7' : '#ecfdf5'}; color:\${node.type === 'subfolder' ? '#92400e' : '#15803d'}; padding:0.18rem 0.45rem; border-radius:5px; border:1px solid \${node.type === 'subfolder' ? '#fde68a' : '#bbf7d0'};">
+              \${node.badge || 'Pasta'}
+            </span>
+          </div>
+        </div>
+      \`;
+
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(ch => {
+          html += renderNode(ch, depth + 1);
+        });
+      }
+      return html;
+    }
+
+    let fullHtml = '';
+    roots.forEach(r => {
+      fullHtml += renderNode(r, 0);
+    });
+
+    if (!fullHtml.trim()) {
+      fullHtml = '<div style="text-align:center; padding:2rem 1rem; color:#64748b; font-size:0.88rem;">Nenhuma pasta encontrada com esse filtro.</div>';
+    }
+
+    container.innerHTML = fullHtml;
+
+    // Atualiza label da pasta selecionada
+    const selInfo = resolveFolderInfo(selectedId);
+    const selNameEl = document.getElementById('import-target-selected-name');
+    if (selNameEl) {
+      selNameEl.textContent = selInfo ? selInfo.name : 'Tutoria';
+    }
+  };
+
+  window.selectImportTargetFolder = function(folderId) {
+    window.__importSelectedTargetFolderId = folderId;
+    window.__activeFolderContext = folderId;
+    renderImportFolderTree();
+  };
+
+  window.filterImportTree = function(val) {
+    window.__importTreeFilterTerm = val || '';
+    renderImportFolderTree();
+  };
+
+  // Abre criação de subpasta de dentro do seletor e volta para o seletor com a nova selecionada
+  window.openCreateFolderFromImportPicker = function() {
+    window.__creatingFromImportPicker = true;
+    const parentId = window.__importSelectedTargetFolderId || 'tutoria';
+    closeImportTargetModal();
+    openSubfolderCreateModal(parentId);
+  };
+
+  // Continua do Seletor de Destino (Passo 1) para o Modal CSV (Passo 2)
+  window.proceedFromTargetToCsvModal = function() {
+    const chosenFolderId = window.__importSelectedTargetFolderId || 'tutoria';
+    closeImportTargetModal();
+    realOpenCsvImportModal(chosenFolderId);
+  };
+
+  // Fluxo principal acionado ao clicar em "📥 Importar" no Header ou no menu
+  window.openImportFlow = function(initialFolderId) {
+    // 1. Determina pré-seleção: se houver pasta ativa ou passada por parâmetro usa ela, senão tutoria
+    let preselected = initialFolderId;
+    if (!preselected && typeof currentFolderContext === 'function') {
+      preselected = currentFolderContext();
+    }
+    if (!preselected && window.__activeFolderContext) {
+      preselected = window.__activeFolderContext;
+    }
+    if (!preselected && typeof studyState !== 'undefined' && studyState && studyState.deckId) {
+      preselected = studyState.deckId;
+    }
+    if (!preselected || preselected === 'home' || preselected === 'all' || preselected === 'study') {
+      preselected = 'tutoria';
+    }
+
+    window.__importSelectedTargetFolderId = preselected;
+    window.__activeFolderContext = preselected;
+    window.__importTreeFilterTerm = '';
+
+    const searchInput = document.getElementById('import-target-search');
+    if (searchInput) searchInput.value = '';
+
+    renderImportFolderTree();
+
+    const targetModal = document.getElementById('import-target-modal');
+    if (targetModal) {
+      targetModal.style.display = 'flex';
+    } else {
+      // Fallback de segurança se o modal ainda não estiver no DOM
+      realOpenCsvImportModal(preselected);
+    }
+  };
+  window.__realOpenImportFlow = window.openImportFlow;
+
+  window.closeImportTargetModal = function() {
+    const modal = document.getElementById('import-target-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  // Processa contexto pendente caso tenha sido chamado antes do script rodar
+  if (typeof window.__pendingImportFlowCtx !== 'undefined') {
+    const pendingImportFlow = window.__pendingImportFlowCtx;
+    delete window.__pendingImportFlowCtx;
+    setTimeout(() => window.openImportFlow(pendingImportFlow), 0);
+  }
+
   const realOpenCsvImportModal = function(targetFolderId) {
     const targetCtx = targetFolderId || window.__activeFolderContext || (typeof currentFolderContext === 'function' ? currentFolderContext() : 'tutoria');
     window.__activeFolderContext = targetCtx;
+    window.__importSelectedTargetFolderId = targetCtx;
 
     const info = resolveFolderInfo(targetCtx);
     const folderName = info ? info.name : 'Pasta Atual';
 
     const lbl = document.getElementById('csv-import-target-label');
     if (lbl) {
-      lbl.innerHTML = 'Destino das cartas: <strong>' + escapeHtml(folderName) + '</strong>';
+      lbl.innerHTML = 'Destino das cartas: <strong>' + escapeHtml(folderName) + '</strong> <button type="button" onclick="closeCsvImportModal(); openImportFlow(\\'' + targetCtx + '\\')" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; font-size:0.75rem; font-weight:800; padding:0.15rem 0.5rem; margin-left:0.4rem; cursor:pointer;">(Alterar pasta)</button>';
     }
 
     // Reset estado interno do modal
@@ -766,11 +1146,17 @@ function injectHierarchySupport(html: string): string {
   };
   window.__realOpenCsvImportModal = realOpenCsvImportModal;
   window.openCsvImportModal = realOpenCsvImportModal;
-  window.openCsvImport = function(ctx) { realOpenCsvImportModal(ctx); };
+  window.openCsvImport = function(ctx) {
+    if (typeof window.openImportFlow === 'function') {
+      window.openImportFlow(ctx);
+    } else {
+      realOpenCsvImportModal(ctx);
+    }
+  };
   if (typeof window.__pendingCsvImportCtx !== 'undefined') {
     const pendingCsv = window.__pendingCsvImportCtx;
     delete window.__pendingCsvImportCtx;
-    setTimeout(() => realOpenCsvImportModal(pendingCsv), 0);
+    setTimeout(() => window.openImportFlow(pendingCsv), 0);
   }
 
   window.closeCsvImportModal = function() {
@@ -1098,6 +1484,25 @@ function injectHierarchySupport(html: string): string {
 
     if (typeof showToast === 'function') {
       showToast('Subpasta "' + name + '" criada com sucesso!');
+    }
+
+    // Se o modal de destino de importação tiver disparado a criação, reabre-o com a nova subpasta selecionada
+    if (window.__creatingFromImportPicker) {
+      window.__creatingFromImportPicker = false;
+      window.__importSelectedTargetFolderId = subfolderId;
+      window.__activeFolderContext = subfolderId;
+      const targetModal = document.getElementById('import-target-modal');
+      if (targetModal) {
+        targetModal.style.display = 'flex';
+        renderImportFolderTree();
+      }
+    } else if (window.__importSelectedTargetFolderId) {
+      window.__importSelectedTargetFolderId = subfolderId;
+      window.__activeFolderContext = subfolderId;
+      const targetModal = document.getElementById('import-target-modal');
+      if (targetModal && targetModal.style.display !== 'none') {
+        renderImportFolderTree();
+      }
     }
 
     // Se estiver navegando na subpasta pai ou renderizar rota
@@ -1504,29 +1909,17 @@ function injectHierarchySupport(html: string): string {
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  (function setupFloatingCsvButton(){
+  (function removeLegacyFloatingCsvButton(){
     var BTN_ID='mr-global-floating-csv-btn';
-    function ensure(){
-      if(!document.body||document.getElementById(BTN_ID))return;
-      var b=document.createElement('button');
-      b.id=BTN_ID;
-      b.innerHTML='📥 Importar CSV';
-      b.title='Importar flashcards via CSV para a pasta atual';
-      b.setAttribute('style','position:fixed;bottom:24px;right:24px;z-index:999999;display:inline-flex;align-items:center;gap:.5rem;background:#16a34a;color:#fff;font-weight:800;font-size:.92rem;padding:.75rem 1.25rem;border-radius:9999px;border:2px solid #86efac;box-shadow:0 8px 24px rgba(22,163,74,.35);cursor:pointer;pointer-events:auto;user-select:none');
-      b.onmouseenter=function(){b.style.background='#15803d';};
-      b.onmouseleave=function(){b.style.background='#16a34a';};
-      b.onclick=function(){
-        var ctx=null;
-        if(typeof window.currentFolderContext==='function')ctx=window.currentFolderContext();
-        if(!ctx&&window.studyState&&window.studyState.deckId)ctx=window.studyState.deckId;
-        if(typeof window.openCsvImportModal==='function')window.openCsvImportModal(ctx);
-        else if(typeof window.openCsvImport==='function')window.openCsvImport(ctx);
-      };
-      document.body.appendChild(b);
+    function clean(){
+      var el = document.getElementById(BTN_ID);
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
     }
-    ensure();
-    new MutationObserver(ensure).observe(document.documentElement,{childList:true,subtree:true});
-    setInterval(ensure,1000);
+    clean();
+    setTimeout(clean, 100);
+    setInterval(clean, 1500);
   })();
 
 })();
