@@ -832,9 +832,9 @@ function injectHierarchySupport(html: string): string {
 
 })();
 </script>
-  `;
+  `
 
-  return html.replace('</body>', hierarchyScript + '\n</body>');
+  return html.replace('</body>', hierarchyScript + '\n</body>')
 }
 
 export default function Index() {
