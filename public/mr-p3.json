@@ -63,7 +63,7 @@
     [
       "t",
       "<p class=\"home-hero-subtitle\">Revisão médica ativa com algoritmo SM-2 para retenção clínica de longo prazo.</p>",
-      "<p class=\"home-hero-subtitle\">Revisão médica ativa com FSRS-5 — o algoritmo que substituiu o SM-2 no Anki — para retenção clínica de longo prazo.</p>",
+      "<p class=\"home-hero-subtitle\">Revisão médica ativa por FSRS-5</p>",
       false
     ],
     ["t", "Revisão Médica SM-2", "Revisão Médica FSRS-5", true],
