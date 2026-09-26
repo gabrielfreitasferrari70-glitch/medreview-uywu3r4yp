@@ -2630,6 +2630,357 @@ function injectHierarchySupport(html: string): string {
       '</div>';
   }
 
+  // Helper para iniciar o estudo de uma carta única a partir do modal de estatísticas
+  window.studyCardFromStats = function(cardId) {
+    if (!cardId) return;
+    if (typeof window.closeGlobalStatsModal === 'function') {
+      window.closeGlobalStatsModal();
+    }
+    if (typeof window.closeDetailedStatsModal === 'function') {
+      try { window.closeDetailedStatsModal(); } catch { /* intentionally ignored */ }
+    }
+
+    if (typeof window.studySingleCard === 'function') {
+      try {
+        window.studySingleCard(cardId);
+        return;
+      } catch (e) {
+        console.warn('Falha em studySingleCard:', e);
+      }
+    }
+
+    // Busca o objeto da carta no acervo global
+    let targetCard = null;
+    if (typeof window.findCardInState === 'function') {
+      try { targetCard = window.findCardInState(cardId); } catch { /* intentionally ignored */ }
+    }
+    if (!targetCard) {
+      const allCards = getAllAppCards();
+      targetCard = allCards.find(c => c && c.id === cardId);
+    }
+
+    if (!targetCard) {
+      alert('Carta não encontrada no acervo.');
+      return;
+    }
+
+    if (typeof window.startStudySession === 'function') {
+      try {
+        window.startStudySession(targetCard.containerId || 'custom', [targetCard]);
+        return;
+      } catch (e) {
+        console.warn('Falha em startStudySession:', e);
+      }
+    }
+
+    if (typeof window.studyState !== 'undefined') {
+      try {
+        window.studyState.deckId = targetCard.containerId || 'single_card';
+        window.studyState.deckTitle = 'Revisão Pontual';
+        window.studyState.cards = [targetCard];
+        window.studyState.sessionCards = [targetCard];
+        window.studyState.currentIndex = 0;
+        window.studyState.isFlipped = false;
+        window.studyState.userTypedAnswer = '';
+        if (typeof window.renderStudyInterface === 'function') {
+          window.renderStudyInterface();
+          return;
+        }
+      } catch (e) {
+        console.warn('Falha ao configurar studyState:', e);
+      }
+    }
+
+    if (typeof window.studyDeck === 'function' && targetCard.containerId) {
+      window.studyDeck(targetCard.containerId);
+    }
+  };
+
+  // Seção 14: Estatísticas Aprofundadas (Top 10 Erros, Evolução Diária, Leeches, Heatmap de 17 semanas)
+  function renderAdvancedDeepStatsHtml(folderId) {
+    const isGlobal = folderId === null || typeof folderId === 'undefined' || folderId === 'all';
+    const allCards = isGlobal ? getAllAppCards() : getFolderAllCards(folderId);
+    const cardIdSet = new Set((allCards || []).map(c => c && c.id).filter(Boolean));
+    const history = getStoredFolderEvalHistory() || [];
+
+    const relevantHistory = isGlobal
+      ? history.filter(h => h && h.cardId)
+      : history.filter(h => h && h.cardId && cardIdSet.has(h.cardId));
+
+    // Threshold de leech (padrão 8)
+    let leechThreshold = 8;
+    try {
+      if (typeof window.getLeechThreshold === 'function') {
+        leechThreshold = window.getLeechThreshold();
+      } else {
+        const raw = localStorage.getItem('medreview_leech_threshold');
+        if (raw) {
+          const parsed = parseInt(raw, 10);
+          if (!isNaN(parsed) && parsed >= 2) leechThreshold = parsed;
+        }
+      }
+    } catch (e) {
+      leechThreshold = 8;
+    }
+
+    // 1. Top 10 Cartas com Maior Taxa de Erro
+    const cardErrorMap = new Map();
+    (allCards || []).forEach(c => {
+      if (!c || !c.id) return;
+      const lapses = (typeof c.lapses === 'number' ? c.lapses : 0) || (typeof c.errorCount === 'number' ? c.errorCount : 0);
+      cardErrorMap.set(c.id, { card: c, errors: lapses });
+    });
+
+    relevantHistory.forEach(h => {
+      if (!h || !h.cardId) return;
+      const q = String(h.quality || '').toLowerCase();
+      const r = typeof h.rating === 'number' ? h.rating : 0;
+      if (q === 'again' || r === 1) {
+        const item = cardErrorMap.get(h.cardId);
+        if (item) {
+          item.errors += 1;
+        }
+      }
+    });
+
+    const top10Errors = Array.from(cardErrorMap.values())
+      .filter(it => it.errors > 0)
+      .sort((a, b) => b.errors - a.errors)
+      .slice(0, 10);
+
+    let top10Html = '';
+    if (top10Errors.length === 0) {
+      top10Html = '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.25rem 1rem; text-align:center; font-size:0.85rem; color:#64748b; line-height:1.5;">' +
+        'Nenhum ponto crítico detectado ainda! Conforme você avalia cartas nas sessões de estudo, o ranking das 10 cartas mais erradas será calculado automaticamente.' +
+        '</div>';
+    } else {
+      top10Html = '<div style="display:flex; flex-direction:column; gap:0.5rem;">';
+      top10Errors.forEach((it, idx) => {
+        const c = it.card;
+        const qText = c.q || 'Pergunta sem texto';
+        const snippet = qText.length > 80 ? qText.slice(0, 80) + '...' : qText;
+        const origin = c.folderTitle || c.containerType || (isGlobal ? 'Acervo' : 'Esta pasta');
+        const icon = c.icon || '⚠️';
+
+        top10Html += '<div onclick="studyCardFromStats(\\'' + escapeHtml(c.id) + '\\')" style="background:#ffffff; border:1px solid #fecaca; border-radius:10px; padding:0.65rem 0.9rem; display:flex; align-items:center; justify-content:space-between; gap:0.8rem; cursor:pointer; transition:all 0.15s ease; box-shadow:0 1px 3px rgba(0,0,0,0.03);" onmouseover="this.style.background=\\'#fef2f2\\'; this.style.borderColor=\\'#f87171\\'" onmouseout="this.style.background=\\'#ffffff\\'; this.style.borderColor=\\'#fecaca\\'" title="Clique para estudar imediatamente">' +
+          '<div style="display:flex; align-items:center; gap:0.55rem; min-width:0; flex:1;">' +
+          '<span style="background:#fee2e2; color:#991b1b; font-weight:800; font-size:0.74rem; padding:0.18rem 0.48rem; border-radius:6px; flex-shrink:0;">#' + (idx + 1) + '</span>' +
+          '<span style="font-size:0.95rem; flex-shrink:0;">' + icon + '</span>' +
+          '<span style="font-size:0.73rem; font-weight:700; color:#047857; background:#dcfce7; padding:0.12rem 0.45rem; border-radius:4px; flex-shrink:0; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(origin) + '</span>' +
+          '<span style="font-weight:700; font-size:0.83rem; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(snippet) + '</span>' +
+          '</div>' +
+          '<div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">' +
+          '<span style="background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5; font-size:0.75rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:6px;">' +
+          it.errors + ' erro' + (it.errors !== 1 ? 's' : '') +
+          '</span>' +
+          '<span style="font-size:0.72rem; color:#15803d; font-weight:700; display:inline-flex; align-items:center; gap:0.2rem;">Estudar ➜</span>' +
+          '</div>' +
+          '</div>';
+      });
+      top10Html += '</div>';
+    }
+
+    // 2. Evolução da Taxa de Acerto por Dia de Estudo
+    const dayStats = {};
+    relevantHistory.forEach(h => {
+      if (!h) return;
+      let d = null;
+      if (typeof h.date === 'string' && h.date.length >= 10) {
+        d = h.date.slice(0, 10);
+      } else if (typeof h.timestamp === 'number' && h.timestamp > 0) {
+        d = new Date(h.timestamp).toISOString().split('T')[0];
+      } else if (typeof h.reviewedAt === 'number' && h.reviewedAt > 0) {
+        d = new Date(h.reviewedAt).toISOString().split('T')[0];
+      } else if (typeof h.reviewedAt === 'string' && h.reviewedAt.length >= 10) {
+        d = h.reviewedAt.slice(0, 10);
+      }
+      if (!d) return;
+
+      if (!dayStats[d]) dayStats[d] = { total: 0, good: 0 };
+      dayStats[d].total += 1;
+      const q = String(h.quality || '').toLowerCase();
+      const r = typeof h.rating === 'number' ? h.rating : 0;
+      if (q === 'good' || q === 'easy' || r === 3 || r === 4) {
+        dayStats[d].good += 1;
+      }
+    });
+
+    const sortedDays = Object.keys(dayStats).sort();
+    let evolutionHtml = '';
+    if (sortedDays.length === 0) {
+      evolutionHtml = '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.25rem 1rem; text-align:center; font-size:0.85rem; color:#64748b; line-height:1.5;">' +
+        'Ainda não há histórico diário de avaliações. Complete sessões de estudo para acompanhar a evolução da sua taxa de acerto por dia.' +
+        '</div>';
+    } else {
+      // Mostra até os últimos 14 dias de estudo
+      const displayDays = sortedDays.slice(-14);
+      evolutionHtml = '<div style="background:#ffffff; border:1px solid #d1fae5; border-radius:12px; padding:1rem 1.1rem; display:flex; flex-direction:column; gap:0.75rem;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#64748b; font-weight:700; margin-bottom:0.25rem;">' +
+        '<span>Dia de Estudo</span>' +
+        '<span>Taxa de Acerto (Boas / Fáceis)</span>' +
+        '</div>';
+
+      displayDays.forEach(d => {
+        const st = dayStats[d];
+        const pct = st.total > 0 ? Math.round((st.good / st.total) * 100) : 0;
+        const color = pct >= 85 ? '#16a34a' : pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#dc2626';
+        const parts = d.split('-');
+        const dateFormatted = parts.length === 3 ? (parts[2] + '/' + parts[1]) : d;
+
+        evolutionHtml += '<div style="display:flex; align-items:center; gap:0.75rem;">' +
+          '<span style="font-size:0.76rem; font-weight:700; color:#334155; min-width:44px;">' + dateFormatted + '</span>' +
+          '<div style="flex:1; height:10px; background:#e2e8f0; border-radius:9999px; overflow:hidden;">' +
+          '<div style="height:100%; width:' + pct + '%; background:' + color + '; border-radius:9999px; transition:width 0.3s ease;"></div>' +
+          '</div>' +
+          '<span style="font-size:0.78rem; font-weight:800; color:' + color + '; min-width:42px; text-align:right;">' + pct + '%</span>' +
+          '<span style="font-size:0.7rem; color:#94a3b8; min-width:60px; text-align:right;">(' + st.good + '/' + st.total + ')</span>' +
+          '</div>';
+      });
+
+      evolutionHtml += '</div>';
+    }
+
+    // 3. Leeches (8+ lapsos acumulados)
+    const leeches = (allCards || [])
+      .filter(c => {
+        if (!c || !c.id) return false;
+        const lapses = (typeof c.lapses === 'number' ? c.lapses : 0);
+        return lapses >= leechThreshold;
+      })
+      .sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
+
+    let leechesHtml = '';
+    if (leeches.length === 0) {
+      leechesHtml = '<div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.25rem 1rem; text-align:center; font-size:0.88rem; color:#64748b;">' +
+        'Nenhuma leech até agora. 👍' +
+        '</div>';
+    } else {
+      leechesHtml = '<div style="display:flex; flex-direction:column; gap:0.5rem;">';
+      leeches.slice(0, 10).forEach(c => {
+        const qText = c.q || 'Sem texto';
+        const snippet = qText.length > 75 ? qText.slice(0, 75) + '...' : qText;
+        const origin = c.folderTitle || c.containerType || (isGlobal ? 'Acervo' : 'Esta pasta');
+        const icon = c.icon || '🎯';
+
+        leechesHtml += '<div onclick="studyCardFromStats(\\'' + escapeHtml(c.id) + '\\')" style="background:#ffffff; border:1px solid #fecaca; border-radius:10px; padding:0.65rem 0.9rem; display:flex; align-items:center; justify-content:space-between; gap:0.8rem; cursor:pointer; transition:all 0.15s ease; box-shadow:0 1px 3px rgba(0,0,0,0.03);" onmouseover="this.style.background=\\'#fef2f2\\'; this.style.borderColor=\\'#f87171\\'" onmouseout="this.style.background=\\'#ffffff\\'; this.style.borderColor=\\'#fecaca\\'" title="Clique para estudar imediatamente">' +
+          '<div style="display:flex; align-items:center; gap:0.55rem; min-width:0; flex:1;">' +
+          '<span style="font-size:0.82rem; font-weight:800; color:#b91c1c; min-width:24px;">' + (c.lapses || 0) + '×</span>' +
+          '<span style="font-size:0.95rem; flex-shrink:0;">' + icon + '</span>' +
+          '<span style="font-size:0.73rem; font-weight:700; color:#047857; background:#dcfce7; padding:0.12rem 0.45rem; border-radius:4px; flex-shrink:0; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(origin) + '</span>' +
+          '<span style="font-weight:700; font-size:0.83rem; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(snippet) + '</span>' +
+          '</div>' +
+          '<div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">' +
+          '<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:0.74rem; font-weight:800; padding:0.18rem 0.55rem; border-radius:6px;">🩸 leech</span>' +
+          '<span style="font-size:0.72rem; color:#15803d; font-weight:700;">Revisar ➜</span>' +
+          '</div>' +
+          '</div>';
+      });
+      leechesHtml += '</div>';
+    }
+
+    // 4. Consistência de Estudo (últimas 17 semanas) - Heatmap estilo GitHub
+    const byDayMap = {};
+    relevantHistory.forEach(e => {
+      if (!e) return;
+      let d = null;
+      if (typeof e.date === 'string' && e.date.length >= 10) {
+        d = e.date.slice(0, 10);
+      } else if (typeof e.timestamp === 'number' && e.timestamp > 0) {
+        d = new Date(e.timestamp).toISOString().split('T')[0];
+      } else if (typeof e.reviewedAt === 'number' && e.reviewedAt > 0) {
+        d = new Date(e.reviewedAt).toISOString().split('T')[0];
+      } else if (typeof e.reviewedAt === 'string' && e.reviewedAt.length >= 10) {
+        d = e.reviewedAt.slice(0, 10);
+      }
+      if (d) {
+        byDayMap[d] = (byDayMap[d] || 0) + 1;
+      }
+    });
+
+    const heatmapCells = [];
+    const today = new Date();
+    // 17 semanas = 119 dias (118 até 0)
+    for (let i = 118; i >= 0; i--) {
+      const dt = new Date(today.getTime() - i * 86400000);
+      const ds = dt.toISOString().split('T')[0];
+      heatmapCells.push({ ds, n: byDayMap[ds] || 0 });
+    }
+
+    const lvl = (n) => n === 0 ? 0 : n <= 5 ? 1 : n <= 15 ? 2 : n <= 30 ? 3 : 4;
+    const colors = ['#e5e7eb', '#bbf7d0', '#86efac', '#4ade80', '#16a34a'];
+
+    let heatmapCellsHtml = '';
+    heatmapCells.forEach(c => {
+      const parts = c.ds.split('-');
+      const dsFormatted = parts.length === 3 ? (parts[2] + '/' + parts[1] + '/' + parts[0]) : c.ds;
+      heatmapCellsHtml += '<div title="' + dsFormatted + ': ' + c.n + ' carta' + (c.n !== 1 ? 's' : '') + ' avaliada' + (c.n !== 1 ? 's' : '') + '" style="aspect-ratio:1; border-radius:3px; background:' + colors[lvl(c.n)] + '; transition:transform 0.1s ease; cursor:default;" onmouseover="this.style.transform=\\'scale(1.25)\\'" onmouseout="this.style.transform=\\'scale(1)\\'"></div>';
+    });
+
+    const heatmapHtml = '<div style="background:#ffffff; border:1px solid #d1fae5; border-radius:14px; padding:1.15rem 1.25rem; box-shadow:0 1px 4px rgba(0,0,0,0.02);">' +
+      '<div style="display:grid; grid-template-columns:repeat(17, 1fr); gap:3px;">' +
+      heatmapCellsHtml +
+      '</div>' +
+      '<div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.65rem; font-size:0.73rem; color:#64748b; justify-content:flex-end;">' +
+      'Menos ' +
+      '<span style="width:10px; height:10px; border-radius:2px; background:#e5e7eb; display:inline-block;" title="0 cartas"></span>' +
+      '<span style="width:10px; height:10px; border-radius:2px; background:#bbf7d0; display:inline-block;" title="1-5 cartas"></span>' +
+      '<span style="width:10px; height:10px; border-radius:2px; background:#86efac; display:inline-block;" title="6-15 cartas"></span>' +
+      '<span style="width:10px; height:10px; border-radius:2px; background:#4ade80; display:inline-block;" title="16-30 cartas"></span>' +
+      '<span style="width:10px; height:10px; border-radius:2px; background:#16a34a; display:inline-block;" title="30+ cartas"></span>' +
+      ' Mais' +
+      '</div>' +
+      '</div>';
+
+    // Monta o container completo com as 4 seções
+    return '<div class="mr-advanced-deep-stats" style="margin-top:2rem; padding-top:1.5rem; border-top:2px dashed #bbf7d0;">' +
+
+      // SEÇÃO 1: Top 10 Cartas com Maior Taxa de Erro no Acervo
+      '<div style="margin-bottom:1.8rem;">' +
+      '<h4 style="margin:0 0 0.3rem 0; font-size:1.02rem; font-weight:800; color:#b91c1c; display:flex; align-items:center; gap:0.45rem;">' +
+      '<span>⚠️</span> Top 10 Cartas com Maior Taxa de Erro no Acervo' +
+      '</h4>' +
+      '<p style="margin:0 0 0.75rem 0; font-size:0.8rem; color:#64748b; line-height:1.45;">' +
+      'Cartas com maior histórico de erros ou regressões de intervalo. Clique em qualquer item para estudar imediatamente.' +
+      '</p>' +
+      top10Html +
+      '</div>' +
+
+      // SEÇÃO 2: Evolução da Taxa de Acerto por Dia de Estudo
+      '<div style="margin-bottom:1.8rem;">' +
+      '<h4 style="margin:0 0 0.3rem 0; font-size:1.02rem; font-weight:800; color:#065f46; display:flex; align-items:center; gap:0.45rem;">' +
+      '<span>📈</span> Evolução da Taxa de Acerto por Dia de Estudo' +
+      '</h4>' +
+      '<p style="margin:0 0 0.75rem 0; font-size:0.8rem; color:#64748b; line-height:1.45;">' +
+      'Acompanhamento do percentual de respostas Boas/Fáceis nos últimos dias com estudo ativo.' +
+      '</p>' +
+      evolutionHtml +
+      '</div>' +
+
+      // SEÇÃO 3: Leeches (cartas que você esquece repetidamente)
+      '<div style="margin-bottom:1.8rem;">' +
+      '<h4 style="margin:0 0 0.3rem 0; font-size:1.02rem; font-weight:800; color:#b91c1c; display:flex; align-items:center; gap:0.45rem;">' +
+      '<span>🩸</span> Leeches (cartas que você esquece repetidamente)' +
+      '</h4>' +
+      '<p style="margin:0 0 0.75rem 0; font-size:0.8rem; color:#64748b; line-height:1.45;">' +
+      'Cartas com ' + leechThreshold + '+ lapsos acumulados. Sugestão: reformule a carta (mais atômica), crie um mnemônico ou revise o conceito na fonte.' +
+      '</p>' +
+      leechesHtml +
+      '</div>' +
+
+      // SEÇÃO 4: Consistência de Estudo (últimas 17 semanas)
+      '<div style="margin-bottom:1.2rem;">' +
+      '<h4 style="margin:0 0 0.3rem 0; font-size:1.02rem; font-weight:800; color:#065f46; display:flex; align-items:center; gap:0.45rem;">' +
+      '<span>🔥</span> Consistência de Estudo (últimas 17 semanas)' +
+      '</h4>' +
+      '<p style="margin:0 0 0.75rem 0; font-size:0.8rem; color:#64748b; line-height:1.45;">' +
+      'Número de cartas avaliadas por dia — como o heatmap de contribuições do GitHub.' +
+      '</p>' +
+      heatmapHtml +
+      '</div>' +
+
+      '</div>';
+  }
+
   // Estado da pasta atualmente selecionada no modal
   window.__selectedStatsFolderId = null;
 
@@ -2687,7 +3038,10 @@ function injectHierarchySupport(html: string): string {
     // Tabela completa de Desempenho Detalhado por Pasta
     const detailedTableHtml = renderDetailedFoldersPerformanceTable();
 
-    content.innerHTML = selectorHtml + weeklyGoalHtml + statsPanelHtml + detailedTableHtml;
+    // 4 Seções Avançadas de Estatísticas
+    const advancedStatsHtml = renderAdvancedDeepStatsHtml(currentFolderId);
+
+    content.innerHTML = selectorHtml + weeklyGoalHtml + statsPanelHtml + detailedTableHtml + advancedStatsHtml;
   }
 
   // Handlers para Modal de Estatísticas Globais
