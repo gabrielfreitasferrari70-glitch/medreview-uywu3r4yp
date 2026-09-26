@@ -235,6 +235,15 @@ function injectHierarchySupport(html: string): string {
       gap: 0.5rem;
       margin-bottom: 0.5rem;
     }
+    .mr-tutoria-card .mr-folder-card-header,
+    .mr-folder-card-header.mr-tutoria-header {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
     .mr-folder-card-title {
       font-size: 1.05rem;
       font-weight: 800;
@@ -356,6 +365,9 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
     .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover, .mr-subfolder-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(22,163,74,0.14) !important; border-color: #86efac !important; }
     .mr-folder-card-header { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.6rem !important; margin-bottom: 0.85rem !important; min-width: 0 !important; }
+    .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; }
+    .mr-tutoria-card .mr-folder-card-badge, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge { align-self: flex-start !important; margin-bottom: 0.15rem !important; }
+    .mr-tutoria-card .mr-folder-card-title-wrap, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap { width: 100% !important; }
     .mr-folder-card-title { font-size: 1.15rem !important; font-weight: 800 !important; color: #14532d !important; line-height: 1.3 !important; letter-spacing: -0.01em !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
     .mr-folder-card-badge { display: inline-flex !important; align-items: center !important; gap: 0.35rem !important; padding: 0.25rem 0.65rem !important; border-radius: 9999px !important; background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; font-size: 0.75rem !important; font-weight: 700 !important; white-space: nowrap !important; flex-shrink: 0 !important; }
     .mr-folder-card-footer { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; flex-wrap: wrap !important; color: #64748b !important; }
@@ -2353,20 +2365,38 @@ function injectHierarchySupport(html: string): string {
           }
         });
 
+        // Identificação de cartão de tutoria
+        const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
+        if (isTutoriaCard) {
+          card.classList.add('mr-tutoria-card');
+        }
+
         // 4. CABEÇALHO PADRONIZADO
         if (!alreadyHasHeader) {
           let headerEl = card.querySelector('.mr-folder-card-header');
           if (!headerEl) {
             headerEl = document.createElement('div');
-            headerEl.className = 'mr-folder-card-header';
-            headerEl.innerHTML =
-              '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; flex:1;">' +
-                '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
-                '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
-                  (escapeHtml(cleanTitle) || 'Pasta') +
-                '</span>' +
-              '</div>' +
-              '<span class="mr-folder-card-badge">' + escapeHtml(categoryBadge) + '</span>';
+            if (isTutoriaCard) {
+              headerEl.className = 'mr-folder-card-header mr-tutoria-header';
+              headerEl.innerHTML =
+                '<span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
+                '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">' +
+                  '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
+                  '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
+                    (escapeHtml(cleanTitle) || 'Pasta') +
+                  '</span>' +
+                '</div>';
+            } else {
+              headerEl.className = 'mr-folder-card-header';
+              headerEl.innerHTML =
+                '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; flex:1;">' +
+                  '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
+                  '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
+                    (escapeHtml(cleanTitle) || 'Pasta') +
+                  '</span>' +
+                '</div>' +
+                '<span class="mr-folder-card-badge">' + escapeHtml(categoryBadge) + '</span>';
+            }
 
             if (rawTitleEl && rawTitleEl.parentNode) {
               rawTitleEl.remove();
@@ -2379,7 +2409,6 @@ function injectHierarchySupport(html: string): string {
         }
 
         // Limpeza de ícones e contagens nativas duplicadas no corpo do cartão
-        const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
         if (isTutoriaCard) {
           // Remove ícone de pasta duplicado no corpo do cartão (elementos de imagem/svg/span de pasta soltos fora do header e do footer)
           card.querySelectorAll('.deck-icon, .folder-icon, img, svg, i').forEach(el => {
