@@ -1820,7 +1820,7 @@ function injectHierarchySupport(html: string): string {
           </div>
         </div>
 
-        ' + renderFolderStatsPanelHtml(subfolderId, sf.name) + '
+        \${renderFolderStatsPanelHtml(subfolderId, sf.name)}
 
         <!-- Seção de Subpastas Aninhadas -->
         <div style="margin-bottom:2rem;">
