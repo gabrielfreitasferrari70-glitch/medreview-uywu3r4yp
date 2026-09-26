@@ -1504,6 +1504,31 @@ function injectHierarchySupport(html: string): string {
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
+  (function setupFloatingCsvButton(){
+    var BTN_ID='mr-global-floating-csv-btn';
+    function ensure(){
+      if(!document.body||document.getElementById(BTN_ID))return;
+      var b=document.createElement('button');
+      b.id=BTN_ID;
+      b.innerHTML='📥 Importar CSV';
+      b.title='Importar flashcards via CSV para a pasta atual';
+      b.setAttribute('style','position:fixed;bottom:24px;right:24px;z-index:999999;display:inline-flex;align-items:center;gap:.5rem;background:#16a34a;color:#fff;font-weight:800;font-size:.92rem;padding:.75rem 1.25rem;border-radius:9999px;border:2px solid #86efac;box-shadow:0 8px 24px rgba(22,163,74,.35);cursor:pointer;pointer-events:auto;user-select:none');
+      b.onmouseenter=function(){b.style.background='#15803d';};
+      b.onmouseleave=function(){b.style.background='#16a34a';};
+      b.onclick=function(){
+        var ctx=null;
+        if(typeof window.currentFolderContext==='function')ctx=window.currentFolderContext();
+        if(!ctx&&window.studyState&&window.studyState.deckId)ctx=window.studyState.deckId;
+        if(typeof window.openCsvImportModal==='function')window.openCsvImportModal(ctx);
+        else if(typeof window.openCsvImport==='function')window.openCsvImport(ctx);
+      };
+      document.body.appendChild(b);
+    }
+    ensure();
+    new MutationObserver(ensure).observe(document.documentElement,{childList:true,subtree:true});
+    setInterval(ensure,1000);
+  })();
+
 })();
 </script>
   `
