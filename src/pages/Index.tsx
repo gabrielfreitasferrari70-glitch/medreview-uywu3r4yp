@@ -2552,6 +2552,84 @@ function injectHierarchySupport(html: string): string {
     return tableHtml;
   }
 
+  // 13. Meta Semanal (janela deslizante de 7 dias)
+  function renderWeeklyGoalHtml(folderId) {
+    const isGlobal = folderId === null || typeof folderId === 'undefined' || folderId === 'all';
+    const allCards = isGlobal ? getAllAppCards() : getFolderAllCards(folderId);
+    const cardIdSet = new Set((allCards || []).map(c => c && c.id).filter(Boolean));
+
+    const TARGET_CARDS = 100;
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const windowStartMs = now - sevenDaysMs;
+
+    const history = getStoredFolderEvalHistory();
+    const reviewedCardIdsThisWeek = new Set();
+
+    if (Array.isArray(history)) {
+      history.forEach(h => {
+        if (!h || !h.cardId) return;
+        if (!isGlobal && !cardIdSet.has(h.cardId)) return;
+
+        let reviewTime = null;
+        if (typeof h.timestamp === 'number' && !isNaN(h.timestamp) && h.timestamp > 0) {
+          reviewTime = h.timestamp;
+        } else if (typeof h.date === 'string' && h.date.trim()) {
+          const parsed = new Date(h.date).getTime();
+          if (!isNaN(parsed) && parsed > 0) {
+            // Se tiver apenas string de data como 'YYYY-MM-DD', computa o fim daquele dia para não descartar revisões do mesmo dia
+            reviewTime = h.date.length === 10 ? (parsed + 86400000 - 1) : parsed;
+          }
+        } else if (typeof h.reviewedAt === 'number' && !isNaN(h.reviewedAt)) {
+          reviewTime = h.reviewedAt;
+        } else if (typeof h.reviewedAt === 'string') {
+          const parsed = new Date(h.reviewedAt).getTime();
+          if (!isNaN(parsed) && parsed > 0) reviewTime = parsed;
+        }
+
+        // Se o histórico não tiver data de revisão utilizável, ignore
+        if (reviewTime === null) return;
+
+        // Verifica se a revisão ocorreu dentro da janela deslizante dos últimos 7 dias (e até agora)
+        if (reviewTime >= windowStartMs && reviewTime <= now + 60000) {
+          reviewedCardIdsThisWeek.add(h.cardId);
+        }
+      });
+    }
+
+    const currentCount = reviewedCardIdsThisWeek.size;
+    const rawPct = Math.round((currentCount / TARGET_CARDS) * 100);
+    const progressPct = Math.min(100, Math.max(0, rawPct));
+    const isCompleted = currentCount >= TARGET_CARDS;
+
+    const barColor = isCompleted ? '#16a34a' : '#10b981';
+    const cardBorderColor = isCompleted ? '#86efac' : '#d1fae5';
+    const cardBgColor = isCompleted ? '#f0fdf4' : '#ffffff';
+
+    return '<div class="mr-weekly-goal-block" style="background:' + cardBgColor + '; border:1.5px solid ' + cardBorderColor + '; border-radius:16px; padding:1.15rem 1.35rem; margin-bottom:1.4rem; box-shadow:0 3px 12px rgba(22,163,74,0.05); transition:all 0.2s ease;">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">' +
+      '<div style="display:flex; align-items:center; gap:0.55rem;">' +
+      '<span style="font-size:1.35rem;">🎯</span>' +
+      '<div>' +
+      '<div style="font-size:0.95rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">' +
+      '<span>Meta Semanal</span>' +
+      (isCompleted ? '<span style="background:#15803d; color:#ffffff; font-size:0.72rem; font-weight:800; padding:0.18rem 0.55rem; border-radius:9999px; display:inline-flex; align-items:center; gap:0.25rem; box-shadow:0 1px 4px rgba(21,128,61,0.25);">Meta batida! 🎉</span>' : '') +
+      '</div>' +
+      '<div style="font-size:0.74rem; color:#64748b;">Janela deslizante dos últimos 7 dias (meta fixa: 100 cartas)</div>' +
+      '</div></div>' +
+      '<div style="display:flex; align-items:baseline; gap:0.4rem;">' +
+      '<span style="font-size:1.15rem; font-weight:800; color:' + (isCompleted ? '#15803d' : '#0f172a') + ';">' + currentCount + ' / ' + TARGET_CARDS + '</span>' +
+      '<span style="font-size:0.8rem; font-weight:700; color:#64748b;">cartas esta semana</span>' +
+      '<span style="background:' + (isCompleted ? '#dcfce7' : '#f1f5f9') + '; color:' + (isCompleted ? '#15803d' : '#475569') + '; font-weight:800; font-size:0.75rem; padding:0.15rem 0.5rem; border-radius:6px; margin-left:0.25rem;">' + rawPct + '%</span>' +
+      '</div></div>' +
+      '<div>' +
+      '<div style="height:12px; border-radius:9999px; overflow:hidden; background:#e2e8f0; width:100%; position:relative;">' +
+      '<div style="height:100%; width:' + progressPct + '%; background:' + barColor + '; border-radius:9999px; transition:width 0.3s ease; box-shadow:' + (isCompleted ? '0 0 10px rgba(22,163,74,0.4)' : 'none') + ';"></div>' +
+      '</div>' +
+      '</div>' +
+      '</div>';
+  }
+
   // Estado da pasta atualmente selecionada no modal
   window.__selectedStatsFolderId = null;
 
@@ -2600,13 +2678,16 @@ function injectHierarchySupport(html: string): string {
 
     selectorHtml += '</select></div></div>';
 
+    // Bloco da Meta Semanal (janela deslizante de 7 dias)
+    const weeklyGoalHtml = renderWeeklyGoalHtml(currentFolderId);
+
     // Painel isolado com as métricas da pasta escolhida ou visão geral
     const statsPanelHtml = renderFolderStatsPanelHtml(currentFolderId, currentName);
 
     // Tabela completa de Desempenho Detalhado por Pasta
     const detailedTableHtml = renderDetailedFoldersPerformanceTable();
 
-    content.innerHTML = selectorHtml + statsPanelHtml + detailedTableHtml;
+    content.innerHTML = selectorHtml + weeklyGoalHtml + statsPanelHtml + detailedTableHtml;
   }
 
   // Handlers para Modal de Estatísticas Globais
