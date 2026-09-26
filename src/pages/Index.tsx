@@ -261,7 +261,7 @@ function injectHierarchySupport(html: string): string {
   document.body.insertAdjacentHTML('beforeend', modalChoiceHtml);
 
   // Injeta Modal de Seleção de Pasta/Destino para Importação
-  const modalImportTargetSelectHtml = `
+  const modalImportTargetSelectHtml = \`
   <div id="import-target-modal" style="display:none; position:fixed; inset:0; z-index:194; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeImportTargetModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
       <!-- Header -->
@@ -308,11 +308,11 @@ function injectHierarchySupport(html: string): string {
         </div>
       </div>
     </div>
-  </div>`;
+  </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalImportTargetSelectHtml);
 
   // Injeta Modal de Importação de Flashcards via CSV
-  const modalCsvImportHtml = `
+  const modalCsvImportHtml = \`
   <div id="csv-import-modal" style="display:none; position:fixed; inset:0; z-index:195; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCsvImportModal()">    <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
       <!-- Header do Modal -->
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
@@ -1795,13 +1795,13 @@ function injectHierarchySupport(html: string): string {
         const bc = document.createElement('div');
         bc.id = 'mr-breadcrumb-injected';
         bc.className = 'mr-breadcrumb-bar';
-        let bpHtml = '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo('home')">🏠 Início</a>';
+        let bpHtml = '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'home\\')">🏠 Início</a>';
         chain.forEach((item, idx) => {
           bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
           if (idx === chain.length - 1) {
             bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
           } else {
-            bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo('' + item.id + '')">' + escapeHtml(item.name) + '</a>';
+            bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'' + item.id + '\\')">' + escapeHtml(item.name) + '</a>';
           }
         });
         bc.innerHTML = bpHtml;
@@ -1911,15 +1911,10 @@ function injectHierarchySupport(html: string): string {
 
   (function removeLegacyFloatingCsvButton(){
     var BTN_ID='mr-global-floating-csv-btn';
-    function clean(){
-      var el = document.getElementById(BTN_ID);
-      if (el && el.parentNode) {
-        el.parentNode.removeChild(el);
-      }
+    var el = document.getElementById(BTN_ID);
+    if (el && el.parentNode) {
+      el.parentNode.removeChild(el);
     }
-    clean();
-    setTimeout(clean, 100);
-    setInterval(clean, 1500);
   })();
 
 })();
