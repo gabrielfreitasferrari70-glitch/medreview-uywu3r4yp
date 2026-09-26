@@ -1523,6 +1523,243 @@ function injectHierarchySupport(html: string): string {
     }
   };
 
+  // 9B. Helpers de Estatísticas Unificadas para Pastas e Subpastas
+  function getFolderAllCards(folderId) {
+    const cards = [];
+    const visited = new Set();
+
+    function collect(fId) {
+      if (!fId || visited.has(fId)) return;
+      visited.add(fId);
+
+      const info = resolveFolderInfo(fId);
+      if (info && Array.isArray(info.cards)) {
+        info.cards.forEach(c => {
+          if (c && c.id) cards.push(c);
+        });
+      }
+
+      const subs = getSubfoldersOf(fId);
+      subs.forEach(s => {
+        if (s && s.id) collect(s.id);
+      });
+    }
+
+    collect(folderId);
+    return cards;
+  }
+
+  function getStoredFolderEvalHistory() {
+    try {
+      const raw = localStorage.getItem('medreview_eval_history');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch { /* intentionally ignored */ }
+    try {
+      if (typeof getStoredEvalHistory === 'function') {
+        const res = getStoredEvalHistory();
+        if (Array.isArray(res)) return res;
+      }
+    } catch { /* intentionally ignored */ }
+    return [];
+  }
+
+  function renderFolderStatsPanelHtml(folderId, folderName) {
+    const allCards = getFolderAllCards(folderId);
+    if (!allCards || allCards.length === 0) {
+      return '';
+    }
+
+    const cardIdSet = new Set(allCards.map(c => c.id));
+    const now = Date.now();
+
+    // 1. Métricas: Pendentes Hoje & Distribuição do Domínio
+    let pendingCount = 0;
+    let newCardsCount = 0;
+    let learningCardsCount = 0;
+    let masteredCardsCount = 0;
+
+    allCards.forEach(c => {
+      const isNew = (!c.repetitions || c.repetitions === 0) && (!c.fsrsS || c.fsrsS === 0);
+      const isDue = (c.dueDate || 0) <= now;
+
+      if (isNew) {
+        newCardsCount++;
+        pendingCount++;
+      } else {
+        if (isDue) pendingCount++;
+        const ivl = typeof c.interval === 'number' ? c.interval : (typeof c.fsrsS === 'number' ? c.fsrsS : 0);
+        if (ivl >= 21) {
+          masteredCardsCount++;
+        } else {
+          learningCardsCount++;
+        }
+      }
+    });
+
+    // 2. Histórico local para Taxa de Acerto e Pontos a Melhorar
+    const history = getStoredFolderEvalHistory();
+    const relevantHistory = history.filter(h => h && h.cardId && cardIdSet.has(h.cardId));
+
+    let successReviews = 0;
+    let totalReviews = relevantHistory.length;
+
+    relevantHistory.forEach(h => {
+      const q = String(h.quality || '').toLowerCase();
+      const r = typeof h.rating === 'number' ? h.rating : 0;
+      if (q === 'good' || q === 'easy' || r === 3 || r === 4) {
+        successReviews++;
+      }
+    });
+
+    const accuracyRate = totalReviews > 0 ? Math.round((successReviews / totalReviews) * 100) : 100;
+
+    // Tempo de estudo estimado ou derivado do histórico (15s por revisão de média caso não haja global)
+    let studyTimeDisplay = '0 min';
+    try {
+      let timeMs = 0;
+      const rawTime = localStorage.getItem('medreview_study_time_ms');
+      if (rawTime) {
+        timeMs = parseInt(rawTime, 10) || 0;
+      } else if (typeof getStoredStudyTimeMs === 'function') {
+        timeMs = getStoredStudyTimeMs() || 0;
+      }
+      if (timeMs > 0 && totalReviews > 0) {
+        const mins = Math.max(1, Math.round(timeMs / 60000));
+        studyTimeDisplay = mins >= 60 ? (Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm') : (mins + ' min');
+      } else if (totalReviews > 0) {
+        const estimatedMins = Math.max(1, Math.round((totalReviews * 18) / 60));
+        studyTimeDisplay = estimatedMins + ' min';
+      }
+    } catch (e) {
+      studyTimeDisplay = '0 min';
+    }
+
+    // Sequência (streak) derivada das datas de revisão no histórico
+    let streakDays = 0;
+    if (relevantHistory.length > 0) {
+      const days = new Set();
+      relevantHistory.forEach(h => {
+        if (h.date) {
+          days.add(h.date);
+        } else if (h.timestamp) {
+          days.add(new Date(h.timestamp).toISOString().split('T')[0]);
+        }
+      });
+      streakDays = Math.max(1, days.size);
+    } else {
+      streakDays = 0;
+    }
+
+    // Distribuição percentual
+    const totalCount = allCards.length;
+    const newPct = totalCount > 0 ? Math.round((newCardsCount / totalCount) * 100) : 0;
+    const learningPct = totalCount > 0 ? Math.round((learningCardsCount / totalCount) * 100) : 0;
+    const masteredPct = Math.max(0, 100 - newPct - learningPct);
+
+    // Top 5 cartas com mais erros / lapses (Pontos a melhorar)
+    const cardErrorMap = new Map();
+    allCards.forEach(c => {
+      let lapses = c.lapses || c.errorCount || 0;
+      cardErrorMap.set(c.id, { card: c, errors: lapses });
+    });
+
+    relevantHistory.forEach(h => {
+      const q = String(h.quality || '').toLowerCase();
+      const r = typeof h.rating === 'number' ? h.rating : 0;
+      if (q === 'again' || r === 1) {
+        const item = cardErrorMap.get(h.cardId);
+        if (item) {
+          item.errors += 1;
+        }
+      }
+    });
+
+    const difficultCards = Array.from(cardErrorMap.values())
+      .filter(it => it.errors > 0)
+      .sort((a, b) => b.errors - a.errors)
+      .slice(0, 5);
+
+    let difficultHtml = '';
+    if (difficultCards.length > 0) {
+      difficultHtml = '<div style="margin-top:1.2rem; padding-top:1.1rem; border-top:1px dashed #cbd5e1;">' +
+        '<div style="font-size:0.88rem; font-weight:800; color:#b91c1c; margin-bottom:0.65rem; display:flex; align-items:center; gap:0.4rem;">' +
+        '<span>🎯</span> Pontos a melhorar (Top 5 cartas com mais erros)' +
+        '</div>' +
+        '<div style="display:flex; flex-direction:column; gap:0.45rem;">';
+      difficultCards.forEach((item, idx) => {
+        const qText = item.card.q || 'Pergunta';
+        const truncatedQ = qText.length > 90 ? qText.slice(0, 90) + '...' : qText;
+        difficultHtml += '<div style="background:#fff; border:1px solid #fecaca; border-radius:8px; padding:0.55rem 0.8rem; display:flex; align-items:center; justify-content:space-between; gap:0.8rem; font-size:0.82rem;">' +
+          '<div style="display:flex; align-items:center; gap:0.45rem; min-width:0; flex:1;">' +
+          '<span style="background:#fee2e2; color:#991b1b; font-weight:800; font-size:0.73rem; padding:0.15rem 0.45rem; border-radius:5px; flex-shrink:0;">#' + (idx + 1) + '</span>' +
+          '<span style="color:#1e293b; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(truncatedQ) + '</span>' +
+          '</div>' +
+          '<span style="background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; font-size:0.75rem; font-weight:800; padding:0.18rem 0.5rem; border-radius:6px; flex-shrink:0;">' +
+          item.errors + ' erro' + (item.errors !== 1 ? 's' : '') +
+          '</span>' +
+          '</div>';
+      });
+      difficultHtml += '</div></div>';
+    }
+
+    return '<div class="mr-folder-stats-panel" style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:16px; padding:1.25rem 1.4rem; margin-bottom:1.6rem; box-shadow:0 4px 14px rgba(22,163,74,0.06);">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.1rem; flex-wrap:wrap; gap:0.5rem; padding-bottom:0.75rem; border-bottom:1px solid #f0fdf4;">' +
+      '<div style="display:flex; align-items:center; gap:0.6rem;">' +
+      '<span style="font-size:1.4rem;">📊</span>' +
+      '<div>' +
+      '<div style="font-size:0.95rem; font-weight:800; color:#14532d;">Desempenho & Estatísticas</div>' +
+      '<div style="font-size:0.76rem; color:#64748b;">Métricas em tempo real com algoritmo FSRS-5</div>' +
+      '</div></div>' +
+      '<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:0.78rem; font-weight:800; padding:0.25rem 0.75rem; border-radius:9999px; display:inline-flex; align-items:center; gap:0.35rem;">' +
+      '<span>📁</span> ' + escapeHtml(folderName || 'Pasta') +
+      '</span></div>' +
+      '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; margin-bottom:1.2rem;">' +
+      '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
+      '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:0.2rem;">🎯 Taxa de Acerto</div>' +
+      '<div style="font-size:1.35rem; font-weight:800; color:#15803d;">' + accuracyRate + '%</div>' +
+      '<div style="font-size:0.7rem; color:#94a3b8;">' + totalReviews + ' revisõe' + (totalReviews !== 1 ? 's' : '') + '</div></div>' +
+      '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
+      '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:0.2rem;">⚡ Pendentes Hoje</div>' +
+      '<div style="font-size:1.35rem; font-weight:800; color:#0284c7;">' + pendingCount + '</div>' +
+      '<div style="font-size:0.7rem; color:#94a3b8;">de ' + totalCount + ' cartas</div></div>' +
+      '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
+      '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:0.2rem;">⏱️ Tempo de Estudo</div>' +
+      '<div style="font-size:1.35rem; font-weight:800; color:#7c3aed;">' + studyTimeDisplay + '</div>' +
+      '<div style="font-size:0.7rem; color:#94a3b8;">nesta pasta</div></div>' +
+      '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
+      '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:0.2rem;">🔥 Sequência</div>' +
+      '<div style="font-size:1.35rem; font-weight:800; color:#ea580c;">' + streakDays + ' dia' + (streakDays !== 1 ? 's' : '') + '</div>' +
+      '<div style="font-size:0.7rem; color:#94a3b8;">foco ativo</div></div></div>' +
+      '<div style="margin-bottom:0.4rem;">' +
+      '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.45rem; font-size:0.78rem; font-weight:700; color:#475569;">' +
+      '<span>Distribuição do Domínio do Acervo</span>' +
+      '<span>' + totalCount + ' cartas totais</span></div>' +
+      '<div style="height:12px; border-radius:9999px; overflow:hidden; background:#e2e8f0; display:flex;">' +
+      '<div style="width:' + newPct + '%; background:#94a3b8; transition:width 0.3s ease;" title="Novas: ' + newCardsCount + ' (' + newPct + '%)"></div>' +
+      '<div style="width:' + learningPct + '%; background:#f59e0b; transition:width 0.3s ease;" title="Aprendendo: ' + learningCardsCount + ' (' + learningPct + '%)"></div>' +
+      '<div style="width:' + masteredPct + '%; background:#16a34a; transition:width 0.3s ease;" title="Dominadas: ' + masteredCardsCount + ' (' + masteredPct + '%)"></div>' +
+      '</div>' +
+      '<div style="display:flex; justify-content:space-between; gap:0.5rem; margin-top:0.45rem; font-size:0.74rem; flex-wrap:wrap;">' +
+      '<div style="display:inline-flex; align-items:center; gap:0.35rem;">' +
+      '<span style="width:9px; height:9px; border-radius:50%; background:#94a3b8; display:inline-block;"></span>' +
+      '<span style="color:#475569; font-weight:600;">Novas: <strong>' + newCardsCount + '</strong> (' + newPct + '%)</span>' +
+      '</div>' +
+      '<div style="display:inline-flex; align-items:center; gap:0.35rem;">' +
+      '<span style="width:9px; height:9px; border-radius:50%; background:#f59e0b; display:inline-block;"></span>' +
+      '<span style="color:#475569; font-weight:600;">Aprendendo: <strong>' + learningCardsCount + '</strong> (' + learningPct + '%)</span>' +
+      '</div>' +
+      '<div style="display:inline-flex; align-items:center; gap:0.35rem;">' +
+      '<span style="width:9px; height:9px; border-radius:50%; background:#16a34a; display:inline-block;"></span>' +
+      '<span style="color:#475569; font-weight:600;">Dominadas (≥21d): <strong>' + masteredCardsCount + '</strong> (' + masteredPct + '%)</span>' +
+      '</div>' +
+      '</div></div>' +
+      difficultHtml +
+      '</div>';
+  }
+
   // 10. Renderização dedicada para visualização de subpastas
   function renderSubfolderView(subfolderId) {
     const sf = getSubfolderStore()[subfolderId];
@@ -1582,6 +1819,8 @@ function injectHierarchySupport(html: string): string {
             </div>
           </div>
         </div>
+
+        ' + renderFolderStatsPanelHtml(subfolderId, sf.name) + '
 
         <!-- Seção de Subpastas Aninhadas -->
         <div style="margin-bottom:2rem;">
@@ -1881,6 +2120,17 @@ function injectHierarchySupport(html: string): string {
 
       block.innerHTML = sfHtml;
       cardSection.parentNode.insertBefore(block, cardSection);
+    }
+
+    // D. Painel de Estatísticas da Pasta Raiz Customizada ou Pasta Padrão
+    if (cardSection && !document.getElementById('mr-folder-stats-' + currentId)) {
+      const statsHtml = renderFolderStatsPanelHtml(currentId, info.name);
+      if (statsHtml && statsHtml.trim()) {
+        const statsContainer = document.createElement('div');
+        statsContainer.id = 'mr-folder-stats-' + currentId;
+        statsContainer.innerHTML = statsHtml;
+        cardSection.parentNode.insertBefore(statsContainer, cardSection);
+      }
     }
   }
   // Hook no renderRoute
