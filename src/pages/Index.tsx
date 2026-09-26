@@ -1514,7 +1514,7 @@ function injectHierarchySupport(html: string): string {
 export default function Index() {
   useEffect(() => {
     let cancelled = false
-    Promise.all([
+    void Promise.all([
       fetch(SNAPSHOT_URL, { cache: 'no-store' }).then((r) => {
         if (!r.ok) throw new Error('snapshot HTTP ' + r.status)
         return r.text()
@@ -1524,7 +1524,9 @@ export default function Index() {
       .then(([raw, data]) => {
         if (cancelled) return
         let html = transform(raw, data)
+
         html = injectHierarchySupport(html)
+
         document.open()
         document.write(html)
         document.close()
