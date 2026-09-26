@@ -68,6 +68,26 @@ if (typeof window !== 'undefined') {
       return null
     }
   }
+
+  if (typeof w.openGlobalStatsModal !== 'function') {
+    w.openGlobalStatsModal = function () {
+      if (
+        typeof (w as { __realOpenGlobalStatsModal?: () => void }).__realOpenGlobalStatsModal ===
+        'function'
+      ) {
+        ;(w as { __realOpenGlobalStatsModal: () => void }).__realOpenGlobalStatsModal()
+      } else {
+        w.__pendingOpenGlobalStats = true
+      }
+    }
+  }
+
+  if (typeof w.closeGlobalStatsModal !== 'function') {
+    w.closeGlobalStatsModal = function () {
+      const modal = document.getElementById('global-stats-modal')
+      if (modal) modal.style.display = 'none'
+    }
+  }
 }
 
 // MedReview — loader FSRS-5
@@ -439,6 +459,35 @@ function injectHierarchySupport(html: string): string {
     </div>
   </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalSubfolderHtml);
+
+  // Injeta Modal de Estatísticas Gerais Globais
+  const modalGlobalStatsHtml = \`
+  <div id="global-stats-modal" style="display:none; position:fixed; inset:0; z-index:196; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeGlobalStatsModal()">
+    <div style="background:#ffffff; border-radius:18px; max-width:760px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
+      <!-- Header do Modal -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.45rem;">📊</span>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d;">📊 Estatísticas Gerais do MedReview</h3>
+            <div style="font-size:0.79rem; color:#15803d; margin-top:0.15rem;">Visão consolidada de todas as cartas e pastas com algoritmo FSRS-5</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeGlobalStatsModal()" style="background:none; border:none; font-size:1.55rem; cursor:pointer; color:#047857; line-height:1;" title="Fechar">&times;</button>
+      </div>
+
+      <!-- Conteúdo das Estatísticas Globais -->
+      <div id="global-stats-content" style="padding:1.35rem 1.4rem; overflow-y:auto; flex:1;"></div>
+
+      <!-- Footer do Modal -->
+      <div style="display:flex; align-items:center; justify-content:flex-end; padding:0.9rem 1.4rem; border-top:1px solid #e2e8f0; background:#f8fafc;">
+        <button type="button" onclick="closeGlobalStatsModal()" style="background:#16a34a; color:#ffffff; border:none; padding:0.5rem 1.3rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer;">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>\`;
+  document.body.insertAdjacentHTML('beforeend', modalGlobalStatsHtml);
 
   // 3. Estrutura de dados para subpastas no state
   function getSubfolderStore() {
@@ -1524,6 +1573,78 @@ function injectHierarchySupport(html: string): string {
   };
 
   // 9B. Helpers de Estatísticas Unificadas para Pastas e Subpastas
+  function getAllAppCards() {
+    const cards = [];
+    const seenIds = new Set();
+
+    function addCard(c) {
+      if (!c) return;
+      const id = c.id || (c.q ? ('gen_' + String(c.q).slice(0, 40)) : null);
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      cards.push(c);
+    }
+
+    function addList(arr) {
+      if (Array.isArray(arr)) {
+        arr.forEach(addCard);
+      }
+    }
+
+    if (typeof state !== 'undefined' && state) {
+      // 1. tutoria_highlight.cards
+      if (state.tutoria_highlight && Array.isArray(state.tutoria_highlight.cards)) {
+        addList(state.tutoria_highlight.cards);
+      }
+
+      // 2. tutorias_numbered
+      if (state.tutorias_numbered && typeof state.tutorias_numbered === 'object') {
+        Object.values(state.tutorias_numbered).forEach(obj => {
+          if (obj && Array.isArray(obj.cards)) addList(obj.cards);
+        });
+      }
+
+      // 3. custom_tutoria_folders
+      if (state.custom_tutoria_folders && typeof state.custom_tutoria_folders === 'object') {
+        Object.values(state.custom_tutoria_folders).forEach(obj => {
+          if (obj && Array.isArray(obj.cards)) addList(obj.cards);
+        });
+      }
+
+      // 4. provas
+      if (state.provas && typeof state.provas === 'object') {
+        Object.values(state.provas).forEach(obj => {
+          if (obj && Array.isArray(obj.cards)) addList(obj.cards);
+        });
+      }
+
+      // 5. custom_prova_folders
+      if (state.custom_prova_folders && typeof state.custom_prova_folders === 'object') {
+        Object.values(state.custom_prova_folders).forEach(obj => {
+          if (obj && Array.isArray(obj.cards)) addList(obj.cards);
+        });
+      }
+
+      // 6. custom_root_folders
+      if (state.custom_root_folders && typeof state.custom_root_folders === 'object') {
+        Object.values(state.custom_root_folders).forEach(obj => {
+          if (obj && Array.isArray(obj.cards)) addList(obj.cards);
+        });
+      }
+
+      // 7. todas as subpastas do store de subpastas
+      const sfStore = getSubfolderStore();
+      if (sfStore && typeof sfStore === 'object') {
+        Object.values(sfStore).forEach(obj => {
+          if (obj && Array.isArray(obj.cards)) addList(obj.cards);
+        });
+      }
+    }
+
+    return cards;
+  }
+  window.getAllAppCards = getAllAppCards;
+
   function getFolderAllCards(folderId) {
     const cards = [];
     const visited = new Set();
@@ -1567,8 +1688,14 @@ function injectHierarchySupport(html: string): string {
   }
 
   function renderFolderStatsPanelHtml(folderId, folderName) {
-    const allCards = getFolderAllCards(folderId);
+    const isGlobal = folderId === null || typeof folderId === 'undefined';
+    const allCards = isGlobal ? getAllAppCards() : getFolderAllCards(folderId);
+    const displayName = folderName || (isGlobal ? 'Visão Geral' : 'Pasta');
+
     if (!allCards || allCards.length === 0) {
+      if (isGlobal) {
+        return '<div style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:16px; padding:1.5rem; text-align:center; color:#64748b; font-size:0.92rem;">Nenhuma carta encontrada no MedReview ainda.</div>';
+      }
       return '';
     }
 
@@ -1601,7 +1728,9 @@ function injectHierarchySupport(html: string): string {
 
     // 2. Histórico local para Taxa de Acerto e Pontos a Melhorar
     const history = getStoredFolderEvalHistory();
-    const relevantHistory = history.filter(h => h && h.cardId && cardIdSet.has(h.cardId));
+    const relevantHistory = isGlobal
+      ? history.filter(h => h && h.cardId)
+      : history.filter(h => h && h.cardId && cardIdSet.has(h.cardId));
 
     let successReviews = 0;
     let totalReviews = relevantHistory.length;
@@ -1626,7 +1755,7 @@ function injectHierarchySupport(html: string): string {
       } else if (typeof getStoredStudyTimeMs === 'function') {
         timeMs = getStoredStudyTimeMs() || 0;
       }
-      if (timeMs > 0 && totalReviews > 0) {
+      if (timeMs > 0 && (isGlobal || totalReviews > 0)) {
         const mins = Math.max(1, Math.round(timeMs / 60000));
         studyTimeDisplay = mins >= 60 ? (Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm') : (mins + ' min');
       } else if (totalReviews > 0) {
@@ -1714,7 +1843,7 @@ function injectHierarchySupport(html: string): string {
       '<div style="font-size:0.76rem; color:#64748b;">Métricas em tempo real com algoritmo FSRS-5</div>' +
       '</div></div>' +
       '<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:0.78rem; font-weight:800; padding:0.25rem 0.75rem; border-radius:9999px; display:inline-flex; align-items:center; gap:0.35rem;">' +
-      '<span>📁</span> ' + escapeHtml(folderName || 'Pasta') +
+      '<span>' + (isGlobal ? '🌐' : '📁') + '</span> ' + escapeHtml(displayName) +
       '</span></div>' +
       '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; margin-bottom:1.2rem;">' +
       '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
@@ -1728,7 +1857,7 @@ function injectHierarchySupport(html: string): string {
       '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
       '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:0.2rem;">⏱️ Tempo de Estudo</div>' +
       '<div style="font-size:1.35rem; font-weight:800; color:#7c3aed;">' + studyTimeDisplay + '</div>' +
-      '<div style="font-size:0.7rem; color:#94a3b8;">nesta pasta</div></div>' +
+      '<div style="font-size:0.7rem; color:#94a3b8;">' + (isGlobal ? 'tempo acumulado' : 'nesta pasta') + '</div></div>' +
       '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:0.75rem 0.85rem; text-align:center;">' +
       '<div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:0.2rem;">🔥 Sequência</div>' +
       '<div style="font-size:1.35rem; font-weight:800; color:#ea580c;">' + streakDays + ' dia' + (streakDays !== 1 ? 's' : '') + '</div>' +
@@ -1820,10 +1949,7 @@ function injectHierarchySupport(html: string): string {
           </div>
         </div>
 
-        \${renderFolderStatsPanelHtml(subfolderId, sf.name)}
-
-        <!-- Seção de Subpastas Aninhadas -->
-        <div style="margin-bottom:2rem;">
+        <!-- Seção de Subpastas Aninhadas -->        <div style="margin-bottom:2rem;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem; padding-bottom:0.4rem; border-bottom:1.5px solid #d1fae5;">
             <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
               <span>📁</span> Subpastas (\${subfolders.length})
@@ -1924,7 +2050,7 @@ function injectHierarchySupport(html: string): string {
       }
       // Oculta irmãos do wrapper
       Array.from(topbar.parentNode.children).forEach(ch => {
-        if (ch !== topbar && ch !== subWrapper && ch.id !== 'create-choice-modal' && ch.id !== 'subfolder-create-modal' && ch.id !== 'settings-modal') {
+        if (ch !== topbar && ch !== subWrapper && ch.id !== 'create-choice-modal' && ch.id !== 'subfolder-create-modal' && ch.id !== 'settings-modal' && ch.id !== 'global-stats-modal' && ch.id !== 'csv-import-modal' && ch.id !== 'import-target-modal') {
           ch.style.display = 'none';
         }
       });
@@ -2122,16 +2248,7 @@ function injectHierarchySupport(html: string): string {
       cardSection.parentNode.insertBefore(block, cardSection);
     }
 
-    // D. Painel de Estatísticas da Pasta Raiz Customizada ou Pasta Padrão
-    if (cardSection && !document.getElementById('mr-folder-stats-' + currentId)) {
-      const statsHtml = renderFolderStatsPanelHtml(currentId, info.name);
-      if (statsHtml && statsHtml.trim()) {
-        const statsContainer = document.createElement('div');
-        statsContainer.id = 'mr-folder-stats-' + currentId;
-        statsContainer.innerHTML = statsHtml;
-        cardSection.parentNode.insertBefore(statsContainer, cardSection);
-      }
-    }
+    ensureGlobalStatsButton();
   }
   // Hook no renderRoute
   const origRoute = window.renderRoute;
@@ -2167,9 +2284,65 @@ function injectHierarchySupport(html: string): string {
     }
   })();
 
+  // Handlers para Modal de Estatísticas Globais
+  window.openGlobalStatsModal = function() {
+    const modal = document.getElementById('global-stats-modal');
+    const content = document.getElementById('global-stats-content');
+    if (content) {
+      content.innerHTML = renderFolderStatsPanelHtml(null, 'Visão Geral');
+    }
+    if (modal) {
+      modal.style.display = 'flex';
+    }
+  };
+  window.__realOpenGlobalStatsModal = window.openGlobalStatsModal;
+
+  window.closeGlobalStatsModal = function() {
+    const modal = document.getElementById('global-stats-modal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  };
+
+  if (window.__pendingOpenGlobalStats) {
+    delete window.__pendingOpenGlobalStats;
+    setTimeout(() => window.openGlobalStatsModal(), 0);
+  }
+
+  // Garante a existência do botão na topbar verde
+  function ensureGlobalStatsButton() {
+    if (document.querySelector('.mr-global-stats-btn')) return;
+    const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
+    if (!topbar) return;
+    const importBtn = topbar.querySelector('.med-nav-btn-accent') || 
+                      Array.from(topbar.querySelectorAll('.med-nav-btn')).find(b => (b.textContent || '').includes('Importar')) ||
+                      topbar.querySelector('.med-settings-btn');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'med-nav-btn mr-global-stats-btn';
+    btn.onclick = () => window.openGlobalStatsModal && window.openGlobalStatsModal();
+    btn.title = 'Estatísticas Gerais do MedReview';
+    btn.innerHTML = '📊 Estatística';
+    if (importBtn && importBtn.parentNode) {
+      importBtn.parentNode.insertBefore(btn, importBtn);
+    } else {
+      topbar.appendChild(btn);
+    }
+  }
+  window.ensureGlobalStatsButton = ensureGlobalStatsButton;
+  ensureGlobalStatsButton();
+  setTimeout(ensureGlobalStatsButton, 50);
+
 })();
 </script>
   `
+
+  // Injeção do botão diretamente no HTML da topbar verde
+  const importBtnMarker = `<button class="med-nav-btn med-nav-btn-accent" onclick="openImportFlow(typeof currentFolderContext === 'function' ? currentFolderContext() : null)" title="Importar flashcards via CSV para qualquer pasta">`
+  const statsBtnHtml = `<button type="button" class="med-nav-btn mr-global-stats-btn" onclick="openGlobalStatsModal()" title="Estatísticas Gerais do MedReview">📊 Estatística</button>\n        `
+  if (html.includes(importBtnMarker)) {
+    html = html.replace(importBtnMarker, statsBtnHtml + importBtnMarker)
+  }
 
   return html.replace('</body>', hierarchyScript + '\n</body>')
 }
