@@ -1290,6 +1290,72 @@ function injectHierarchySupport(html: string): string {
 
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   function enhanceViews() {
+    // Ponto 3: Redireciona botão "+ Nova Pasta" da barra superior para o modal de escolha
+    const topNavBtns = document.querySelectorAll('.med-topbar button, header button, .med-nav-btn');
+    topNavBtns.forEach(btn => {
+      const txt = (btn.textContent || '').trim();
+      if (txt.includes('Nova Pasta') && !btn.dataset.mrChoiceBound) {
+        btn.dataset.mrChoiceBound = 'true';
+        btn.setAttribute('onclick', 'openCreateChoice(typeof currentFolderContext === "function" ? currentFolderContext() : null)');
+      }
+    });
+
+    // Ponto 2: Injeta "📥 Importar CSV" no container do cabeçalho de sessão/pasta
+    // Detecta botões/links com "Sair da sessão"
+    const allButtonsAndLinks = document.querySelectorAll('button, a');
+    allButtonsAndLinks.forEach(el => {
+      const t = (el.textContent || '').trim();
+      if (t.includes('Sair da sessão') || t.includes('Sair da Sessão')) {
+        const parentFlex = el.parentElement;
+        if (parentFlex && !parentFlex.querySelector('.mr-session-import-csv-btn')) {
+          const csvBtn = document.createElement('button');
+          csvBtn.className = 'mr-session-import-csv-btn';
+          csvBtn.type = 'button';
+          csvBtn.style.cssText = 'background:#f0fdf4; color:#15803d; font-weight:800; border-radius:9999px; padding:0.35rem 0.9rem; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; font-size:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-right:0.5rem; transition:all 0.15s ease;';
+          csvBtn.innerHTML = '<span>📥</span> Importar CSV';
+          csvBtn.onmouseover = function() { this.style.background = '#dcfce7'; this.style.borderColor = '#16a34a'; };
+          csvBtn.onmouseout = function() { this.style.background = '#f0fdf4'; this.style.borderColor = '#86efac'; };
+          csvBtn.onclick = () => {
+            const ctx = (typeof currentFolderContext === 'function' ? currentFolderContext() : null) ||
+                        (typeof studyState !== 'undefined' ? studyState.deckId : null) ||
+                        (typeof currentRoute !== 'undefined' ? currentRoute : null);
+            openCsvImportModal(ctx);
+          };
+          parentFlex.insertBefore(csvBtn, el);
+        }
+      }
+    });
+
+    // Ponto 1: Estado vazio do baralho — botão "+ Adicionar carta"
+    allButtonsAndLinks.forEach(el => {
+      const t = (el.textContent || '').trim();
+      if (t.includes('Adicionar carta') || t.includes('Adicionar Carta')) {
+        const parentFlex = el.parentElement;
+        if (parentFlex && !parentFlex.querySelector('.mr-empty-import-csv-btn')) {
+          const csvBtn = document.createElement('button');
+          csvBtn.className = 'mr-empty-import-csv-btn';
+          csvBtn.type = 'button';
+          // Herda estilos do botão "+ Adicionar carta" com visual adaptado de destaque
+          csvBtn.style.cssText = 'background:#f0fdf4; color:#15803d; font-weight:800; border-radius:10px; padding:0.65rem 1.25rem; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.45rem; font-size:0.95rem; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:all 0.15s ease;';
+          csvBtn.innerHTML = '<span>📥</span> Importar CSV';
+          csvBtn.onmouseover = function() { this.style.background = '#dcfce7'; this.style.borderColor = '#16a34a'; this.style.transform = 'translateY(-1px)'; };
+          csvBtn.onmouseout = function() { this.style.background = '#f0fdf4'; this.style.borderColor = '#86efac'; this.style.transform = 'translateY(0)'; };
+          csvBtn.onclick = () => {
+            const ctx = (typeof currentFolderContext === 'function' ? currentFolderContext() : null) ||
+                        (typeof studyState !== 'undefined' ? studyState.deckId : null) ||
+                        (typeof currentRoute !== 'undefined' ? currentRoute : null);
+            openCsvImportModal(ctx);
+          };
+          // Insere logo ao lado do botão "+ Adicionar carta"
+          if (el.nextSibling) {
+            parentFlex.insertBefore(csvBtn, el.nextSibling);
+          } else {
+            parentFlex.appendChild(csvBtn);
+          }
+        }
+      }
+    });
+
     let currentId = null;
     if (typeof currentRoute !== 'undefined') {
       currentId = currentRoute;
@@ -1317,13 +1383,13 @@ function injectHierarchySupport(html: string): string {
         const bc = document.createElement('div');
         bc.id = 'mr-breadcrumb-injected';
         bc.className = 'mr-breadcrumb-bar';
-        let bpHtml = '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'home\\')">🏠 Início</a>';
+        let bpHtml = '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo('home')">🏠 Início</a>';
         chain.forEach((item, idx) => {
           bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
           if (idx === chain.length - 1) {
             bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
           } else {
-            bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'' + item.id + '\\')">' + escapeHtml(item.name) + '</a>';
+            bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo('' + item.id + '')">' + escapeHtml(item.name) + '</a>';
           }
         });
         bc.innerHTML = bpHtml;
@@ -1405,7 +1471,6 @@ function injectHierarchySupport(html: string): string {
       cardSection.parentNode.insertBefore(block, cardSection);
     }
   }
-
   // Hook no renderRoute
   const origRoute = window.renderRoute;
   window.renderRoute = function() {
