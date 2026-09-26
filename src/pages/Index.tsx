@@ -2172,6 +2172,21 @@ function injectHierarchySupport(html: string): string {
 
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   function enhanceViews() {
+    // Remoção do botão redundante "📁 Pastas" da topbar em todas as situações
+    const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
+    if (topbar) {
+      const topbarButtons = topbar.querySelectorAll('button, a, .med-nav-btn');
+      topbarButtons.forEach(btn => {
+        // Não remove botões que NÃO sejam o de Pastas
+        if (btn.classList.contains('mr-global-stats-btn') || btn.classList.contains('med-settings-btn')) return;
+        const text = (btn.textContent || '').trim().replace(/s+/g, ' ');
+        // Identifica estritamente o botão "📁 Pastas" ou "Pastas" da topbar
+        if (text === '📁 Pastas' || text === 'Pastas' || (text.includes('Pastas') && !text.includes('Nova') && !text.includes('Estudo') && !text.includes('Subpastas'))) {
+          btn.remove();
+        }
+      });
+    }
+
     // Remoção incondicional de painéis de estatísticas em todas as rotas (incluindo '/', home, etc.)
     const panels = document.querySelectorAll('.deck-stats, .stats-overview, .folder-stats, .deck-performance, .deck-performance-panel, .deck-stats-panel, [data-stats-panel]');
     panels.forEach(p => {
@@ -2358,7 +2373,25 @@ function injectHierarchySupport(html: string): string {
     }
 
     ensureGlobalStatsButton();
+    removePastasNavButton();
   }
+
+  // Remove o botão redundante "📁 Pastas" da topbar verde
+  function removePastasNavButton() {
+    const topbars = document.querySelectorAll('.med-topbar, header, nav');
+    topbars.forEach(tb => {
+      const candidates = tb.querySelectorAll('button, a, .med-nav-btn');
+      candidates.forEach(btn => {
+        if (btn.classList.contains('mr-global-stats-btn') || btn.classList.contains('med-settings-btn')) return;
+        const text = (btn.textContent || '').trim().replace(/s+/g, ' ');
+        if (text === '📁 Pastas' || text === 'Pastas' || (text.includes('Pastas') && !text.includes('Nova') && !text.includes('Estudo') && !text.includes('Subpastas'))) {
+          btn.remove();
+        }
+      });
+    });
+  }
+  window.removePastasNavButton = removePastasNavButton;
+  removePastasNavButton();
   // Hook no renderRoute
   const origRoute = window.renderRoute;
   window.renderRoute = function() {
@@ -2382,6 +2415,7 @@ function injectHierarchySupport(html: string): string {
   // Observador de mutações para garantir injeção contínua ao trocar de tela
   const observer = new MutationObserver(() => {
     enhanceViews();
+    removePastasNavButton();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
@@ -3124,17 +3158,35 @@ function injectHierarchySupport(html: string): string {
   window.ensureGlobalStatsButton = ensureGlobalStatsButton;
   ensureGlobalStatsButton();
   setTimeout(ensureGlobalStatsButton, 50);
+  removePastasNavButton();
+  setTimeout(removePastasNavButton, 50);
+
+  // Vigia/captura global de cliques ou renderizações para garantir que o botão Pastas não reapareça
+  document.addEventListener('DOMContentLoaded', removePastasNavButton);
+  window.addEventListener('load', removePastasNavButton);
 
 })();
 </script>
   `
 
-  // Injeção do botão diretamente no HTML da topbar verde
+  // Injeção do botão de estatísticas diretamente no HTML da topbar verde
   const importBtnMarker = `<button class="med-nav-btn med-nav-btn-accent" onclick="openImportFlow(typeof currentFolderContext === 'function' ? currentFolderContext() : null)" title="Importar flashcards via CSV para qualquer pasta">`
   const statsBtnHtml = `<button type="button" class="med-nav-btn mr-global-stats-btn" onclick="openGlobalStatsModal()" title="Estatísticas Gerais do MedReview">📊 Estatística</button>\n        `
   if (html.includes(importBtnMarker)) {
     html = html.replace(importBtnMarker, statsBtnHtml + importBtnMarker)
   }
+
+  // Remoção do botão Pastas estaticamente no HTML caso ele esteja presente na renderização inicial
+  // Remove botões de navegação da topbar contendo "Pastas" (com ou sem emoji, atributos ou espaços)
+  html = html.replace(
+    /<button[^>]*class="[^"]*med-nav-btn[^"]*"[^>]*>[\s\S]*?(?:📁\s*)?Pastas[\s\S]*?<\/button>/gi,
+    function (match) {
+      if (match.includes('Nova') || match.includes('Estudo') || match.includes('Subpastas')) {
+        return match
+      }
+      return ''
+    },
+  )
 
   return html.replace('</body>', hierarchyScript + '\n</body>')
 }
