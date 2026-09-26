@@ -263,7 +263,19 @@ function injectHierarchySupport(html: string): string {
       padding-top: 0.75rem;
       border-top: 1px dashed #e2e8f0;
       font-size: 0.8rem;
+      flex-wrap: wrap;
+      color: #64748b;
     }
+    .mr-folder-card-footer-left { display:flex; align-items:center; gap:0.6rem; min-width:0; }
+    .mr-folder-card-count-chip { display:inline-flex; align-items:center; gap:0.25rem; padding:0.2rem 0.55rem; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; border-radius:6px; font-size:0.75rem; font-weight:700; }
+    .mr-folder-card-progress-box { display:flex; flex-direction:column; gap:0.2rem; min-width:85px; }
+    .mr-folder-card-progress-label { font-size:0.72rem; font-weight:700; color:#166534; }
+    .mr-folder-card-progress-track { width:100%; height:4px; background:#e2e8f0; border-radius:9999px; overflow:hidden; }
+    .mr-folder-card-progress-bar { height:100%; background:#16a34a; border-radius:9999px; transition:width 0.3s ease; }
+    .mr-folder-card-actions { display:flex; align-items:center; gap:0.35rem; }
+    .mr-folder-card-btn-action { border:none; background:transparent; padding:0.3rem 0.55rem; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.25rem; transition:background 0.15s ease, color 0.15s ease; }
+    .mr-folder-card-btn-reset { color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; } .mr-folder-card-btn-reset:hover { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
+    .mr-folder-card-btn-add { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; } .mr-folder-card-btn-add:hover { background:#dcfce7; color:#14532d; }
 
     .mr-subfolder-card {
       background: #ffffff;
@@ -2297,9 +2309,96 @@ function injectHierarchySupport(html: string): string {
         }
 
         card.setAttribute('data-mr-folder-card-header', '1');
+
+        // Injeção do RODAPÉ padronizado (.mr-folder-card-footer)
+        if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
+          const rawFolderId = card.getAttribute('data-folder-id');
+          const effectiveFolderId = rawFolderId || (card.classList.contains('mr-subfolder-card') ? (card.getAttribute('onclick')?.match(/navigateTo('([^']+)')/)?.[1] || null) : null);
+          const allFolderCards = effectiveFolderId ? getFolderAllCards(effectiveFolderId) : [];
+          const totalCards = allFolderCards.length;
+
+          let masteredCards = 0;
+          allFolderCards.forEach(c => {
+            const ivl = typeof c.interval === 'number' ? c.interval : (typeof c.fsrsS === 'number' ? c.fsrsS : 0);
+            if (ivl >= 21) {
+              masteredCards++;
+            }
+          });
+
+          const pct = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
+
+          // Remove rodapés anteriores não padronizados dentro do cartão
+          const oldFooters = card.querySelectorAll('.mr-folder-card-footer, .deck-footer, .folder-footer');
+          oldFooters.forEach(f => f.remove());
+
+          const footerEl = document.createElement('div');
+          footerEl.className = 'mr-folder-card-footer';
+          footerEl.innerHTML =
+            '<div class="mr-folder-card-footer-left">' +
+              '<span class="mr-folder-card-count-chip">📄 ' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
+              '<div class="mr-folder-card-progress-box">' +
+                '<span class="mr-folder-card-progress-label">' + pct + '% dominado</span>' +
+                '<div class="mr-folder-card-progress-track">' +
+                  '<div class="mr-folder-card-progress-bar" style="width:' + pct + '%"></div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="mr-folder-card-actions">' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
+            '</div>';
+
+          const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
+          if (resetBtn) {
+            resetBtn.onclick = function(e) {
+              e.stopPropagation();
+              if (totalCards === 0) {
+                if (typeof showToast === 'function') showToast('Esta pasta não possui cartas para resetar.');
+                return;
+              }
+              const confirmReset = window.confirm('Deseja resetar o progresso FSRS-5 de ' + totalCards + ' carta(s) desta pasta?');
+              if (!confirmReset) return;
+
+              const nowMs = Date.now();
+              allFolderCards.forEach(c => {
+                c.repetitions = 0;
+                c.interval = 0;
+                c.easeFactor = 2.5;
+                c.dueDate = nowMs;
+                c.fsrsS = null;
+                c.fsrsD = null;
+                c.fsrsState = 'new';
+                c.lapses = 0;
+                c.lastReviewMs = null;
+              });
+
+              if (typeof saveState === 'function') saveState();
+              if (typeof showToast === 'function') {
+                showToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!');
+              }
+              if (typeof renderRoute === 'function') renderRoute();
+            };
+          }
+
+          const addBtn = footerEl.querySelector('.mr-folder-card-btn-add');
+          if (addBtn) {
+            addBtn.onclick = function(e) {
+              e.stopPropagation();
+              const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null);
+              if (typeof openCreateChoice === 'function') {
+                openCreateChoice(targetId);
+              } else if (typeof openNewCardModal === 'function') {
+                openNewCardModal(targetId);
+              }
+            };
+          }
+
+          card.appendChild(footerEl);
+          card.setAttribute('data-mr-folder-card-footer', '1');
+        }
       });
     } catch (e) {
-      console.warn('Erro ao padronizar cabeçalhos de cartões de pasta:', e);
+      console.warn('Erro ao padronizar cabeçalhos e rodapés de cartões de pasta:', e);
     }
 
     // Remoção do botão redundante "📁 Pastas" da topbar em todas as situações
