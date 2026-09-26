@@ -162,7 +162,14 @@ function injectHierarchySupport(html: string): string {
   // 1. Estilos visuais adicionais
   const styleEl = document.createElement('style');
   styleEl.textContent = \`
-    /* Oculta qualquer painel de estatísticas de dentro de pastas/subpastas fora do modal global */
+    /* Regras globais para ocultar painéis de estatísticas fora do modal global */
+    body > *:not(#global-stats-modal) .deck-stats,
+    body > *:not(#global-stats-modal) .stats-overview,
+    body > *:not(#global-stats-modal) .folder-stats,
+    body > *:not(#global-stats-modal) .deck-performance,
+    body > *:not(#global-stats-modal) .deck-performance-panel,
+    body > *:not(#global-stats-modal) .deck-stats-panel,
+    body > *:not(#global-stats-modal) .folder-performance-panel,
     .folder-view .deck-stats,
     .folder-view .stats-overview,
     .folder-view .folder-stats,
@@ -2165,6 +2172,23 @@ function injectHierarchySupport(html: string): string {
 
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   function enhanceViews() {
+    // Remoção incondicional de painéis de estatísticas em todas as rotas (incluindo '/', home, etc.)
+    const panels = document.querySelectorAll('.deck-stats, .stats-overview, .folder-stats, .deck-performance, .deck-performance-panel, .deck-stats-panel, [data-stats-panel]');
+    panels.forEach(p => {
+      if (!p.closest('#global-stats-modal') && !p.closest('.med-topbar')) p.remove();
+    });
+    document.querySelectorAll('button, a, div').forEach(el => {
+      if (el.closest('#global-stats-modal') || el.closest('.med-topbar') || el.classList.contains('mr-global-stats-btn')) return;
+      if (el.tagName === 'BUTTON' && (el.textContent || '').includes('Ver estatísticas detalhadas')) {
+        const cardContainer = el.closest('.deck-stats-panel') || el.closest('.deck-performance') || el.parentElement?.parentElement;
+        if (cardContainer && !cardContainer.closest('#global-stats-modal')) { cardContainer.remove(); } else { el.remove(); }
+      }
+      if (el.tagName === 'DIV' && (el.textContent || '').includes('Pontos a melhorar (Top 5 cartas') && !el.closest('#global-stats-modal')) {
+        const parent = el.closest('.deck-stats') || el.closest('.stats-overview') || el.closest('.deck-performance-panel') || el;
+        parent.remove();
+      }
+    });
+
     let currentId = null;
     if (typeof currentRoute !== 'undefined') {
       currentId = currentRoute;
