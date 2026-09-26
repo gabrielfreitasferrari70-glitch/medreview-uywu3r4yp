@@ -163,6 +163,15 @@ function injectHierarchySupport(html: string): string {
   const styleEl = document.createElement('style');
   styleEl.textContent = \`
     /* Oculta qualquer painel de estatísticas de dentro de pastas/subpastas fora do modal global */
+    .folder-view .deck-stats,
+    .folder-view .stats-overview,
+    .folder-view .folder-stats,
+    .deck-view .deck-stats,
+    .deck-view .stats-overview,
+    .deck-view .folder-stats,
+    #mr-subfolder-wrapper .deck-stats,
+    #mr-subfolder-wrapper .stats-overview,
+    #mr-subfolder-wrapper .folder-stats,
     .folder-view .mr-folder-stats-panel,
     .folder-view .folder-stats-panel,
     .folder-view .deck-stats-panel,
@@ -174,7 +183,14 @@ function injectHierarchySupport(html: string): string {
     .folder-view > .folder-stats,
     .folder-view > .stats-grid,
     #mr-subfolder-wrapper .mr-folder-stats-panel,
-    #mr-subfolder-wrapper .folder-stats-panel {
+    #mr-subfolder-wrapper .folder-stats-panel,
+    .folder-view button[onclick*="Stats"],
+    .deck-view button[onclick*="Stats"],
+    #mr-subfolder-wrapper button[onclick*="Stats"],
+    .folder-header-actions button[onclick*="Stats"],
+    .deck-header-actions button[onclick*="Stats"],
+    .header-actions button[onclick*="Stats"],
+    .med-deck-actions button[onclick*="Stats"] {
       display: none !important;
     }
 
@@ -2213,12 +2229,56 @@ function injectHierarchySupport(html: string): string {
       }
     });
 
-    // C. Remove qualquer painel de estatísticas de dentro da pasta
-    const existingStatsInFolder = document.querySelectorAll('.mr-folder-stats-panel, .folder-stats-panel, .deck-stats-panel, .stats-overview, .folder-performance-panel, .deck-performance, [data-stats-panel]');
+    // C. Remove qualquer painel de estatísticas e botões nativos de stats de dentro da pasta
+    const statsSelector = [
+      '.folder-view .deck-stats',
+      '.folder-view .stats-overview',
+      '.folder-view .folder-stats',
+      '.folder-view .mr-folder-stats-panel',
+      '.folder-view .folder-stats-panel',
+      '.folder-view .deck-stats-panel',
+      '.folder-view .folder-performance-panel',
+      '.folder-view > .stats-grid',
+      '.deck-view .deck-stats',
+      '.deck-view .stats-overview',
+      '.deck-view .folder-stats',
+      '.deck-view .mr-folder-stats-panel',
+      '.deck-view .folder-stats-panel',
+      '.deck-view .deck-performance',
+      '#mr-subfolder-wrapper .deck-stats',
+      '#mr-subfolder-wrapper .stats-overview',
+      '#mr-subfolder-wrapper .folder-stats',
+      '#mr-subfolder-wrapper .mr-folder-stats-panel',
+      '#mr-subfolder-wrapper .folder-stats-panel',
+      '.mr-folder-stats-panel',
+      '.folder-stats-panel',
+      '.deck-stats-panel',
+      '.stats-overview',
+      '.folder-performance-panel',
+      '.deck-performance',
+      '[data-stats-panel]'
+    ].join(', ');
+
+    const existingStatsInFolder = document.querySelectorAll(statsSelector);
     existingStatsInFolder.forEach(panel => {
-      // Nunca remove de dentro do modal de estatísticas globais
-      if (!panel.closest('#global-stats-modal')) {
+      // Nunca remove de dentro do modal de estatísticas globais nem a topbar
+      if (!panel.closest('#global-stats-modal') && !panel.closest('.med-topbar') && !panel.classList.contains('mr-global-stats-btn')) {
         panel.remove();
+      }
+    });
+
+    // Remove botões de ação de header com onclick contendo "Stats" dentro das views de pasta/deck
+    const statsButtons = document.querySelectorAll(
+      '.folder-view button, .deck-view button, #mr-subfolder-wrapper button, .folder-header-actions button, .deck-header-actions button, .header-actions button, .med-deck-actions button'
+    );
+    statsButtons.forEach(btn => {
+      if (btn.closest('#global-stats-modal') || btn.closest('.med-topbar') || btn.classList.contains('mr-global-stats-btn')) {
+        return;
+      }
+      const onclickAttr = btn.getAttribute('onclick') || '';
+      const text = (btn.textContent || '').trim();
+      if (onclickAttr.includes('Stats') || (onclickAttr.includes('stats') && !onclickAttr.includes('global')) || (text.includes('Estatística') && !btn.classList.contains('mr-global-stats-btn'))) {
+        btn.remove();
       }
     });
 
