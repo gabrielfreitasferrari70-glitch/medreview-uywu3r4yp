@@ -346,6 +346,16 @@ function injectHierarchySupport(html: string): string {
       transition: all 0.16s ease;
       width: 100%;
     }
+
+    /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
+    .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important; gap: 1.15rem !important; align-items: stretch !important; }
+    .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card, .mr-subfolder-card { position: relative !important; background: #ffffff !important; border-radius: 16px !important; border: 1.5px solid #d1fae5 !important; box-shadow: 0 3px 12px rgba(15,23,42,0.04) !important; cursor: pointer !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; height: 100% !important; box-sizing: border-box !important; padding: 1.15rem 1.25rem !important; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
+    .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
+    .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover, .mr-subfolder-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(22,163,74,0.14) !important; border-color: #86efac !important; }
+    .mr-folder-card-header { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.6rem !important; margin-bottom: 0.85rem !important; min-width: 0 !important; }
+    .mr-folder-card-title { font-size: 1.05rem !important; font-weight: 800 !important; color: #0f172a !important; line-height: 1.35 !important; letter-spacing: -0.01em !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+    .mr-folder-card-badge { display: inline-flex !important; align-items: center !important; gap: 0.35rem !important; padding: 0.25rem 0.65rem !important; border-radius: 9999px !important; background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; font-size: 0.75rem !important; font-weight: 700 !important; white-space: nowrap !important; flex-shrink: 0 !important; }
+    .mr-folder-card-footer { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; flex-wrap: wrap !important; color: #64748b !important; }
   \`;
   document.head.appendChild(styleEl);
 
@@ -2293,8 +2303,8 @@ function injectHierarchySupport(html: string): string {
           headerEl = document.createElement('div');
           headerEl.className = 'mr-folder-card-header';
           headerEl.innerHTML =
-            '<div style="display:flex; align-items:center; gap:0.5rem; min-width:0; flex:1;">' +
-              '<span style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
+            '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; flex:1;">' +
+              '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
               '<span class="mr-folder-card-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + escapeHtml(cleanTitle) + '">' +
                 (escapeHtml(cleanTitle) || 'Pasta') +
               '</span>' +
