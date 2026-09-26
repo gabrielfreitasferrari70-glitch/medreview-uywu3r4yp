@@ -162,6 +162,22 @@ function injectHierarchySupport(html: string): string {
   // 1. Estilos visuais adicionais
   const styleEl = document.createElement('style');
   styleEl.textContent = \`
+    /* Oculta qualquer painel de estatísticas de dentro de pastas/subpastas fora do modal global */
+    .folder-view .mr-folder-stats-panel,
+    .folder-view .folder-stats-panel,
+    .folder-view .deck-stats-panel,
+    .folder-view .folder-performance-panel,
+    .deck-view .mr-folder-stats-panel,
+    .deck-view .folder-stats-panel,
+    .deck-view .deck-performance,
+    .deck-view > .deck-stats,
+    .folder-view > .folder-stats,
+    .folder-view > .stats-grid,
+    #mr-subfolder-wrapper .mr-folder-stats-panel,
+    #mr-subfolder-wrapper .folder-stats-panel {
+      display: none !important;
+    }
+
     .mr-subfolder-card {
       background: #ffffff;
       border: 1.5px solid #bbf7d0;
@@ -2197,7 +2213,16 @@ function injectHierarchySupport(html: string): string {
       }
     });
 
-    // C. Renderização da seção de Subpastas
+    // C. Remove qualquer painel de estatísticas de dentro da pasta
+    const existingStatsInFolder = document.querySelectorAll('.mr-folder-stats-panel, .folder-stats-panel, .deck-stats-panel, .stats-overview, .folder-performance-panel, .deck-performance, [data-stats-panel]');
+    existingStatsInFolder.forEach(panel => {
+      // Nunca remove de dentro do modal de estatísticas globais
+      if (!panel.closest('#global-stats-modal')) {
+        panel.remove();
+      }
+    });
+
+    // D. Renderização da seção de Subpastas
     const subfolders = getSubfoldersOf(currentId);
     const cardSection = document.querySelector('.cards-list-section') || document.querySelector('.folder-cards-list') || document.querySelector('.deck-cards-list') || document.querySelector('.cards-list');
     
