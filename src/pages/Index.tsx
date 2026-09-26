@@ -2240,13 +2240,66 @@ function injectHierarchySupport(html: string): string {
     try {
       const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, [data-folder-id]');
       folderCards.forEach(card => {
-        if (card.getAttribute('data-mr-folder-card') === '1') return;
         if (card.classList.contains('mr-tutoria-card')) return;
+        if (card.getAttribute('data-mr-folder-card-header') === '1') return;
+
         card.classList.add('mr-folder-card');
         card.setAttribute('data-mr-folder-card', '1');
+
+        const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
+        const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
+
+        let categoryBadge = 'Pasta';
+        const lowerTitle = titleText.toLowerCase();
+        const folderId = (card.getAttribute('data-folder-id') || '').toLowerCase();
+
+        if (lowerTitle.includes('tutoria') || folderId.includes('tutoria')) {
+          categoryBadge = 'PBL/Tutoria';
+        } else if (
+          lowerTitle.includes('cardio') ||
+          lowerTitle.includes('módulo') ||
+          lowerTitle.includes('modulo') ||
+          lowerTitle.includes('prova') ||
+          folderId.includes('prova') ||
+          card.classList.contains('deck-card')
+        ) {
+          categoryBadge = 'Módulos';
+        } else if (card.classList.contains('mr-subfolder-card')) {
+          categoryBadge = 'Subpasta';
+        }
+
+        let icon = '📁';
+        const iconMatch = titleText.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])/u);
+        let cleanTitle = titleText;
+        if (iconMatch) {
+          icon = iconMatch[0];
+          cleanTitle = cleanTitle.replace(icon, '').trim();
+        }
+
+        let headerEl = card.querySelector('.mr-folder-card-header');
+        if (!headerEl) {
+          headerEl = document.createElement('div');
+          headerEl.className = 'mr-folder-card-header';
+          headerEl.innerHTML =
+            '<div style="display:flex; align-items:center; gap:0.5rem; min-width:0; flex:1;">' +
+              '<span style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
+              '<span class="mr-folder-card-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + escapeHtml(cleanTitle) + '">' +
+                (escapeHtml(cleanTitle) || 'Pasta') +
+              '</span>' +
+            '</div>' +
+            '<span class="mr-folder-card-badge">' + escapeHtml(categoryBadge) + '</span>';
+
+          if (rawTitleEl && rawTitleEl.parentNode) {
+            rawTitleEl.remove();
+          }
+
+          card.insertBefore(headerEl, card.firstChild);
+        }
+
+        card.setAttribute('data-mr-folder-card-header', '1');
       });
     } catch (e) {
-      console.warn('Erro ao aplicar classe .mr-folder-card:', e);
+      console.warn('Erro ao padronizar cabeçalhos de cartões de pasta:', e);
     }
 
     // Remoção do botão redundante "📁 Pastas" da topbar em todas as situações
