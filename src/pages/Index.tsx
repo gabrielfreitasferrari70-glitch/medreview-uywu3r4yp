@@ -201,6 +201,70 @@ function injectHierarchySupport(html: string): string {
       display: none !important;
     }
 
+    .mr-folder-card {
+      position: relative;
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1.5px solid #d1fae5;
+      box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .mr-folder-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
+      border-top-left-radius: 15px;
+      border-top-right-radius: 15px;
+    }
+    .mr-folder-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(22, 163, 74, 0.12);
+    }
+    .mr-folder-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .mr-folder-card-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.35;
+    }
+    .mr-folder-card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .mr-folder-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: auto;
+      padding-top: 0.75rem;
+      border-top: 1px dashed #e2e8f0;
+      font-size: 0.8rem;
+    }
+
     .mr-subfolder-card {
       background: #ffffff;
       border: 1.5px solid #bbf7d0;
@@ -2172,6 +2236,19 @@ function injectHierarchySupport(html: string): string {
 
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   function enhanceViews() {
+    // Padronização visual dos cartões de pasta (.mr-folder-card)
+    try {
+      const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, [data-folder-id]');
+      folderCards.forEach(card => {
+        if (card.getAttribute('data-mr-folder-card') === '1') return;
+        if (card.classList.contains('mr-tutoria-card')) return;
+        card.classList.add('mr-folder-card');
+        card.setAttribute('data-mr-folder-card', '1');
+      });
+    } catch (e) {
+      console.warn('Erro ao aplicar classe .mr-folder-card:', e);
+    }
+
     // Remoção do botão redundante "📁 Pastas" da topbar em todas as situações
     const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
     if (topbar) {
