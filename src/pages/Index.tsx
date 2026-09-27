@@ -357,6 +357,11 @@ function injectHierarchySupport(html: string): string {
     }
 
     /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
+    .mr-tutoria-card > p,
+    .mr-tutoria-card > span:not(.mr-folder-card-badge),
+    .mr-tutoria-card > div:not(.mr-folder-card-header):not(.mr-folder-card-footer) {
+      display: none !important;
+    }
     .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 1.15rem !important; align-items: stretch !important; }
     @media (max-width: 900px) {
       .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
@@ -2408,9 +2413,58 @@ function injectHierarchySupport(html: string): string {
           card.setAttribute('data-mr-folder-card-header', '1');
         }
 
+        // Captura da contagem nativa de cartas do cartão de tutoria ANTES da limpeza
+        let nativeCardCount = null;
+        if (isTutoriaCard) {
+          // Busca em nós de texto e elementos filhos fora do header já criado
+          const findCardCountInText = (str) => {
+            const m = (str || '').match(/(d+)s*cartas?/i);
+            return m ? parseInt(m[1], 10) : null;
+          };
+
+          // 1. Nós diretos de texto
+          for (let i = 0; i < card.childNodes.length; i++) {
+            const n = card.childNodes[i];
+            if (n.nodeType === Node.TEXT_NODE) {
+              const parsed = findCardCountInText(n.nodeValue);
+              if (parsed !== null && parsed > 0) {
+                nativeCardCount = parsed;
+                break;
+              }
+            }
+          }
+
+          // 2. Elementos filhos (fora do header)
+          if (nativeCardCount === null) {
+            const candidateEls = card.querySelectorAll('p, div, span, small, b, strong, em');
+            for (let i = 0; i < candidateEls.length; i++) {
+              const el = candidateEls[i];
+              if (!el.closest('.mr-folder-card-header')) {
+                const parsed = findCardCountInText(el.textContent);
+                if (parsed !== null && parsed > 0) {
+                  nativeCardCount = parsed;
+                  break;
+                }
+              }
+            }
+          }
+
+          // 3. Fallback: textContent geral excluindo header
+          if (nativeCardCount === null) {
+            const headerEl = card.querySelector('.mr-folder-card-header');
+            const headerTxt = headerEl ? headerEl.textContent || '' : '';
+            const wholeTxt = card.textContent || '';
+            const strippedTxt = wholeTxt.replace(headerTxt, '');
+            const parsed = findCardCountInText(strippedTxt);
+            if (parsed !== null && parsed > 0) {
+              nativeCardCount = parsed;
+            }
+          }
+        }
+
         // Limpeza de ícones e contagens nativas duplicadas no corpo do cartão
         if (isTutoriaCard) {
-          // Remove ícone de pasta duplicado no corpo do cartão (elementos de imagem/svg/span de pasta soltos fora do header e do footer)
+          // Remove ícone de pasta e ícones residuais no corpo do cartão (.deck-icon, .folder-icon, img, svg, i) fora do header e footer
           card.querySelectorAll('.deck-icon, .folder-icon, img, svg, i').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
               el.remove();
@@ -2420,7 +2474,7 @@ function injectHierarchySupport(html: string): string {
           card.querySelectorAll('p, div, span, small').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
               const txt = (el.textContent || '').trim();
-              if (txt.match(/^d+s+cartas?$/i) || txt === '📁' || txt.includes('dominado')) {
+              if (txt.match(/^d+s*cartas?$/i) || txt === '📁' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
                 el.remove();
               }
             }
@@ -2429,7 +2483,7 @@ function injectHierarchySupport(html: string): string {
           Array.from(card.childNodes).forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
               const val = (node.nodeValue || '').trim();
-              if (val.match(/^d+s+cartas?$/i) || val === '📁') {
+              if (val.match(/^d+s*cartas?$/i) || val === '📁' || val.toLowerCase() === 'cartas' || val.toLowerCase() === 'carta') {
                 node.remove();
               }
             }
@@ -2439,7 +2493,10 @@ function injectHierarchySupport(html: string): string {
         // Injeção do RODAPÉ padronizado (.mr-folder-card-footer)
         if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
           const allFolderCards = effectiveFolderId ? getFolderAllCards(effectiveFolderId) : [];
-          const totalCards = allFolderCards.length;
+          let totalCards = allFolderCards.length;
+          if (isTutoriaCard && (totalCards === 0 || totalCards === null || typeof totalCards === 'undefined') && typeof nativeCardCount === 'number' && nativeCardCount > 0) {
+            totalCards = nativeCardCount;
+          }
 
           let masteredCards = 0;
           allFolderCards.forEach(c => {
