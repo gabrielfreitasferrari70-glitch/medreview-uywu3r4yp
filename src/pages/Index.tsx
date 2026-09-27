@@ -774,8 +774,16 @@ function injectHierarchySupport(html: string): string {
   // Funções de controle do modal de exclusão de pasta
   window.__pendingDeleteFolderId = null;
 
-  window.openFolderDeleteModal = function(folderId) {
+  window.openFolderDeleteModal = function(folderId, isExplicitSubfolder) {
     if (!folderId) return;
+    const sfStore = getSubfolderStore();
+    const isSub = isExplicitSubfolder || !!(sfStore && sfStore[folderId]);
+    if (isSub) {
+      if (typeof window.openSubfolderDeleteModal === 'function') {
+        window.openSubfolderDeleteModal(folderId);
+      }
+      return;
+    }
     window.__pendingDeleteFolderId = folderId;
     const modal = document.getElementById('mr-folder-delete-modal');
     if (modal) modal.style.display = 'flex';
@@ -785,6 +793,180 @@ function injectHierarchySupport(html: string): string {
     window.__pendingDeleteFolderId = null;
     const modal = document.getElementById('mr-folder-delete-modal');
     if (modal) modal.style.display = 'none';
+  };
+
+  // Injeta Modal de Confirmação de Exclusão de SUBPASTA (Exclusão em cascata restrita)
+  const modalSubfolderDeleteHtml = \`
+  <div id="mr-subfolder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderDeleteModal()">
+    <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #fecaca; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #fee2e2; background:#fef2f2;">
+        <h3 id="mr-subfolder-delete-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#991b1b; display:flex; align-items:center; gap:0.45rem;">
+          <span>🗑</span> Excluir Subpasta
+        </h3>
+        <button type="button" onclick="closeSubfolderDeleteModal()" style="background:none; border:none; font-size:1.45rem; cursor:pointer; color:#991b1b; line-height:1;" title="Fechar">&times;</button>
+      </div>
+      <div style="padding:1.35rem; margin:0;">
+        <p style="margin:0 0 1.35rem 0; color:#334155; font-size:0.92rem; line-height:1.5; font-weight:500;">
+          Excluir subpasta? TODAS as cartas desta subpasta (incluindo as de suas subpastas) serão excluídas permanentemente, junto com seu progresso FSRS-5. As cartas das outras pastas e subpastas NÃO são afetadas.
+        </p>
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem;">
+          <button type="button" onclick="closeSubfolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
+          <button type="button" id="mr-subfolder-delete-confirm-btn" onclick="executeSubfolderDelete()" style="background:#dc2626; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>\`;
+  document.body.insertAdjacentHTML('beforeend', modalSubfolderDeleteHtml);
+
+  // Esc fecha modal de exclusão de subpasta também
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const subDelModal = document.getElementById('mr-subfolder-delete-modal');
+      if (subDelModal && subDelModal.style.display !== 'none' && subDelModal.style.display !== '') {
+        closeSubfolderDeleteModal();
+      }
+    }
+  });
+
+  window.__pendingDeleteSubfolderId = null;
+
+  window.openSubfolderDeleteModal = function(subfolderId) {
+    if (!subfolderId) return;
+    window.__pendingDeleteSubfolderId = subfolderId;
+    const modal = document.getElementById('mr-subfolder-delete-modal');
+    if (modal) modal.style.display = 'flex';
+  };
+
+  window.closeSubfolderDeleteModal = function() {
+    window.__pendingDeleteSubfolderId = null;
+    const modal = document.getElementById('mr-subfolder-delete-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  window.executeSubfolderDelete = function() {
+    const subfolderId = window.__pendingDeleteSubfolderId;
+    if (!subfolderId) {
+      closeSubfolderDeleteModal();
+      return;
+    }
+
+    const sfStore = getSubfolderStore();
+    const targetSf = sfStore[subfolderId];
+    const parentFolderId = targetSf ? (targetSf.parentId || targetSf.parent || null) : null;
+
+    // 1. Resolver todas as cartas que pertencem a esta subpasta e suas descendentes
+    // usando o resolvedor unificado de cartas getFolderAllCards
+    const cardsToDelete = typeof getFolderAllCards === 'function' ? getFolderAllCards(subfolderId) : [];
+    if (cardsToDelete.length === 0 && targetSf && Array.isArray(targetSf.cards) && targetSf.cards.length > 0) {
+      targetSf.cards.forEach(c => { if (c && c.id) cardsToDelete.push(c); });
+    }
+    const deletedCount = cardsToDelete.length;
+    const cardIdsToDelete = new Set(cardsToDelete.map(c => c && c.id).filter(Boolean));
+
+    // 2. Coletar esta subpasta e todas as sub-subpastas recursivamente
+    const subsToRemove = new Set();
+    function collectDescendants(pId) {
+      Object.values(sfStore).forEach(s => {
+        if (s && (s.parentId === pId || s.parent === pId)) {
+          if (!subsToRemove.has(s.id)) {
+            subsToRemove.add(s.id);
+            collectDescendants(s.id);
+          }
+        }
+      });
+    }
+    subsToRemove.add(subfolderId);
+    collectDescendants(subfolderId);
+
+    // 3. Remover permanentemente as cartas e as subpastas do store de subpastas
+    subsToRemove.forEach(sid => {
+      if (sfStore[sid]) {
+        // Limpa referências a cartas
+        if (Array.isArray(sfStore[sid].cards)) {
+          sfStore[sid].cards = [];
+        }
+        delete sfStore[sid];
+      }
+    });
+
+    // Garante que nenhuma subpasta remanescente retenha acidentalmente cartas apagadas
+    Object.values(sfStore).forEach(s => {
+      if (s && Array.isArray(s.cards)) {
+        s.cards = s.cards.filter(c => c && !cardIdsToDelete.has(c.id));
+      }
+    });
+
+    persistSubfolders();
+
+    // Remove do histórico de avaliações do FSRS-5 apenas as cartas deletadas
+    if (cardIdsToDelete.size > 0) {
+      try {
+        const rawHistory = localStorage.getItem('medreview_eval_history');
+        if (rawHistory) {
+          const parsed = JSON.parse(rawHistory);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.filter(h => h && !cardIdsToDelete.has(h.cardId));
+            localStorage.setItem('medreview_eval_history', JSON.stringify(updated));
+          }
+        }
+      } catch { /* intentionally ignored */ }
+    }
+
+    if (typeof saveState === 'function') {
+      saveState();
+    }
+
+    // Fechar modal
+    closeSubfolderDeleteModal();
+
+    // Toast após exclusão: "Subpasta excluída. N cartas removidas permanentemente."
+    const toastMsg = 'Subpasta excluída. ' + deletedCount + ' cartas removidas permanentemente.';
+    if (typeof showMedReviewToast === 'function') {
+      showMedReviewToast(toastMsg, '', '🗑');
+    } else if (typeof showToast === 'function') {
+      showToast(toastMsg);
+    } else {
+      alert(toastMsg);
+    }
+
+    // Se a subpasta excluída for a que está aberta na tela (ou descendente), volta para o seletor da pasta pai (renderSubfoldersPicker)
+    const currentSubWrapper = document.getElementById('mr-subfolder-wrapper');
+    const isCurrentlyOpen = (typeof studyState !== 'undefined' && subsToRemove.has(studyState.deckId)) ||
+      (typeof currentRoute !== 'undefined' && subsToRemove.has(currentRoute)) ||
+      (window.__activeFolderContext && subsToRemove.has(window.__activeFolderContext)) ||
+      (currentSubWrapper && currentSubWrapper.style.display !== 'none' && (
+        (window.__mrActiveSubfolderId && subsToRemove.has(window.__mrActiveSubfolderId)) ||
+        (currentSubWrapper.getAttribute('data-active-subfolder') && subsToRemove.has(currentSubWrapper.getAttribute('data-active-subfolder')))
+      ));
+
+    if (isCurrentlyOpen && parentFolderId) {
+      if (typeof renderSubfoldersPicker === 'function') {
+        renderSubfoldersPicker(parentFolderId);
+      } else if (typeof window.renderSubfoldersPicker === 'function') {
+        window.renderSubfoldersPicker(parentFolderId);
+      } else if (typeof window.navigateTo === 'function') {
+        window.navigateTo(parentFolderId);
+      } else if (typeof navigateTo === 'function') {
+        navigateTo(parentFolderId);
+      }
+    } else if (currentSubWrapper && currentSubWrapper.style.display !== 'none') {
+      // Re-renderiza a visualização atual (seja picker ou subfolder view)
+      if (typeof currentRoute !== 'undefined' && sfStore[currentRoute] && typeof renderSubfolderView === 'function') {
+        renderSubfolderView(currentRoute);
+      } else if (parentFolderId && typeof renderSubfoldersPicker === 'function') {
+        renderSubfoldersPicker(parentFolderId);
+      } else if (typeof renderRoute === 'function') {
+        renderRoute();
+      }
+    } else if (typeof renderRoute === 'function') {
+      renderRoute();
+    }
+
+    requestAnimationFrame(() => {
+      enhanceViews();
+      setTimeout(enhanceViews, 120);
+      setTimeout(enhanceViews, 300);
+    });
   };
 
   window.executeFolderDelete = function() {
@@ -2679,7 +2861,7 @@ function injectHierarchySupport(html: string): string {
       contentHtml += \`
         <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.2rem; text-align:center; font-size:0.88rem; color:#64748b;">
           Nenhuma subpasta encontrada aqui.
-          <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\${parentId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
+          <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\\${parentId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
         </div>
       \`;
     } else {
@@ -2688,29 +2870,29 @@ function injectHierarchySupport(html: string): string {
         const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(s.id) : (Array.isArray(s.cards) ? s.cards : []);
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
-          <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
-            <button type="button" class="mr-folder-card-top-delete" title="Excluir pasta" onclick="event.stopPropagation(); if (typeof window.openFolderDeleteModal === 'function') window.openFolderDeleteModal('\${s.id}')" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
+          <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\\${s.id}')" data-subfolder-id="\\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
+            <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" onclick="event.stopPropagation(); if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\\${s.id}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\\${s.id}', true); }" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
               <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
               <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
                 <span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">📁</span>
-                <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(s.name)}</span>
+                <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\\${escapeHtml(s.name)}</span>
               </div>
             </div>
             <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
               <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
-                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\\${cCount} \\${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
               <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
-                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\\${s.id}')">Abrir ➜</button>
               </div>
             </div>
           </div>
-        \`;      });      contentHtml += \`</div>\`;
+        \`;
+      });
+      contentHtml += \`</div>\`;
     }
-    contentHtml += \`</div></div>\`;
-
-    // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
+    contentHtml += \`</div></div>\`;    // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
     const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
     if (topbar && topbar.parentNode) {
       let subWrapper = document.getElementById('mr-subfolder-wrapper');
@@ -2740,6 +2922,8 @@ function injectHierarchySupport(html: string): string {
       hideNativeContentForSubfolder(subWrapper);
 
       subWrapper.style.display = 'block';
+      subWrapper.removeAttribute('data-active-subfolder');
+      window.__mrActiveSubfolderId = null;
       subWrapper.innerHTML = contentHtml;
     } else {
       const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
@@ -2826,6 +3010,9 @@ function injectHierarchySupport(html: string): string {
               <button type="button" class="btn btn-sm" onclick="startSubfolderStudy('\${subfolderId}')" style="background:#059669; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem;">
                 <span>⚡</span> Revisar (\${cards.length})
               </button>
+              <button type="button" class="btn btn-sm" title="Excluir subpasta" onclick="if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\${subfolderId}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\${subfolderId}', true); }" style="background:#fef2f2; color:#dc2626; border:1.5px solid #fecaca; font-weight:800; padding:0.45rem 0.95rem; border-radius:9px; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 1px 4px rgba(220,38,38,0.08);">
+                <span>🗑</span> Excluir
+              </button>
             </div>
           </div>
         </div>
@@ -2836,7 +3023,7 @@ function injectHierarchySupport(html: string): string {
             <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
               <span>📁</span> Subpastas (\${subfolders.length})
             </h3>
-            <button type="button" onclick="openSubfolderCreateModal('\${subfolderId}')" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.8rem; font-size:0.83rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+            <button type="button" onclick="openSubfolderCreateModal('\\${subfolderId}')" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.8rem; font-size:0.83rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
               ➕ Nova Subpasta
             </button>
           </div>    \`;
@@ -2845,7 +3032,7 @@ function injectHierarchySupport(html: string): string {
       contentHtml += \`
         <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.2rem; text-align:center; font-size:0.88rem; color:#64748b;">
           Nenhuma subpasta criada aqui ainda.
-          <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\${subfolderId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
+          <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\\${subfolderId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
         </div>
       \`;
     } else {
@@ -2854,21 +3041,21 @@ function injectHierarchySupport(html: string): string {
         const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(s.id) : (Array.isArray(s.cards) ? s.cards : []);
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
-          <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
-            <button type="button" class="mr-folder-card-top-delete" title="Excluir pasta" onclick="event.stopPropagation(); if (typeof window.openFolderDeleteModal === 'function') window.openFolderDeleteModal('\${s.id}')" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
+          <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\\${s.id}')" data-subfolder-id="\\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
+            <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" onclick="event.stopPropagation(); if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\\${s.id}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\\${s.id}', true); }" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
               <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
               <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
                 <span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">📁</span>
-                <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(s.name)}</span>
+                <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\\${escapeHtml(s.name)}</span>
               </div>
             </div>
             <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
               <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
-                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\\${cCount} \\${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
               <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
-                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(220,38,38,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\\${s.id}')">Abrir ➜</button>
               </div>
             </div>
           </div>
@@ -2876,9 +3063,7 @@ function injectHierarchySupport(html: string): string {
       });
       contentHtml += \`</div>\`;
     }
-    contentHtml += \`</div>\`;
-
-    // Seção de Cartas desta Subpasta
+    contentHtml += \`</div>\`;    // Seção de Cartas desta Subpasta
     contentHtml += \`
       <div>
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem; padding-bottom:0.4rem; border-bottom:1.5px solid #d1fae5;">
@@ -2955,6 +3140,8 @@ function injectHierarchySupport(html: string): string {
       hideNativeContentForSubfolder(subWrapper);
 
       subWrapper.style.display = 'block';
+      subWrapper.setAttribute('data-active-subfolder', subfolderId);
+      window.__mrActiveSubfolderId = subfolderId;
       subWrapper.innerHTML = contentHtml;
     } else {
       const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
@@ -3104,10 +3291,13 @@ function injectHierarchySupport(html: string): string {
             delBtn.title = 'Excluir pasta';
             delBtn.style.cssText = 'position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
             delBtn.innerHTML = '🗑';
+            delBtn.title = 'Excluir subpasta';
             delBtn.onclick = function(e) {
               e.stopPropagation();
-              if (typeof window.openFolderDeleteModal === 'function') {
-                window.openFolderDeleteModal(subId);
+              if (typeof window.openSubfolderDeleteModal === 'function') {
+                window.openSubfolderDeleteModal(subId);
+              } else if (typeof window.openFolderDeleteModal === 'function') {
+                window.openFolderDeleteModal(subId, true);
               }
             };
             sCard.appendChild(delBtn);
@@ -3754,7 +3944,7 @@ function injectHierarchySupport(html: string): string {
           const cCount = subCards.length || (Array.isArray(sf.cards) ? sf.cards.length : 0);
           sfHtml += \`
             <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${sf.id}')" data-subfolder-id="\${sf.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
-              <button type="button" class="mr-folder-card-top-delete" title="Excluir pasta" onclick="event.stopPropagation(); if (typeof window.openFolderDeleteModal === 'function') window.openFolderDeleteModal('\${sf.id}')" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
+              <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" onclick="event.stopPropagation(); if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\${sf.id}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\${sf.id}', true); }" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
               <div class="mr-folder-card-header mr-tutoria-header">
                 <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
                 <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
