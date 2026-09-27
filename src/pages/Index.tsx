@@ -1865,17 +1865,17 @@ function injectHierarchySupport(html: string): string {
     }
 
     // Se o modal de destino de importação tiver disparado a criação, reabre-o com a nova subpasta selecionada
+    const impModal = document.getElementById('import-target-modal');
     if (window.__creatingFromImportPicker) {
       window.__creatingFromImportPicker = false;
       window.__importSelectedTargetFolderId = subfolderId;
       window.__activeFolderContext = subfolderId;
-      const targetModal = document.getElementById('import-target-modal');
-      if (targetModal) {
-        targetModal.style.display = 'flex';
+      if (impModal) {
+        impModal.style.display = 'flex';
         renderImportFolderTree();
       }
       return;
-    } else if (window.__importSelectedTargetFolderId && document.getElementById('import-target-modal')?.style.display !== 'none') {
+    } else if (window.__importSelectedTargetFolderId && impModal && impModal.style.display !== 'none' && impModal.style.display !== '') {
       window.__importSelectedTargetFolderId = subfolderId;
       window.__activeFolderContext = subfolderId;
       renderImportFolderTree();
@@ -2884,44 +2884,31 @@ function injectHierarchySupport(html: string): string {
                   renderSubfolderView(subs[0].id);
                 }
               } else if (subs.length > 1) {
-                // Se tem VÁRIAS subpastas: navega para a view da pasta pai renderizada como subfolder view (onde as subpastas aparecem como cartões)
-                // Se targetId existir no getSubfolderStore, renderSubfolderView funciona diretamente
+                // Se tem VÁRIAS subpastas: se targetId for subpasta customizada, usa atalho direto
                 const sfStore = typeof getSubfolderStore === 'function' ? getSubfolderStore() : {};
                 if (sfStore[targetId] && typeof renderSubfolderView === 'function') {
                   renderSubfolderView(targetId);
                 } else {
-                  // Se targetId for uma pasta pai nativa (ex: tutoria, tutoria_1, etc.) ou não estiver no subfolderStore:
-                  // Tenta rolar e destacar suavemente o bloco de subpastas na tela caso já esteja visível
-                  const blockEl = document.getElementById('mr-subfolders-block-' + targetId) || document.querySelector('[id*="mr-subfolders-block-"]');
-                  if (blockEl && blockEl.offsetParent !== null) {
-                    blockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    blockEl.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
-                    blockEl.style.boxShadow = '0 0 0 3px #86efac, 0 4px 16px rgba(22,163,74,0.18)';
-                    setTimeout(() => {
-                      if (blockEl) blockEl.style.boxShadow = '';
-                    }, 1800);
+                  // Rota nativa ou subpasta: navega sempre até a pasta alvo
+                  if (typeof window.navigateTo === 'function') {
+                    window.navigateTo(targetId);
+                  } else if (typeof navigateTo === 'function') {
+                    navigateTo(targetId);
                   } else {
-                    // Navega até a pasta pai para renderizar seus cartões e o bloco de subpastas
-                    if (typeof window.navigateTo === 'function') {
-                      window.navigateTo(targetId);
-                    } else if (typeof navigateTo === 'function') {
-                      navigateTo(targetId);
-                    } else {
-                      try { card.click(); } catch (err) { console.warn('Erro ao abrir pasta com múltiplas subpastas:', err); }
-                    }
-                    // Aguarda render e faz scroll suave no bloco
-                    setTimeout(() => {
-                      const afterBlock = document.getElementById('mr-subfolders-block-' + targetId);
-                      if (afterBlock) {
-                        afterBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        afterBlock.style.transition = 'box-shadow 0.3s ease';
-                        afterBlock.style.boxShadow = '0 0 0 3px #86efac, 0 4px 16px rgba(22,163,74,0.18)';
-                        setTimeout(() => {
-                          if (afterBlock) afterBlock.style.boxShadow = '';
-                        }, 1800);
-                      }
-                    }, 250);
+                    try { card.click(); } catch (err) { console.warn('Erro ao abrir pasta com múltiplas subpastas:', err); }
                   }
+                  // Aguarda 250ms após navegação: procura apenas por ID exato e rola/destaca se visível
+                  setTimeout(() => {
+                    const blockEl = document.getElementById('mr-subfolders-block-' + targetId);
+                    if (blockEl && blockEl.offsetParent !== null) {
+                      blockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      blockEl.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
+                      blockEl.style.boxShadow = '0 0 0 3px #86efac, 0 4px 16px rgba(22,163,74,0.18)';
+                      setTimeout(() => {
+                        if (blockEl) blockEl.style.boxShadow = '';
+                      }, 1800);
+                    }
+                  }, 250);
                 }
               } else {
                 // Se NÃO tem subpastas: toast discreto avisando e não navega
@@ -3134,7 +3121,13 @@ function injectHierarchySupport(html: string): string {
       }
     });
 
-    // D. Renderização da seção de Subpastas (remove bloco antigo se a contagem ou lista mudou, garantindo re-render imediato)
+    // D. Renderização da seção de Subpastas (remove blocos órfãos e re-renderiza se contagem mudou)
+    document.querySelectorAll('[id^="mr-subfolders-block-"]').forEach(el => {
+      if (el.id !== 'mr-subfolders-block-' + currentId) {
+        el.remove();
+      }
+    });
+
     const subfolders = getSubfoldersOf(currentId);
     const existingBlock = document.getElementById('mr-subfolders-block-' + currentId);
     if (existingBlock && existingBlock.getAttribute('data-subfolders-count') !== String(subfolders.length)) {
