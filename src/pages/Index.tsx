@@ -730,10 +730,30 @@ function injectHierarchySupport(html: string): string {
 
   // 3. Estrutura de dados para subpastas no state
   function getSubfolderStore() {
+    let localData = null;
+    try {
+      const raw = localStorage.getItem('medreview_subfolders');
+      if (raw) localData = JSON.parse(raw);
+    } catch { /* intentionally ignored */ }
+
     if (!state.subfolders) {
-      state.subfolders = {};
+      state.subfolders = (localData && typeof localData === 'object' && !Array.isArray(localData)) ? localData : {};
+    } else if (localData && typeof localData === 'object' && !Array.isArray(localData)) {
+      // Mescla com localStorage para garantir que nada foi perdido
+      Object.keys(localData).forEach(k => {
+        if (!state.subfolders[k]) {
+          state.subfolders[k] = localData[k];
+        }
+      });
     }
     return state.subfolders;
+  }
+
+  function persistSubfolders() {
+    try {
+      const sf = getSubfolderStore();
+      localStorage.setItem('medreview_subfolders', JSON.stringify(sf));
+    } catch { /* intentionally ignored */ }
   }
 
   // 4. Resolvedor centralizado de informações de pasta
@@ -1719,8 +1739,8 @@ function injectHierarchySupport(html: string): string {
 
   // 8. Modal de criação de Subpasta
   window.openSubfolderCreateModal = function(parentId) {
-    window.__activeFolderContext = parentId;
-    const info = resolveFolderInfo(parentId);
+    window.__activeFolderContext = parentId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || 'tutoria';
+    const info = resolveFolderInfo(window.__activeFolderContext);
     const parentName = info ? info.name : 'Pasta';
 
     const titleEl = document.getElementById('subfolder-modal-title');
@@ -1822,10 +1842,12 @@ function injectHierarchySupport(html: string): string {
       cards: [],
       created: Date.now()
     };
+    persistSubfolders();
     if (typeof saveState === 'function') {
       saveState();
     }
     closeSubfolderCreateModal();
+    window.__activeFolderContext = null;
 
     // Monta o caminho completo hierárquico (breadcrumbs) para feedback visual detalhado
     const chain = getBreadcrumbChain(subfolderId);
@@ -1865,17 +1887,18 @@ function injectHierarchySupport(html: string): string {
     setTimeout(() => {
       suppressNativeStatsModal();
       navigateTo(subfolderId);
-      enhanceViews();
-      requestAnimationFrame(() => enhanceViews());
-      setTimeout(() => { suppressNativeStatsModal(); enhanceViews(); }, 40);
-      setTimeout(() => { suppressNativeStatsModal(); enhanceViews(); }, 120);
-      setTimeout(() => { suppressNativeStatsModal(); enhanceViews(); }, 300);
+      requestAnimationFrame(() => {
+        enhanceViews();
+        setTimeout(enhanceViews, 120);
+        setTimeout(enhanceViews, 300);
+      });
     }, 40);
   };
 
   // 9. Adaptador para navegar até subpastas
+  if (window.navigateTo && window.navigateTo.__mrWrapped) return;
   const origNavigateTo = window.navigateTo;
-  window.navigateTo = function(target) {
+  const wrappedNavigateTo = function(target) {
     // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e dos irmãos ocultados
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
@@ -1895,13 +1918,15 @@ function injectHierarchySupport(html: string): string {
     }
     if (typeof origNavigateTo === 'function') {
       origNavigateTo(target);
-      enhanceViews();
-      requestAnimationFrame(() => enhanceViews());
-      setTimeout(() => enhanceViews(), 40);
-      setTimeout(() => enhanceViews(), 120);
-      setTimeout(() => enhanceViews(), 300);
+      requestAnimationFrame(() => {
+        enhanceViews();
+        setTimeout(enhanceViews, 120);
+        setTimeout(enhanceViews, 300);
+      });
     }
   };
+  wrappedNavigateTo.__mrWrapped = true;
+  window.navigateTo = wrappedNavigateTo;
 
   // 9B. Helpers de Estatísticas Unificadas para Pastas e Subpastas
   function getAllAppCards() {
@@ -2225,6 +2250,11 @@ function injectHierarchySupport(html: string): string {
     const sf = getSubfolderStore()[subfolderId];
     if (!sf) return;
 
+    // Sincroniza rota com React / router
+    if (typeof window.__mrNavigateTo === 'function') {
+      try { window.__mrNavigateTo(subfolderId); } catch { /* intentionally ignored */ }
+    }
+
     // Atualiza rota global se existir
     if (typeof currentRoute !== 'undefined') {
       window.currentRoute = subfolderId;
@@ -2379,22 +2409,21 @@ function injectHierarchySupport(html: string): string {
         subWrapper.id = 'mr-subfolder-wrapper';
         topbar.parentNode.appendChild(subWrapper);
       }
-      // Oculta irmãos do wrapper
-      Array.from(topbar.parentNode.children).forEach(ch => {
-        if (ch !== topbar && ch !== subWrapper && ch.id !== 'create-choice-modal' && ch.id !== 'subfolder-create-modal' && ch.id !== 'settings-modal' && ch.id !== 'global-stats-modal' && ch.id !== 'csv-import-modal' && ch.id !== 'import-target-modal') {
-          ch.style.display = 'none';
-        }
-      });
+      // Oculta apenas o container principal de conteúdo (.main-content-area, main, .container)
+      const mainContent = document.querySelector('.main-content-area, main, .container');
+      if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
+        mainContent.style.display = 'none';
+      }
       subWrapper.style.display = 'block';
       subWrapper.innerHTML = contentHtml;
     } else {
       viewContainer.innerHTML = contentHtml;
     }
-    enhanceViews();
-    requestAnimationFrame(() => enhanceViews());
-    setTimeout(() => enhanceViews(), 40);
-    setTimeout(() => enhanceViews(), 120);
-    setTimeout(() => enhanceViews(), 300);
+    requestAnimationFrame(() => {
+      enhanceViews();
+      setTimeout(enhanceViews, 120);
+      setTimeout(enhanceViews, 300);
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -2453,7 +2482,10 @@ function injectHierarchySupport(html: string): string {
       };
 
       sfStore[targetCtx].cards.push(newCard);
-      saveState();
+      persistSubfolders();
+      if (typeof saveState === 'function') {
+        saveState();
+      }
 
       if (typeof closeNewCardModal === 'function') closeNewCardModal();
       if (typeof showToast === 'function') showToast('Carta adicionada com sucesso!');
@@ -2469,13 +2501,17 @@ function injectHierarchySupport(html: string): string {
 
   function suppressNativeStatsModal() {
     try {
-      document.querySelectorAll('div, section, aside').forEach(el => {
+      const candidates = document.querySelectorAll(
+        '[style*="position: fixed"], [style*="position:fixed"], .modal, [class*="modal"]'
+      );
+      candidates.forEach(el => {
         if (el.id === 'global-stats-modal' || el.closest('#global-stats-modal') || el.closest('.med-topbar')) return;
         const h = el.querySelector('h2, h3, h4, .modal-title');
         const t = ((h && h.textContent) || el.textContent || '').trim();
         if (t.includes('Estatísticas Detalhadas de Desempenho')) {
-          const c = el.closest('[style*="position: fixed"], [style*="position:fixed"], .modal, [class*="modal"]') || el;
-          if (c && c !== document.body && c.id !== 'global-stats-modal') { try { c.remove(); } catch { /* intentionally ignored */ } }
+          if (el !== document.body && el.id !== 'global-stats-modal') {
+            try { el.remove(); } catch { /* intentionally ignored */ }
+          }
         }
       });
     } catch { /* intentionally ignored */ }
@@ -2865,7 +2901,8 @@ function injectHierarchySupport(html: string): string {
                 const sfStore = getSubfolderStore();
                 if (effectiveFolderId && sfStore[effectiveFolderId]) {
                   delete sfStore[effectiveFolderId];
-                  saveSubfolderStore(sfStore);
+                  persistSubfolders();
+                  if (typeof saveSubfolderStore === 'function') saveSubfolderStore(sfStore);
                   if (typeof saveState === 'function') saveState();
                   if (typeof showToast === 'function') showToast('Pasta excluída com sucesso!');
                   if (typeof renderRoute === 'function') renderRoute();
@@ -3952,6 +3989,20 @@ function injectHierarchySupport(html: string): string {
 
 export default function Index() {
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const w = window as unknown as Record<string, unknown>
+      w.__mrNavigateTo = function (subfolderId: string) {
+        try {
+          if (typeof window.history?.pushState === 'function') {
+            const url = new URL(window.location.href)
+            url.searchParams.set('subfolder', String(subfolderId))
+            window.history.replaceState({}, '', url.pathname + url.search)
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+    }
     let cancelled = false
     void Promise.all([
       fetch(SNAPSHOT_URL, { cache: 'no-store' }).then((r) => {
