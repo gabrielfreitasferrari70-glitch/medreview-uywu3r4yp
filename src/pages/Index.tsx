@@ -197,14 +197,30 @@ function injectHierarchySupport(html: string): string {
     #mr-subfolder-wrapper {
       margin-top: 0 !important;
       padding-top: 0 !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      display: block;
+      width: 100%;
     }
     #mr-subfolder-wrapper .mr-subfolder-content-container {
-      padding-top: 0.6rem !important;
-      padding-bottom: 1.5rem !important;
+      padding-top: 0.25rem !important;
+      padding-bottom: 1.25rem !important;
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+      margin-top: 0 !important;
     }
     #mr-subfolder-wrapper .mr-breadcrumb-bar {
+      margin-top: 0.15rem !important;
+      margin-bottom: 1rem !important;
+      padding: 0.45rem 0.85rem !important;
+    }
+    #mr-subfolder-wrapper .mr-subfolder-hero-card {
       margin-top: 0 !important;
-      margin-bottom: 0.75rem !important;
+      margin-bottom: 1.25rem !important;
+    }
+    #mr-subfolder-wrapper .mr-subfolder-section-block {
+      margin-top: 0 !important;
+      margin-bottom: 1.25rem !important;
     }
     .folder-header-actions button[onclick*="Stats"],
     .deck-header-actions button[onclick*="Stats"],
@@ -2283,19 +2299,20 @@ function injectHierarchySupport(html: string): string {
     bpHtml += '</div>';
 
     let contentHtml = \`
-      <div class="mr-subfolder-content-container" style="max-width:1280px; margin:0 auto; padding:0.6rem 1rem 1.5rem 1rem;">        ${bpHtml}
+      <div class="mr-subfolder-content-container" style="max-width:1280px; margin:0 auto; padding:0.25rem 1rem 1.25rem 1rem;">
+        \${bpHtml}
 
-        <div style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:14px; padding:1.15rem 1.35rem; margin-bottom:1.25rem; box-shadow:0 3px 12px rgba(0,0,0,0.03);">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.85rem;">
+        <div class="mr-subfolder-hero-card" style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:14px; padding:1rem 1.25rem; margin-top:0; margin-bottom:1.25rem; box-shadow:0 3px 12px rgba(0,0,0,0.03);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
             <div>
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
-                <span style="font-size:1.5rem;">📁</span>
-                <h2 style="margin:0; font-size:1.35rem; font-weight:800; color:#14532d;">Subpastas de ${escapeHtml(parentInfo.name)}</h2>
+              <div style="display:flex; align-items:center; gap:0.45rem; margin-bottom:0.15rem;">
+                <span style="font-size:1.35rem;">📁</span>
+                <h2 style="margin:0; font-size:1.25rem; font-weight:800; color:#14532d; line-height:1.25;">Subpastas de \${escapeHtml(parentInfo.name)}</h2>
               </div>
-              <p style="margin:0; color:#64748b; font-size:0.88rem;">Selecione uma subpasta para revisar ou gerenciar seus cartões.</p>
+              <p style="margin:0; color:#64748b; font-size:0.85rem; line-height:1.35;">Selecione uma subpasta para revisar ou gerenciar seus cartões.</p>
             </div>
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm" onclick="openSubfolderCreateModal('${parentId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.5rem 1.1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
+              <button type="button" class="btn btn-sm" onclick="openSubfolderCreateModal('\${parentId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
                 <span>➕</span> Nova Subpasta
               </button>
             </div>
@@ -2303,12 +2320,12 @@ function injectHierarchySupport(html: string): string {
         </div>
 
         <!-- Seção de Cartões de Subpastas -->
-        <div style="margin-bottom:1.5rem;">
+        <div class="mr-subfolder-section-block" style="margin-top:0; margin-bottom:1.25rem;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; padding-bottom:0.35rem; border-bottom:1.5px solid #d1fae5;">
             <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
-              <span>📁</span> Subpastas disponíveis (${subfolders.length})
+              <span>📁</span> Subpastas disponíveis (\${subfolders.length})
             </h3>
-          </div>    \`;
+          </div>\`;
 
     if (subfolders.length === 0) {
       contentHtml += \`
@@ -2413,39 +2430,39 @@ function injectHierarchySupport(html: string): string {
     bpHtml += '</div>';
 
     let contentHtml = \`
-      <div style="max-width:1280px; margin:0 auto; padding:0.75rem 1rem 1.5rem 1rem;">
-        ${bpHtml}
+      <div class="mr-subfolder-content-container" style="max-width:1280px; margin:0 auto; padding:0.25rem 1rem 1.25rem 1rem;">
+        \${bpHtml}
 
-        <div style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:14px; padding:1.15rem 1.35rem; margin-bottom:1.25rem; box-shadow:0 3px 12px rgba(0,0,0,0.03);">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.85rem;">
+        <div class="mr-subfolder-hero-card" style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:14px; padding:1rem 1.25rem; margin-top:0; margin-bottom:1.25rem; box-shadow:0 3px 12px rgba(0,0,0,0.03);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
             <div>
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
-                <span style="font-size:1.5rem;">📁</span>
-                <h2 style="margin:0; font-size:1.35rem; font-weight:800; color:#14532d;">${escapeHtml(sf.name)}</h2>
+              <div style="display:flex; align-items:center; gap:0.45rem; margin-bottom:0.15rem;">
+                <span style="font-size:1.35rem;">📁</span>
+                <h2 style="margin:0; font-size:1.25rem; font-weight:800; color:#14532d; line-height:1.25;">\${escapeHtml(sf.name)}</h2>
               </div>
-              <p style="margin:0; color:#64748b; font-size:0.88rem;">${escapeHtml(sf.description || 'Subpasta de estudo médica')}</p>
+              <p style="margin:0; color:#64748b; font-size:0.85rem; line-height:1.35;">\${escapeHtml(sf.description || 'Subpasta de estudo médica')}</p>
             </div>
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm mr-import-csv-btn" onclick="openCsvImportModal('${subfolderId}')" style="background:#f0fdf4; color:#15803d; font-weight:800; padding:0.5rem 1rem; border-radius:9px; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+              <button type="button" class="btn btn-sm mr-import-csv-btn" onclick="openCsvImportModal('\${subfolderId}')" style="background:#f0fdf4; color:#15803d; font-weight:800; padding:0.45rem 0.95rem; border-radius:9px; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
                 <span>📥</span> Importar CSV
               </button>
-              <button type="button" class="btn btn-sm" onclick="openCreateChoice('${subfolderId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.5rem 1.1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
+              <button type="button" class="btn btn-sm" onclick="openCreateChoice('\${subfolderId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
                 <span>➕</span> Criar (Pasta ou Carta)
               </button>
-              <button type="button" class="btn btn-sm" onclick="startSubfolderStudy('${subfolderId}')" style="background:#059669; color:#fff; font-weight:800; padding:0.5rem 1.1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem;">
-                <span>⚡</span> Revisar (${cards.length})
+              <button type="button" class="btn btn-sm" onclick="startSubfolderStudy('\${subfolderId}')" style="background:#059669; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem;">
+                <span>⚡</span> Revisar (\${cards.length})
               </button>
             </div>
           </div>
         </div>
 
         <!-- Seção de Subpastas Aninhadas -->
-        <div style="margin-bottom:1.5rem;">
+        <div class="mr-subfolder-section-block" style="margin-top:0; margin-bottom:1.25rem;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; padding-bottom:0.35rem; border-bottom:1.5px solid #d1fae5;">
             <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
-              <span>📁</span> Subpastas (${subfolders.length})
+              <span>📁</span> Subpastas (\${subfolders.length})
             </h3>
-            <button type="button" onclick="openSubfolderCreateModal('${subfolderId}')" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.8rem; font-size:0.83rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+            <button type="button" onclick="openSubfolderCreateModal('\${subfolderId}')" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.8rem; font-size:0.83rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
               ➕ Nova Subpasta
             </button>
           </div>    \`;
