@@ -2842,11 +2842,10 @@ function injectHierarchySupport(html: string): string {
               <p style="margin:0; color:#64748b; font-size:0.85rem; line-height:1.35;">Selecione uma subpasta para revisar ou gerenciar seus cartões.</p>
             </div>
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm" onclick="openSubfolderCreateModal('\${parentId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
+              <button type="button" class="btn btn-sm" onclick="openSubfolderCreateModal('\\${parentId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
                 <span>➕</span> Nova Subpasta
               </button>
-            </div>
-          </div>
+            </div>          </div>
         </div>
 
         <!-- Seção de Cartões de Subpastas -->
