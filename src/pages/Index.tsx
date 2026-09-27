@@ -2828,7 +2828,7 @@ function injectHierarchySupport(html: string): string {
     });
     bpHtml += '</div>';
 
-    let contentHtml = `
+    let contentHtml = \`
       <div class="mr-subfolder-content-container" style="max-width:1280px; margin:0 auto; padding:0.25rem 1rem 1.25rem 1rem;">
         \${bpHtml}
 
@@ -2852,23 +2852,23 @@ function injectHierarchySupport(html: string): string {
         <div class="mr-subfolder-section-block" style="margin-top:0; margin-bottom:1.25rem;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; padding-bottom:0.35rem; border-bottom:1.5px solid #d1fae5;">
             <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
-              <span>📁</span> Subpastas disponíveis (${subfolders.length})
+              <span>📁</span> Subpastas disponíveis (\${subfolders.length})
             </h3>
-          </div>`;
+          </div>\`;
 
     if (subfolders.length === 0) {
-      contentHtml += `
+      contentHtml += \`
         <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.2rem; text-align:center; font-size:0.88rem; color:#64748b;">
           Nenhuma subpasta encontrada aqui.
           <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\${parentId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
         </div>
-      `;
+      \`;
     } else {
-      contentHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">`;
+      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
       subfolders.forEach(s => {
         const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(s.id) : (Array.isArray(s.cards) ? s.cards : []);
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
-        contentHtml += `
+        contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
             <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" onclick="event.stopPropagation(); if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\${s.id}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\${s.id}', true); }" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
@@ -2887,11 +2887,11 @@ function injectHierarchySupport(html: string): string {
               </div>
             </div>
           </div>
-        `;
+        \`;
       });
-      contentHtml += `</div>`;
+      contentHtml += \`</div>\`;
     }
-    contentHtml += `</div></div>`;    // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
+    contentHtml += \`</div></div>\`;    // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
     const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
     if (topbar && topbar.parentNode) {
       let subWrapper = document.getElementById('mr-subfolder-wrapper');
@@ -2986,7 +2986,7 @@ function injectHierarchySupport(html: string): string {
     });
     bpHtml += '</div>';
 
-    let contentHtml = `
+    let contentHtml = \`
       <div class="mr-subfolder-content-container" style="max-width:1280px; margin:0 auto; padding:0.25rem 1rem 1.25rem 1rem;">
         \${bpHtml}
 
@@ -3020,26 +3020,26 @@ function injectHierarchySupport(html: string): string {
         <div class="mr-subfolder-section-block" style="margin-top:0; margin-bottom:1.25rem;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; padding-bottom:0.35rem; border-bottom:1.5px solid #d1fae5;">
             <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
-              <span>📁</span> Subpastas (${subfolders.length})
+              <span>📁</span> Subpastas (\${subfolders.length})
             </h3>
             <button type="button" onclick="openSubfolderCreateModal('\${subfolderId}')" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.8rem; font-size:0.83rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
               ➕ Nova Subpasta
             </button>
-          </div>    `;
+          </div>    \`;
 
     if (subfolders.length === 0) {
-      contentHtml += `
+      contentHtml += \`
         <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.2rem; text-align:center; font-size:0.88rem; color:#64748b;">
           Nenhuma subpasta criada aqui ainda.
           <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\${subfolderId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
         </div>
-      `;
+      \`;
     } else {
-      contentHtml += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">`;
+      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
       subfolders.forEach(s => {
         const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(s.id) : (Array.isArray(s.cards) ? s.cards : []);
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
-        contentHtml += `
+        contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
             <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" onclick="event.stopPropagation(); if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\${s.id}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\${s.id}', true); }" style="position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
@@ -3054,16 +3054,16 @@ function injectHierarchySupport(html: string): string {
                 <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
               <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
-                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(220,38,38,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
               </div>
             </div>
           </div>
-        `;
+        \`;
       });
-      contentHtml += `</div>`;
+      contentHtml += \`</div>\`;
     }
-    contentHtml += `</div>`;    // Seção de Cartas desta Subpasta
-    contentHtml += `
+    contentHtml += \`</div>\`;    // Seção de Cartas desta Subpasta
+    contentHtml += \`
       <div>
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem; padding-bottom:0.4rem; border-bottom:1.5px solid #d1fae5;">
           <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
@@ -3078,10 +3078,10 @@ function injectHierarchySupport(html: string): string {
             </button>
           </div>
         </div>
-    `;
+    \`;
 
     if (cards.length === 0) {
-      contentHtml += `
+      contentHtml += \`
         <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.4rem; text-align:center; font-size:0.88rem; color:#64748b; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
           <div>Nenhuma carta nesta pasta ainda. Comece criando manualmente ou importando seu arquivo CSV:</div>
           <div style="display:inline-flex; align-items:center; gap:0.6rem; flex-wrap:wrap; justify-content:center;">
@@ -3089,11 +3089,11 @@ function injectHierarchySupport(html: string): string {
             <a href="javascript:void(0)" onclick="openNewCardModal('\${subfolderId}')" style="background:#16a34a; color:#fff; font-weight:800; text-decoration:none; padding:0.45rem 1rem; border-radius:8px; display:inline-flex; align-items:center; gap:0.35rem;">➕ Criar primeira carta</a>
           </div>
         </div>
-      `;
+      \`;
     } else {
-      contentHtml += `<div style="display:flex; flex-direction:column; gap:0.75rem;">`;
+      contentHtml += \`<div style="display:flex; flex-direction:column; gap:0.75rem;">\`;
       cards.forEach((c, idx) => {
-        contentHtml += `
+        contentHtml += \`
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
             <div style="flex:1;">
               <div style="font-weight:700; font-size:0.92rem; color:#0f172a; margin-bottom:0.25rem;">\${escapeHtml(c.q || 'Sem pergunta')}</div>
@@ -3103,13 +3103,12 @@ function injectHierarchySupport(html: string): string {
               Revisar
             </button>
           </div>
-        `;
+        \`;
       });
-      contentHtml += `</div>`;
+      contentHtml += \`</div>\`;
     }
 
-    contentHtml += `</div></div>`;
-
+    contentHtml += \`</div></div>\`;
     // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
     const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
     if (topbar && topbar.parentNode) {
