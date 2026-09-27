@@ -2730,7 +2730,7 @@ function injectHierarchySupport(html: string): string {
             '<div class="mr-folder-card-actions" style="gap:0.25rem;">' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" ' + resetBtnStyle + ' title="Resetar progresso das cartas">🔄 Resetar</button>' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" ' + addBtnStyle + ' title="Adicionar carta nesta pasta">+ Carta</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" ' + subfolderBtnStyle + ' title="Criar subpasta nesta pasta">📁 Subpasta</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" ' + subfolderBtnStyle + ' title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta" style="color:#dc2626; border-color:#fca5a5; background:#fef2f2;">🗑</button>' +
             '</div>';
 
@@ -2784,10 +2784,39 @@ function injectHierarchySupport(html: string): string {
             subfolderBtn.onclick = function(e) {
               e.stopPropagation();
               const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || 'tutoria';
-              if (typeof openSubfolderCreateModal === 'function') {
-                openSubfolderCreateModal(targetId);
-              } else if (typeof window.openSubfolderCreateModal === 'function') {
-                window.openSubfolderCreateModal(targetId);
+              const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
+
+              if (subs.length === 1 && subs[0] && subs[0].id) {
+                // Se tem exatamente UMA subpasta: navega direto para dentro dela
+                if (typeof window.navigateTo === 'function') {
+                  window.navigateTo(subs[0].id);
+                } else if (typeof navigateTo === 'function') {
+                  navigateTo(subs[0].id);
+                }
+              } else if (subs.length > 1) {
+                // Se tem VÁRIAS subpastas: navega para a pasta pai onde as subpastas dela estão listadas como cartões
+                if (typeof window.navigateTo === 'function') {
+                  window.navigateTo(targetId);
+                } else if (typeof navigateTo === 'function') {
+                  navigateTo(targetId);
+                } else {
+                  // Fallback: dispara clique nativo no cartão se existir
+                  try {
+                    card.click();
+                  } catch (err) {
+                    console.warn('Erro ao abrir pasta com múltiplas subpastas:', err);
+                  }
+                }
+              } else {
+                // Se NÃO tem subpastas: toast discreto avisando e não navega
+                const msg = 'Esta pasta não possui subpastas.';
+                if (typeof showMedReviewToast === 'function') {
+                  showMedReviewToast(msg, '', '📁');
+                } else if (typeof showToast === 'function') {
+                  showToast(msg);
+                } else {
+                  alert(msg);
+                }
               }
             };
           }
