@@ -286,6 +286,85 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-btn-reset { color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; } .mr-folder-card-btn-reset:hover { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
     .mr-folder-card-btn-add { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; } .mr-folder-card-btn-add:hover { background:#dcfce7; color:#14532d; }
 
+    /* Toast Flutuante MedReview */
+    .mr-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+      max-width: 420px;
+      width: calc(100% - 32px);
+    }
+    .mr-toast {
+      pointer-events: auto;
+      background: #ffffff;
+      border: 1.5px solid #86efac;
+      border-left: 5px solid #16a34a;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+      border-radius: 12px;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      animation: mr-toast-in 0.25s ease-out;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      font-family: inherit;
+    }
+    .mr-toast.mr-toast-hiding {
+      opacity: 0;
+      transform: translateY(10px) scale(0.96);
+    }
+    .mr-toast-icon {
+      font-size: 1.35rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .mr-toast-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .mr-toast-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #14532d;
+      margin-bottom: 0.2rem;
+      line-height: 1.3;
+    }
+    .mr-toast-path {
+      font-size: 0.8rem;
+      color: #475569;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .mr-toast-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: #94a3b8;
+      line-height: 1;
+      padding: 0 0.15rem;
+      margin-left: 0.35rem;
+      transition: color 0.15s ease;
+    }
+    .mr-toast-close:hover {
+      color: #14532d;
+    }
+    @keyframes mr-toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.94);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
     .mr-subfolder-card {
       background: #ffffff;
       border: 1.5px solid #bbf7d0;
@@ -1661,6 +1740,50 @@ function injectHierarchySupport(html: string): string {
     if (modal) modal.style.display = 'none';
   };
 
+  // Notificação Toast Visual Robusta e Autônoma do MedReview
+  function showMedReviewToast(title, subtitle, icon) {
+    try {
+      let container = document.getElementById('mr-toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'mr-toast-container';
+        container.className = 'mr-toast-container';
+        document.body.appendChild(container);
+      }
+
+      const toastEl = document.createElement('div');
+      toastEl.className = 'mr-toast';
+      toastEl.innerHTML =
+        '<span class="mr-toast-icon">' + (icon || '✅') + '</span>' +
+        '<div class="mr-toast-body">' +
+          '<div class="mr-toast-title">' + escapeHtml(title) + '</div>' +
+          (subtitle ? ('<div class="mr-toast-path">' + escapeHtml(subtitle) + '</div>') : '') +
+        '</div>' +
+        '<button type="button" class="mr-toast-close" title="Fechar">&times;</button>';
+
+      const closeBtn = toastEl.querySelector('.mr-toast-close');
+      const dismiss = () => {
+        if (toastEl.classList.contains('mr-toast-hiding')) return;
+        toastEl.classList.add('mr-toast-hiding');
+        setTimeout(() => {
+          if (toastEl.parentNode) toastEl.parentNode.removeChild(toastEl);
+        }, 260);
+      };
+      if (closeBtn) closeBtn.onclick = dismiss;
+
+      container.appendChild(toastEl);
+      setTimeout(dismiss, 5000);
+    } catch (err) {
+      console.warn('Erro ao exibir toast MedReview:', err);
+    }
+  }
+  window.showMedReviewToast = showMedReviewToast;
+  if (typeof window.showToast !== 'function') {
+    window.showToast = function(msg) {
+      showMedReviewToast(msg);
+    };
+  }
+
   window.handleSubfolderSubmit = function(e) {
     e.preventDefault();
     const nameInput = document.getElementById('subfolder-name-input');
@@ -1669,7 +1792,18 @@ function injectHierarchySupport(html: string): string {
     const desc = descInput ? descInput.value.trim() : '';
     if (!name) return;
 
-    const parentId = window.__activeFolderContext || 'tutoria';
+    // Resolução rigorosa da pasta pai: prioriza o contexto ativo registrado ao abrir o modal
+    let parentId = window.__activeFolderContext;
+    if (!parentId && typeof currentFolderContext === 'function') {
+      parentId = currentFolderContext();
+    }
+    if (!parentId) {
+      parentId = 'tutoria';
+    }
+
+    const parentInfo = resolveFolderInfo(parentId);
+    const parentName = parentInfo ? parentInfo.name : 'Pasta Principal';
+
     const subfolderId = 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
     const store = getSubfolderStore();
@@ -1683,11 +1817,24 @@ function injectHierarchySupport(html: string): string {
       cards: [],
       created: Date.now()
     };
-    saveState();
+    if (typeof saveState === 'function') {
+      saveState();
+    }
     closeSubfolderCreateModal();
 
-    if (typeof showToast === 'function') {
-      showToast('Subpasta "' + name + '" criada com sucesso!');
+    // Monta o caminho completo hierárquico (breadcrumbs) para feedback visual detalhado
+    const chain = getBreadcrumbChain(subfolderId);
+    let fullPathStr = '';
+    if (chain && chain.length > 0) {
+      fullPathStr = chain.map(it => it.name).join(' > ');
+    } else {
+      fullPathStr = parentName + ' > ' + name;
+    }
+
+    // Toast completo e explícito para o usuário saber exatamente onde a subpasta foi criada
+    showMedReviewToast('Subpasta criada com sucesso!', 'Localização: ' + fullPathStr, '📁');
+    if (typeof showToast === 'function' && showToast !== showMedReviewToast) {
+      try { showToast('Subpasta "' + name + '" criada em ' + fullPathStr); } catch { /* ignore */ }
     }
 
     // Se o modal de destino de importação tiver disparado a criação, reabre-o com a nova subpasta selecionada
@@ -1700,17 +1847,19 @@ function injectHierarchySupport(html: string): string {
         targetModal.style.display = 'flex';
         renderImportFolderTree();
       }
-    } else if (window.__importSelectedTargetFolderId) {
+      return;
+    } else if (window.__importSelectedTargetFolderId && document.getElementById('import-target-modal')?.style.display !== 'none') {
       window.__importSelectedTargetFolderId = subfolderId;
       window.__activeFolderContext = subfolderId;
-      const targetModal = document.getElementById('import-target-modal');
-      if (targetModal && targetModal.style.display !== 'none') {
-        renderImportFolderTree();
-      }
+      renderImportFolderTree();
+      return;
     }
 
-    // Se estiver navegando na subpasta pai ou renderizar rota
-    renderRoute();
+    // 1. Navega automaticamente para a subpasta recém-criada (requisito 1)
+    // 2. Garante que se o usuário voltar à pasta pai ela estará devidamente listada (requisito 2)
+    setTimeout(() => {
+      navigateTo(subfolderId);
+    }, 40);
   };
 
   // 9. Adaptador para navegar até subpastas
@@ -2795,13 +2944,19 @@ function injectHierarchySupport(html: string): string {
       }
     });
 
-    // D. Renderização da seção de Subpastas
+    // D. Renderização da seção de Subpastas (remove bloco antigo se a contagem ou lista mudou, garantindo re-render imediato)
     const subfolders = getSubfoldersOf(currentId);
+    const existingBlock = document.getElementById('mr-subfolders-block-' + currentId);
+    if (existingBlock && existingBlock.getAttribute('data-subfolders-count') !== String(subfolders.length)) {
+      existingBlock.remove();
+    }
+
     const cardSection = document.querySelector('.cards-list-section') || document.querySelector('.folder-cards-list') || document.querySelector('.deck-cards-list') || document.querySelector('.cards-list');
     
     if (cardSection && !document.getElementById('mr-subfolders-block-' + currentId)) {
       const block = document.createElement('div');
       block.id = 'mr-subfolders-block-' + currentId;
+      block.setAttribute('data-subfolders-count', String(subfolders.length));
       block.style.cssText = 'margin-bottom:2rem; background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:1.2rem;';
 
       let sfHtml = \`
