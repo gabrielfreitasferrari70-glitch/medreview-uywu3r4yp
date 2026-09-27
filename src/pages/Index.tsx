@@ -2526,10 +2526,10 @@ function injectHierarchySupport(html: string): string {
 
           const resetBtnStyle = isTutoriaCard
             ? 'style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.35rem 0.85rem; font-weight:700; font-size:0.82rem;"'
-            : '';
+            : 'style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.35rem 0.85rem; font-weight:700; font-size:0.82rem;"';
           const addBtnStyle = isTutoriaCard
             ? 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.4rem 0.95rem; font-weight:800; font-size:0.82rem; box-shadow:0 1px 3px rgba(22,163,74,0.2);"'
-            : '';
+            : 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.4rem 0.95rem; font-weight:800; font-size:0.82rem; box-shadow:0 1px 3px rgba(22,163,74,0.2);"';
 
           footerEl.innerHTML =
             '<div class="mr-folder-card-footer-left">' +
