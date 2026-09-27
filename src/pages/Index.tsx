@@ -376,6 +376,16 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-title { font-size: 1.15rem !important; font-weight: 800 !important; color: #14532d !important; line-height: 1.3 !important; letter-spacing: -0.01em !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
     .mr-folder-card-badge { display: inline-flex !important; align-items: center !important; gap: 0.35rem !important; padding: 0.25rem 0.65rem !important; border-radius: 9999px !important; background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; font-size: 0.75rem !important; font-weight: 700 !important; white-space: nowrap !important; flex-shrink: 0 !important; }
     .mr-folder-card-footer { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; flex-wrap: wrap !important; color: #64748b !important; }
+
+    /* Layout em linha única para rodapé de Tutoria: chip à esquerda, ações à direita */
+    .mr-tutoria-card .mr-folder-card-footer { display:flex !important; flex-direction:row !important; align-items:center !important; justify-content:space-between !important; gap:0.45rem !important; flex-wrap:nowrap !important; margin-top:auto !important; padding-top:0.75rem !important; border-top:1px dashed #e2e8f0 !important; }
+    .mr-tutoria-card .mr-folder-card-footer-left { display:flex !important; align-items:center !important; flex-shrink:0 !important; min-width:0 !important; }
+    .mr-tutoria-card .mr-folder-card-count-chip { white-space:nowrap !important; flex-shrink:0 !important; font-size:0.78rem !important; padding:0.25rem 0.65rem !important; }
+    .mr-tutoria-card .mr-folder-card-actions { display:flex !important; align-items:center !important; gap:0.35rem !important; flex-shrink:0 !important; margin-left:auto !important; }
+    .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action { white-space:nowrap !important; font-size:0.78rem !important; padding:0.28rem 0.6rem !important; }
+    @media (max-width: 420px) {
+      .mr-tutoria-card .mr-folder-card-footer { flex-wrap: wrap !important; }
+    }
   \`;
   document.head.appendChild(styleEl);
 
