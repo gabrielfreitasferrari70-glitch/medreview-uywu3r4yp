@@ -197,8 +197,12 @@ function injectHierarchySupport(html: string): string {
     .folder-header-actions button[onclick*="Stats"],
     .deck-header-actions button[onclick*="Stats"],
     .header-actions button[onclick*="Stats"],
-    .med-deck-actions button[onclick*="Stats"] {
+    .med-deck-actions button[onclick*="Stats"],
+    div[id*="detailed-stats"]:not(#global-stats-modal),
+    div[class*="detailed-stats"]:not(#global-stats-modal) {
       display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
     }
 
     .mr-folder-card {
@@ -1859,12 +1863,13 @@ function injectHierarchySupport(html: string): string {
     // 1. Navega automaticamente para a subpasta recém-criada (requisito 1)
     // 2. Garante que se o usuário voltar à pasta pai ela estará devidamente listada (requisito 2)
     setTimeout(() => {
+      suppressNativeStatsModal();
       navigateTo(subfolderId);
       enhanceViews();
       requestAnimationFrame(() => enhanceViews());
-      setTimeout(() => enhanceViews(), 40);
-      setTimeout(() => enhanceViews(), 120);
-      setTimeout(() => enhanceViews(), 300);
+      setTimeout(() => { suppressNativeStatsModal(); enhanceViews(); }, 40);
+      setTimeout(() => { suppressNativeStatsModal(); enhanceViews(); }, 120);
+      setTimeout(() => { suppressNativeStatsModal(); enhanceViews(); }, 300);
     }, 40);
   };
 
@@ -2462,8 +2467,24 @@ function injectHierarchySupport(html: string): string {
     }
   };
 
+  function suppressNativeStatsModal() {
+    try {
+      document.querySelectorAll('div, section, aside').forEach(el => {
+        if (el.id === 'global-stats-modal' || el.closest('#global-stats-modal') || el.closest('.med-topbar')) return;
+        const h = el.querySelector('h2, h3, h4, .modal-title');
+        const t = ((h && h.textContent) || el.textContent || '').trim();
+        if (t.includes('Estatísticas Detalhadas de Desempenho')) {
+          const c = el.closest('[style*="position: fixed"], [style*="position:fixed"], .modal, [class*="modal"]') || el;
+          if (c && c !== document.body && c.id !== 'global-stats-modal') { try { c.remove(); } catch { /* intentionally ignored */ } }
+        }
+      });
+    } catch { /* intentionally ignored */ }
+  }
+  window.suppressNativeStatsModal = suppressNativeStatsModal;
+
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   function enhanceViews() {
+    suppressNativeStatsModal();
     // Padronização visual dos cartões de pasta (.mr-folder-card)
     try {
       const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]');
@@ -3116,6 +3137,7 @@ function injectHierarchySupport(html: string): string {
 
   // Observador de mutações para garantir injeção contínua ao trocar de tela
   const observer = new MutationObserver((mutations) => {
+    suppressNativeStatsModal();
     // Higienização incondicional de nós adicionados pelo snapshot externo
     try {
       mutations.forEach(mutation => {
