@@ -3405,29 +3405,51 @@ function injectHierarchySupport(html: string): string {
                                   titleTutoriaId ||
                                   null;
 
-        let categoryBadge = 'Pasta';
         const lowerTitle = titleText.toLowerCase();
         const lowerId = (effectiveFolderId || '').toLowerCase();
 
-        if (lowerTitle.includes('tutoria') || lowerId.includes('tutoria')) {
-          categoryBadge = 'PBL/Tutoria';
-        } else if (
+        // 1. Flags de identificação conforme plano
+        const isCustomRoot = !!(state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
+        const isCustomProva = !!(state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
+        const isCustomTutoria = !!(state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
+
+        // 2. isTutoriaCard existente
+        const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
+
+        // 3. isProvaCard
+        const isProvaCard = !isTutoriaCard && (
+          isCustomProva ||
+          lowerTitle.includes('prova') ||
+          lowerId.includes('prova') ||
           lowerTitle.includes('cardio') ||
           lowerTitle.includes('módulo') ||
           lowerTitle.includes('modulo') ||
-          lowerTitle.includes('prova') ||
-          lowerId.includes('prova') ||
           card.classList.contains('deck-card')
-        ) {
-          categoryBadge = 'Módulos';
+        );
+
+        // 4. isCustomFolder
+        const isCustomFolder = !isTutoriaCard && !isProvaCard && (isCustomRoot || isCustomTutoria);
+
+        // 5. Badge e ícone por tipo
+        let categoryBadge = 'Pasta';
+        let icon = '📁';
+        if (isTutoriaCard) {
+          categoryBadge = 'PBL/Tutoria';
+        } else if (isProvaCard) {
+          categoryBadge = '📝 Provas';
+          icon = '📝';
+        } else if (isCustomFolder) {
+          categoryBadge = '📁 Pasta';
+          icon = '📁';
         } else if (card.classList.contains('mr-subfolder-card')) {
           categoryBadge = 'Subpasta';
+          icon = '📁';
         }
 
-        let icon = '📁';
         const iconMatch = titleText.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])/u);
         let cleanTitle = titleText;
         if (iconMatch) {
+          // Se o título original já trazia um emoji próprio, preservamos o ícone do título
           icon = iconMatch[0];
           cleanTitle = cleanTitle.replace(icon, '').trim();
         }
@@ -3467,18 +3489,18 @@ function injectHierarchySupport(html: string): string {
           }
         });
 
-        // Identificação de cartão de tutoria
-        const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
-        if (isTutoriaCard) {
+        // 6. Aplicação da classe .mr-tutoria-card para Tutoria, Provas e Custom Folders
+        const shouldUseStandardCard = isTutoriaCard || isProvaCard || isCustomFolder;
+        if (shouldUseStandardCard) {
           card.classList.add('mr-tutoria-card');
         }
 
-        // 4. CABEÇALHO PADRONIZADO
+        // 4. CABEÇALHO PADRONIZADO (.mr-tutoria-header, chip no topo esquerdo, título com ícone)
         if (!alreadyHasHeader) {
           let headerEl = card.querySelector('.mr-folder-card-header');
           if (!headerEl) {
             headerEl = document.createElement('div');
-            if (isTutoriaCard) {
+            if (shouldUseStandardCard) {
               headerEl.className = 'mr-folder-card-header mr-tutoria-header';
               headerEl.innerHTML =
                 '<span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
@@ -3560,7 +3582,7 @@ function injectHierarchySupport(html: string): string {
         }
 
         // Limpeza de ícones e contagens nativas duplicadas no corpo do cartão
-        if (isTutoriaCard) {
+        if (shouldUseStandardCard) {
           // Remove ícone de pasta e ícones residuais no corpo do cartão (.deck-icon, .folder-icon, img, svg, i) fora do header e footer
           card.querySelectorAll('.deck-icon, .folder-icon, img, svg, i').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
@@ -3571,7 +3593,7 @@ function injectHierarchySupport(html: string): string {
           card.querySelectorAll('p, div, span, small').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
               const txt = (el.textContent || '').trim();
-              if (txt.match(/^\\d+\\s*cartas?$/i) || txt === '📁' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
+              if (txt.match(/^\\d+\\s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
                 el.remove();
               }
             }
@@ -3580,7 +3602,7 @@ function injectHierarchySupport(html: string): string {
           Array.from(card.childNodes).forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
               const val = (node.nodeValue || '').trim();
-              if (val.match(/^\\d+\\s*cartas?$/i) || val === '📁' || val.toLowerCase() === 'cartas' || val.toLowerCase() === 'carta') {
+              if (val.match(/^\\d+\\s*cartas?$/i) || val === '📁' || val === '📝' || val.toLowerCase() === 'cartas' || val.toLowerCase() === 'carta') {
                 node.remove();
               }
             }
@@ -3613,7 +3635,7 @@ function injectHierarchySupport(html: string): string {
 
           const footerEl = document.createElement('div');
           footerEl.className = 'mr-folder-card-footer';
-          const leftContent = isTutoriaCard
+          const leftContent = shouldUseStandardCard
             ? '<span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>'
             : '<span class="mr-folder-card-count-chip">📄 ' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
               '<div class="mr-folder-card-progress-box">' +
@@ -3623,13 +3645,13 @@ function injectHierarchySupport(html: string): string {
                 '</div>' +
               '</div>';
 
-          const resetBtnStyle = isTutoriaCard
+          const resetBtnStyle = shouldUseStandardCard
             ? 'style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.26rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;"'
             : 'style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.26rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;"';
-          const addBtnStyle = isTutoriaCard
+          const addBtnStyle = shouldUseStandardCard
             ? 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.26rem 0.6rem; font-weight:800; font-size:0.76rem; box-shadow:0 1px 3px rgba(22,163,74,0.2); white-space:nowrap;"'
             : 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.26rem 0.6rem; font-weight:800; font-size:0.76rem; box-shadow:0 1px 3px rgba(22,163,74,0.2); white-space:nowrap;"';
-          const subfolderBtnStyle = isTutoriaCard
+          const subfolderBtnStyle = shouldUseStandardCard
             ? 'style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.6rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;"'
             : 'style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.6rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;"';
 
