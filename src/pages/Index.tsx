@@ -500,7 +500,34 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-badge { display: inline-flex !important; align-items: center !important; gap: 0.35rem !important; padding: 0.25rem 0.65rem !important; border-radius: 9999px !important; background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; font-size: 0.75rem !important; font-weight: 700 !important; white-space: nowrap !important; flex-shrink: 0 !important; }
     .mr-folder-card-footer { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; flex-wrap: wrap !important; color: #64748b !important; }
 
-    /* Layout em linha única para rodapé de Tutoria: chip à esquerda, ações à direita */
+    /* Slot do botão 🗑 no canto superior direito de qualquer cartão de pasta */
+    .mr-tutoria-card .mr-folder-card-top-delete,
+    .mr-folder-card .mr-folder-card-top-delete {
+      position: absolute !important;
+      top: 0.85rem !important;
+      right: 0.85rem !important;
+      z-index: 10 !important;
+      color: #dc2626 !important;
+      background: #fef2f2 !important;
+      border: 1px solid #fecaca !important;
+      border-radius: 8px !important;
+      padding: 0.25rem 0.5rem !important;
+      font-size: 0.95rem !important;
+      cursor: pointer !important;
+      line-height: 1 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-shadow: 0 1px 3px rgba(220,38,38,0.12) !important;
+      transition: background 0.15s ease, border-color 0.15s ease !important;
+    }
+    .mr-tutoria-card .mr-folder-card-top-delete:hover,
+    .mr-folder-card .mr-folder-card-top-delete:hover {
+      background: #fee2e2 !important;
+      border-color: #f87171 !important;
+    }
+
+    /* Layout em linha única para rodapé padronizado de cartões: chip à esquerda, divisor pontilhado, ações à direita */
     .mr-tutoria-card .mr-folder-card-footer { display:flex !important; flex-direction:row !important; align-items:center !important; justify-content:space-between !important; gap:0.45rem !important; flex-wrap:nowrap !important; margin-top:auto !important; padding-top:0.75rem !important; border-top:1px dashed #e2e8f0 !important; }
     .mr-tutoria-card .mr-folder-card-footer-left { display:flex !important; align-items:center !important; flex-shrink:0 !important; min-width:0 !important; }
     .mr-tutoria-card .mr-folder-card-count-chip { white-space:nowrap !important; flex-shrink:0 !important; font-size:0.76rem !important; padding:0.22rem 0.55rem !important; }
