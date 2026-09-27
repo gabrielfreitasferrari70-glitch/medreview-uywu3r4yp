@@ -285,6 +285,7 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-btn-action { border:none; background:transparent; padding:0.3rem 0.55rem; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.25rem; transition:background 0.15s ease, color 0.15s ease; }
     .mr-folder-card-btn-reset { color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; } .mr-folder-card-btn-reset:hover { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
     .mr-folder-card-btn-add { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; } .mr-folder-card-btn-add:hover { background:#dcfce7; color:#14532d; }
+    .mr-folder-card-btn-subfolder { color:#166534; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; font-weight:700; } .mr-folder-card-btn-subfolder:hover { background:#dcfce7; border-color:#22c55e; color:#14532d; }
 
     /* Toast Flutuante MedReview */
     .mr-toast-container {
@@ -2718,6 +2719,9 @@ function injectHierarchySupport(html: string): string {
           const addBtnStyle = isTutoriaCard
             ? 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.4rem 0.95rem; font-weight:800; font-size:0.82rem; box-shadow:0 1px 3px rgba(22,163,74,0.2);"'
             : 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.4rem 0.95rem; font-weight:800; font-size:0.82rem; box-shadow:0 1px 3px rgba(22,163,74,0.2);"';
+          const subfolderBtnStyle = isTutoriaCard
+            ? 'style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.38rem 0.85rem; font-weight:700; font-size:0.82rem; box-shadow:0 1px 2px rgba(22,163,74,0.06);"'
+            : 'style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.38rem 0.85rem; font-weight:700; font-size:0.82rem; box-shadow:0 1px 2px rgba(22,163,74,0.06);"';
 
           footerEl.innerHTML =
             '<div class="mr-folder-card-footer-left">' +
@@ -2726,6 +2730,7 @@ function injectHierarchySupport(html: string): string {
             '<div class="mr-folder-card-actions">' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" ' + resetBtnStyle + ' title="Resetar progresso das cartas">🔄 Resetar</button>' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" ' + addBtnStyle + ' title="Adicionar carta nesta pasta">+ Carta</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" ' + subfolderBtnStyle + ' title="Criar subpasta nesta pasta">📁 Subpasta</button>' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta" style="color:#dc2626; border-color:#fca5a5; background:#fef2f2;">🗑</button>' +
             '</div>';
 
@@ -2770,6 +2775,19 @@ function injectHierarchySupport(html: string): string {
                 openCreateChoice(targetId);
               } else if (typeof openNewCardModal === 'function') {
                 openNewCardModal(targetId);
+              }
+            };
+          }
+
+          const subfolderBtn = footerEl.querySelector('.mr-folder-card-btn-subfolder');
+          if (subfolderBtn) {
+            subfolderBtn.onclick = function(e) {
+              e.stopPropagation();
+              const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || 'tutoria';
+              if (typeof openSubfolderCreateModal === 'function') {
+                openSubfolderCreateModal(targetId);
+              } else if (typeof window.openSubfolderCreateModal === 'function') {
+                window.openSubfolderCreateModal(targetId);
               }
             };
           }
