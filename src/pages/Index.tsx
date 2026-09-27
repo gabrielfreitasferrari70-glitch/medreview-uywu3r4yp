@@ -2443,25 +2443,31 @@ function injectHierarchySupport(html: string): string {
         </div>
       \`;
     } else {
-      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.9rem;">\`;
+      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
       subfolders.forEach(s => {
         const cCount = Array.isArray(s.cards) ? s.cards.length : 0;
         contentHtml += \`
-          <div class="mr-subfolder-card" onclick="navigateTo('\${s.id}')">
-            <div style="display:flex; align-items:center; gap:0.75rem;">
-              <span style="font-size:1.6rem;">📁</span>
-              <div>
-                <div style="font-weight:800; font-size:0.95rem; color:#0f172a;">\${escapeHtml(s.name)}</div>
-                <div style="font-size:0.78rem; color:#64748b;">\${cCount} carta\${cCount !== 1 ? 's' : ''}</div>
+          <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1">
+            <div class="mr-folder-card-header mr-tutoria-header">
+              <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
+              <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
+                <span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">📁</span>
+                <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(s.name)}</span>
               </div>
             </div>
-            <span style="color:#16a34a; font-size:0.95rem; font-weight:800;">Abrir ➜</span>
+            <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
+              <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
+                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+              </div>
+              <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
+                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+              </div>
+            </div>
           </div>
         \`;
       });
       contentHtml += \`</div>\`;
     }
-
     contentHtml += \`</div></div>\`;
 
     // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
@@ -2603,25 +2609,31 @@ function injectHierarchySupport(html: string): string {
         </div>
       \`;
     } else {
-      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.9rem;">\`;
+      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
       subfolders.forEach(s => {
         const cCount = Array.isArray(s.cards) ? s.cards.length : 0;
         contentHtml += \`
-          <div class="mr-subfolder-card" onclick="navigateTo('\${s.id}')">
-            <div style="display:flex; align-items:center; gap:0.75rem;">
-              <span style="font-size:1.6rem;">📁</span>
-              <div>
-                <div style="font-weight:800; font-size:0.95rem; color:#0f172a;">\${escapeHtml(s.name)}</div>
-                <div style="font-size:0.78rem; color:#64748b;">\${cCount} carta\${cCount !== 1 ? 's' : ''}</div>
+          <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1">
+            <div class="mr-folder-card-header mr-tutoria-header">
+              <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
+              <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
+                <span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">📁</span>
+                <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(s.name)}</span>
               </div>
             </div>
-            <span style="color:#16a34a; font-size:0.95rem; font-weight:800;">Abrir ➜</span>
+            <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
+              <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
+                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+              </div>
+              <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
+                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+              </div>
+            </div>
           </div>
         \`;
       });
       contentHtml += \`</div>\`;
     }
-
     contentHtml += \`</div>\`;
 
     // Seção de Cartas desta Subpasta
@@ -3435,25 +3447,31 @@ function injectHierarchySupport(html: string): string {
           </div>
         \`;
       } else {
-        sfHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:0.85rem;">\`;
+        sfHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
         subfolders.forEach(sf => {
           const cCount = Array.isArray(sf.cards) ? sf.cards.length : 0;
           sfHtml += \`
-            <div class="mr-subfolder-card" onclick="navigateTo('\${sf.id}')">
-              <div style="display:flex; align-items:center; gap:0.75rem;">
-                <span style="font-size:1.5rem;">📁</span>
-                <div>
-                  <div style="font-weight:800; font-size:0.94rem; color:#0f172a;">\${escapeHtml(sf.name)}</div>
-                  <div style="font-size:0.77rem; color:#64748b;">\${cCount} carta\${cCount !== 1 ? 's' : ''}</div>
+            <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${sf.id}')" data-subfolder-id="\${sf.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1">
+              <div class="mr-folder-card-header mr-tutoria-header">
+                <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
+                <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
+                  <span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">📁</span>
+                  <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(sf.name)}</span>
                 </div>
               </div>
-              <span style="color:#16a34a; font-size:0.95rem; font-weight:800;">Abrir ➜</span>
+              <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
+                <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
+                  <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+                </div>
+                <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
+                  <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${sf.id}')">Abrir ➜</button>
+                </div>
+              </div>
             </div>
           \`;
         });
         sfHtml += \`</div>\`;
       }
-
       block.innerHTML = sfHtml;
       cardSection.parentNode.insertBefore(block, cardSection);
     }
