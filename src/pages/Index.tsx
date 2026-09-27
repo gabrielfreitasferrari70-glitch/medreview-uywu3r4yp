@@ -1899,14 +1899,16 @@ function injectHierarchySupport(html: string): string {
   if (window.navigateTo && window.navigateTo.__mrWrapped) return;
   const origNavigateTo = window.navigateTo;
   const wrappedNavigateTo = function(target) {
-    // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e dos irmãos ocultados
+    // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e do container principal ocultado
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
       subWrapper.style.display = 'none';
-      if (subWrapper.parentNode) {
-        Array.from(subWrapper.parentNode.children).forEach(ch => {
-          ch.style.display = '';
-        });
+      const hidden = window.__mrHiddenMainEl;
+      if (hidden) {
+        if (!hidden.matches || (!hidden.matches('.modal, [id*="modal"], [class*="modal"], dialog') && !hidden.closest('.modal, [id*="modal"], [class*="modal"], dialog'))) {
+          hidden.style.display = '';
+        }
+        window.__mrHiddenMainEl = null;
       }
     }
 
@@ -2412,6 +2414,7 @@ function injectHierarchySupport(html: string): string {
       // Oculta apenas o container principal de conteúdo (.main-content-area, main, .container)
       const mainContent = document.querySelector('.main-content-area, main, .container');
       if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
+        window.__mrHiddenMainEl = mainContent;
         mainContent.style.display = 'none';
       }
       subWrapper.style.display = 'block';
@@ -3159,10 +3162,12 @@ function injectHierarchySupport(html: string): string {
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
       subWrapper.style.display = 'none';
-      if (subWrapper.parentNode) {
-        Array.from(subWrapper.parentNode.children).forEach(ch => {
-          ch.style.display = '';
-        });
+      const hidden = window.__mrHiddenMainEl;
+      if (hidden) {
+        if (!hidden.matches || (!hidden.matches('.modal, [id*="modal"], [class*="modal"], dialog') && !hidden.closest('.modal, [id*="modal"], [class*="modal"], dialog'))) {
+          hidden.style.display = '';
+        }
+        window.__mrHiddenMainEl = null;
       }
     }
 
