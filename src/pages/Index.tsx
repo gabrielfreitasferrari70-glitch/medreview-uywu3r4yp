@@ -201,26 +201,44 @@ function injectHierarchySupport(html: string): string {
       padding-bottom: 0 !important;
       display: block;
       width: 100%;
+      background: transparent !important;
+      min-height: auto !important;
+      box-shadow: none !important;
+      border: none !important;
     }
     #mr-subfolder-wrapper .mr-subfolder-content-container {
-      padding-top: 0.25rem !important;
-      padding-bottom: 1.25rem !important;
-      padding-left: 1rem !important;
-      padding-right: 1rem !important;
+      padding-top: 1.25rem !important;
+      padding-bottom: 2rem !important;
+      padding-left: 1.25rem !important;
+      padding-right: 1.25rem !important;
       margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      background: transparent !important;
+      min-height: auto !important;
     }
     #mr-subfolder-wrapper .mr-breadcrumb-bar {
-      margin-top: 0.15rem !important;
-      margin-bottom: 1rem !important;
-      padding: 0.45rem 0.85rem !important;
+      margin-top: 0 !important;
+      margin-bottom: 1.25rem !important;
+      padding: 0.55rem 0.95rem !important;
     }
     #mr-subfolder-wrapper .mr-subfolder-hero-card {
       margin-top: 0 !important;
-      margin-bottom: 1.25rem !important;
+      margin-bottom: 1.35rem !important;
     }
     #mr-subfolder-wrapper .mr-subfolder-section-block {
       margin-top: 0 !important;
       margin-bottom: 1.25rem !important;
+    }
+    /* Neutralização de faixas brancas ou spacers herdados */
+    #mr-subfolder-wrapper > *:empty,
+    #mr-subfolder-wrapper .spacer,
+    #mr-subfolder-wrapper [class*="spacer"],
+    #mr-subfolder-wrapper [class*="whitespace"] {
+      display: none !important;
+      height: 0 !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
     .folder-header-actions button[onclick*="Stats"],
     .deck-header-actions button[onclick*="Stats"],
@@ -1927,15 +1945,20 @@ function injectHierarchySupport(html: string): string {
   if (window.navigateTo && window.navigateTo.__mrWrapped) return;
   const origNavigateTo = window.navigateTo;
   const wrappedNavigateTo = function(target) {
-    // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e do container principal ocultado
+    // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e dos elementos nativos ocultados
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
       subWrapper.style.display = 'none';
-      const hidden = window.__mrHiddenMainEl;
-      if (hidden) {
-        if (!hidden.matches || (!hidden.matches('.modal, [id*="modal"], [class*="modal"], dialog') && !hidden.closest('.modal, [id*="modal"], [class*="modal"], dialog'))) {
-          hidden.style.display = '';
-        }
+      if (typeof window.__mrRestoreHiddenElements === 'function') {
+        window.__mrRestoreHiddenElements();
+      } else {
+        const hiddenList = Array.isArray(window.__mrHiddenMainEls) ? window.__mrHiddenMainEls : (window.__mrHiddenMainEl ? [window.__mrHiddenMainEl] : []);
+        hiddenList.forEach(el => {
+          if (el && (!el.matches || (!el.matches('.modal, [id*="modal"], [class*="modal"], dialog') && !el.closest('.modal, [id*="modal"], [class*="modal"], dialog')))) {
+            el.style.display = '';
+          }
+        });
+        window.__mrHiddenMainEls = null;
         window.__mrHiddenMainEl = null;
       }
       document.querySelectorAll('[data-mr-subfolder-hidden-banner="1"]').forEach(el => {
@@ -2279,6 +2302,91 @@ function injectHierarchySupport(html: string): string {
       '</div>';
   }
 
+  // Helpers para ocultar/restaurar TODOS os elementos nativos residuais da view pai
+  function isModalElement(el) {
+    if (!el || !el.matches) return false;
+    try {
+      if (el.matches('.modal, [id*="modal"], [class*="modal"], dialog')) return true;
+      if (el.closest && el.closest('.modal, [id*="modal"], [class*="modal"], dialog')) return true;
+    } catch { /* ignore */ }
+    return false;
+  }
+
+  function hideNativeContentForSubfolder(subWrapper) {
+    // Restaura lista anterior se houver antes de recalcular
+    if (typeof window.__mrRestoreHiddenElements === 'function') {
+      window.__mrRestoreHiddenElements();
+    }
+
+    const hiddenList = [];
+    const pushHidden = (el) => {
+      if (!el || hiddenList.includes(el)) return;
+      if (el === subWrapper || subWrapper.contains(el) || el.contains(subWrapper)) return;
+      if (isModalElement(el)) return;
+      // Não oculta topbar / header nem html/body
+      if (el === document.body || el === document.documentElement) return;
+      if (el.matches && el.matches('.med-topbar, header, [class*="topbar"], [id*="topbar"]')) return;
+      if (el.closest && el.closest('.med-topbar, header')) return;
+
+      const prevDisp = el.style.display;
+      el.setAttribute('data-mr-prev-display', prevDisp || '');
+      el.style.display = 'none';
+      hiddenList.push(el);
+    };
+
+    // 1. Containers principais conhecidos da aplicação / snapshot
+    const mainTargets = document.querySelectorAll('.main-content-area, main, #app-container, .container, #main-container, [role="main"], .folder-view, .deck-view, #app');
+    mainTargets.forEach(el => pushHidden(el));
+
+    // 2. Irmãos de subWrapper dentro do mesmo parent (exceto topbar e modais)
+    if (subWrapper && subWrapper.parentNode) {
+      Array.from(subWrapper.parentNode.children).forEach(sibling => {
+        if (sibling !== subWrapper) {
+          pushHidden(sibling);
+        }
+      });
+    }
+
+    // 3. Barras de breadcrumb nativas residuais do snapshot e seus wrappers
+    const nativeBreadcrumbs = document.querySelectorAll('.breadcrumb, .breadcrumbs, [class*="breadcrumb"], [id*="breadcrumb"], nav[aria-label*="breadcrumb"], [class*="trail"]');
+    nativeBreadcrumbs.forEach(bc => {
+      if (!subWrapper.contains(bc)) {
+        pushHidden(bc);
+        if (bc.parentElement && bc.parentElement !== document.body && !subWrapper.contains(bc.parentElement)) {
+          // Oculta também o container que envolve o breadcrumb nativo
+          pushHidden(bc.parentElement);
+        }
+      }
+    });
+
+    // 4. Qualquer elemento com texto de breadcrumb nativo residual fora do subWrapper (ex.: "📁 Início" ou "Início /")
+    document.querySelectorAll('div, nav, section, p, header').forEach(el => {
+      if (!subWrapper.contains(el) && !el.closest('.med-topbar') && !el.closest('header')) {
+        const txt = (el.textContent || '').trim();
+        if ((txt.startsWith('📁 Início') || txt.startsWith('Início /') || txt.includes('📁 Início /')) && !isModalElement(el)) {
+          pushHidden(el);
+        }
+      }
+    });
+
+    window.__mrHiddenMainEls = hiddenList;
+    window.__mrHiddenMainEl = hiddenList[0] || null;
+  }
+
+  function restoreHiddenNativeElements() {
+    const list = Array.isArray(window.__mrHiddenMainEls) ? window.__mrHiddenMainEls : (window.__mrHiddenMainEl ? [window.__mrHiddenMainEl] : []);
+    list.forEach(el => {
+      if (el && !isModalElement(el)) {
+        const prev = el.getAttribute('data-mr-prev-display');
+        el.style.display = prev !== null ? prev : '';
+        el.removeAttribute('data-mr-prev-display');
+      }
+    });
+    window.__mrHiddenMainEls = null;
+    window.__mrHiddenMainEl = null;
+  }
+  window.__mrRestoreHiddenElements = restoreHiddenNativeElements;
+
   // 10A. Renderização dedicada para picker de subpastas de uma pasta (quando tem 2+ subpastas)
   function renderSubfoldersPicker(parentId) {
     const parentInfo = resolveFolderInfo(parentId) || { name: 'Pasta' };
@@ -2356,36 +2464,56 @@ function injectHierarchySupport(html: string): string {
 
     contentHtml += \`</div></div>\`;
 
-    // Renderiza na tela usando a mesma mecânica de renderSubfolderView
-    const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
+    // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
     const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
     if (topbar && topbar.parentNode) {
       let subWrapper = document.getElementById('mr-subfolder-wrapper');
       if (!subWrapper) {
         subWrapper = document.createElement('div');
         subWrapper.id = 'mr-subfolder-wrapper';
-        topbar.parentNode.appendChild(subWrapper);
+        // Insere logo após a topbar para garantir ordem visual direta
+        if (topbar.nextSibling) {
+          topbar.parentNode.insertBefore(subWrapper, topbar.nextSibling);
+        } else {
+          topbar.parentNode.appendChild(subWrapper);
+        }
+      } else {
+        if (topbar.nextSibling && subWrapper !== topbar.nextSibling) {
+          topbar.parentNode.insertBefore(subWrapper, topbar.nextSibling);
+        }
       }
+
       document.querySelectorAll('p, div').forEach(el => {
         if (el.textContent && el.textContent.includes('Motor de repetição espaçada: FSRS-5') && !el.closest('#mr-subfolder-wrapper') && !el.querySelector('#mr-subfolder-wrapper')) {
           el.setAttribute('data-mr-subfolder-hidden-banner', '1');
           el.style.display = 'none';
         }
       });
-      const mainContent = document.querySelector('.main-content-area, main, .container');
-      if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
-        window.__mrHiddenMainEl = mainContent;
-        mainContent.style.display = 'none';
-      }
+
+      // Oculta TODOS os containers nativos e breadcrumbs residuais do snapshot
+      hideNativeContentForSubfolder(subWrapper);
+
       subWrapper.style.display = 'block';
       subWrapper.innerHTML = contentHtml;
     } else {
+      const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
       viewContainer.innerHTML = contentHtml;
     }
     requestAnimationFrame(() => {
+      // Re-aplica ocultamento caso mutações do snapshot tenham criado novos nós
+      const sw = document.getElementById('mr-subfolder-wrapper');
+      if (sw && sw.style.display !== 'none') {
+        hideNativeContentForSubfolder(sw);
+      }
       enhanceViews();
-      setTimeout(enhanceViews, 120);
-      setTimeout(enhanceViews, 300);
+      setTimeout(() => {
+        if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
+        enhanceViews();
+      }, 120);
+      setTimeout(() => {
+        if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
+        enhanceViews();
+      }, 300);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -2544,38 +2672,54 @@ function injectHierarchySupport(html: string): string {
 
     contentHtml += \`</div></div>\`;
 
-    // Renderiza na tela
-    const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
-    // Se existir topbar preserva e troca o resto
+    // Renderiza na tela usando a mecânica aprimorada de ocultamento total e restauração
     const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
     if (topbar && topbar.parentNode) {
       let subWrapper = document.getElementById('mr-subfolder-wrapper');
       if (!subWrapper) {
         subWrapper = document.createElement('div');
         subWrapper.id = 'mr-subfolder-wrapper';
-        topbar.parentNode.appendChild(subWrapper);
+        if (topbar.nextSibling) {
+          topbar.parentNode.insertBefore(subWrapper, topbar.nextSibling);
+        } else {
+          topbar.parentNode.appendChild(subWrapper);
+        }
+      } else {
+        if (topbar.nextSibling && subWrapper !== topbar.nextSibling) {
+          topbar.parentNode.insertBefore(subWrapper, topbar.nextSibling);
+        }
       }
+
       document.querySelectorAll('p, div').forEach(el => {
         if (el.textContent && el.textContent.includes('Motor de repetição espaçada: FSRS-5') && !el.closest('#mr-subfolder-wrapper') && !el.querySelector('#mr-subfolder-wrapper')) {
           el.setAttribute('data-mr-subfolder-hidden-banner', '1');
           el.style.display = 'none';
         }
       });
-      // Oculta apenas o container principal de conteúdo (.main-content-area, main, .container)
-      const mainContent = document.querySelector('.main-content-area, main, .container');
-      if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
-        window.__mrHiddenMainEl = mainContent;
-        mainContent.style.display = 'none';
-      }
+
+      // Oculta TODOS os containers nativos e breadcrumbs residuais do snapshot
+      hideNativeContentForSubfolder(subWrapper);
+
       subWrapper.style.display = 'block';
       subWrapper.innerHTML = contentHtml;
     } else {
+      const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
       viewContainer.innerHTML = contentHtml;
     }
     requestAnimationFrame(() => {
+      const sw = document.getElementById('mr-subfolder-wrapper');
+      if (sw && sw.style.display !== 'none') {
+        hideNativeContentForSubfolder(sw);
+      }
       enhanceViews();
-      setTimeout(enhanceViews, 120);
-      setTimeout(enhanceViews, 300);
+      setTimeout(() => {
+        if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
+        enhanceViews();
+      }, 120);
+      setTimeout(() => {
+        if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
+        enhanceViews();
+      }, 300);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -3341,11 +3485,16 @@ function injectHierarchySupport(html: string): string {
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
       subWrapper.style.display = 'none';
-      const hidden = window.__mrHiddenMainEl;
-      if (hidden) {
-        if (!hidden.matches || (!hidden.matches('.modal, [id*="modal"], [class*="modal"], dialog') && !hidden.closest('.modal, [id*="modal"], [class*="modal"], dialog'))) {
-          hidden.style.display = '';
-        }
+      if (typeof window.__mrRestoreHiddenElements === 'function') {
+        window.__mrRestoreHiddenElements();
+      } else {
+        const hiddenList = Array.isArray(window.__mrHiddenMainEls) ? window.__mrHiddenMainEls : (window.__mrHiddenMainEl ? [window.__mrHiddenMainEl] : []);
+        hiddenList.forEach(el => {
+          if (el && (!el.matches || (!el.matches('.modal, [id*="modal"], [class*="modal"], dialog') && !el.closest('.modal, [id*="modal"], [class*="modal"], dialog')))) {
+            el.style.display = '';
+          }
+        });
+        window.__mrHiddenMainEls = null;
         window.__mrHiddenMainEl = null;
       }
       document.querySelectorAll('[data-mr-subfolder-hidden-banner="1"]').forEach(el => {
