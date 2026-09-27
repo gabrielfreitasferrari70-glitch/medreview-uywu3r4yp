@@ -416,18 +416,11 @@ function injectHierarchySupport(html: string): string {
       }
     }
 
-    .mr-subfolder-card {
-      background: #ffffff;
-      border: 1.5px solid #bbf7d0;
-      border-radius: 12px;
-      padding: 0.95rem 1.15rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: all 0.16s ease;
-      cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
+    .mr-subfolder-card { align-items: stretch !important; display: flex !important; flex-direction: column !important; width: 100% !important; box-sizing: border-box !important; }
+    .mr-subfolder-card .mr-folder-card-header { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; }
+    .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 0.45rem !important; flex-wrap: nowrap !important; margin-top: auto !important; padding-top: 0.75rem !important; border-top: 1px dashed #e2e8f0 !important; }
+    .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; flex-shrink: 0 !important; min-width: 0 !important; }
+    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; gap: 0.25rem !important; flex-shrink: 0 !important; margin-left: auto !important; }
     .mr-subfolder-card:hover {
       border-color: #16a34a;
       transform: translateY(-2px);
@@ -2445,7 +2438,8 @@ function injectHierarchySupport(html: string): string {
     } else {
       contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
       subfolders.forEach(s => {
-        const cCount = Array.isArray(s.cards) ? s.cards.length : 0;
+        const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(s.id) : (Array.isArray(s.cards) ? s.cards : []);
+        const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1">
             <div class="mr-folder-card-header mr-tutoria-header">
@@ -2611,7 +2605,8 @@ function injectHierarchySupport(html: string): string {
     } else {
       contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
       subfolders.forEach(s => {
-        const cCount = Array.isArray(s.cards) ? s.cards.length : 0;
+        const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(s.id) : (Array.isArray(s.cards) ? s.cards : []);
+        const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1">
             <div class="mr-folder-card-header mr-tutoria-header">
@@ -3449,7 +3444,8 @@ function injectHierarchySupport(html: string): string {
       } else {
         sfHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:1.15rem; align-items:stretch;">\`;
         subfolders.forEach(sf => {
-          const cCount = Array.isArray(sf.cards) ? sf.cards.length : 0;
+          const subCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(sf.id) : (Array.isArray(sf.cards) ? sf.cards : []);
+          const cCount = subCards.length || (Array.isArray(sf.cards) ? sf.cards.length : 0);
           sfHtml += \`
             <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${sf.id}')" data-subfolder-id="\${sf.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1">
               <div class="mr-folder-card-header mr-tutoria-header">
