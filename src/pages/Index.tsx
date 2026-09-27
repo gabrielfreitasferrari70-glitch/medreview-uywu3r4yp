@@ -2247,6 +2247,113 @@ function injectHierarchySupport(html: string): string {
       '</div>';
   }
 
+  // 10A. Renderização dedicada para picker de subpastas de uma pasta (quando tem 2+ subpastas)
+  function renderSubfoldersPicker(parentId) {
+    const parentInfo = resolveFolderInfo(parentId) || { name: 'Pasta' };
+    const subfolders = getSubfoldersOf(parentId);
+
+    const chain = getBreadcrumbChain(parentId);
+
+    let bpHtml = '<div class="mr-breadcrumb-bar">';
+    bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'home\\')">🏠 Início</a>';
+    chain.forEach((item, idx) => {
+      bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
+      if (idx === chain.length - 1) {
+        bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
+      } else {
+        bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'' + item.id + '\\')">' + escapeHtml(item.name) + '</a>';
+      }
+    });
+    bpHtml += '</div>';
+
+    let contentHtml = \`
+      <div style="max-width:1280px; margin:0 auto; padding:1.5rem 1rem;">
+        \${bpHtml}
+
+        <div style="background:#ffffff; border:1.5px solid #d1fae5; border-radius:16px; padding:1.5rem; margin-bottom:1.8rem; box-shadow:0 4px 16px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.55rem; margin-bottom:0.35rem;">
+                <span style="font-size:1.8rem;">📁</span>
+                <h2 style="margin:0; font-size:1.5rem; font-weight:800; color:#14532d;">Subpastas de \${escapeHtml(parentInfo.name)}</h2>
+              </div>
+              <p style="margin:0; color:#64748b; font-size:0.92rem;">Selecione uma subpasta para revisar ou gerenciar seus cartões.</p>
+            </div>
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm" onclick="openSubfolderCreateModal('\${parentId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.55rem 1.15rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
+                <span>➕</span> Nova Subpasta
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seção de Cartões de Subpastas -->
+        <div style="margin-bottom:2rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem; padding-bottom:0.4rem; border-bottom:1.5px solid #d1fae5;">
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
+              <span>📁</span> Subpastas disponíveis (\${subfolders.length})
+            </h3>
+          </div>
+    \`;
+
+    if (subfolders.length === 0) {
+      contentHtml += \`
+        <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; padding:1.2rem; text-align:center; font-size:0.88rem; color:#64748b;">
+          Nenhuma subpasta encontrada aqui.
+          <a href="javascript:void(0)" onclick="openSubfolderCreateModal('\${parentId}')" style="color:#16a34a; font-weight:800; text-decoration:none; margin-left:0.35rem;">Criar subpasta ➜</a>
+        </div>
+      \`;
+    } else {
+      contentHtml += \`<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:0.9rem;">\`;
+      subfolders.forEach(s => {
+        const cCount = Array.isArray(s.cards) ? s.cards.length : 0;
+        contentHtml += \`
+          <div class="mr-subfolder-card" onclick="navigateTo('\${s.id}')">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <span style="font-size:1.6rem;">📁</span>
+              <div>
+                <div style="font-weight:800; font-size:0.95rem; color:#0f172a;">\${escapeHtml(s.name)}</div>
+                <div style="font-size:0.78rem; color:#64748b;">\${cCount} carta\${cCount !== 1 ? 's' : ''}</div>
+              </div>
+            </div>
+            <span style="color:#16a34a; font-size:0.95rem; font-weight:800;">Abrir ➜</span>
+          </div>
+        \`;
+      });
+      contentHtml += \`</div>\`;
+    }
+
+    contentHtml += \`</div></div>\`;
+
+    // Renderiza na tela usando a mesma mecânica de renderSubfolderView
+    const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
+    const topbar = document.querySelector('.med-topbar') || document.querySelector('header');
+    if (topbar && topbar.parentNode) {
+      let subWrapper = document.getElementById('mr-subfolder-wrapper');
+      if (!subWrapper) {
+        subWrapper = document.createElement('div');
+        subWrapper.id = 'mr-subfolder-wrapper';
+        topbar.parentNode.appendChild(subWrapper);
+      }
+      const mainContent = document.querySelector('.main-content-area, main, .container');
+      if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
+        window.__mrHiddenMainEl = mainContent;
+        mainContent.style.display = 'none';
+      }
+      subWrapper.style.display = 'block';
+      subWrapper.innerHTML = contentHtml;
+    } else {
+      viewContainer.innerHTML = contentHtml;
+    }
+    requestAnimationFrame(() => {
+      enhanceViews();
+      setTimeout(enhanceViews, 120);
+      setTimeout(enhanceViews, 300);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  window.renderSubfoldersPicker = renderSubfoldersPicker;
+
   // 10. Renderização dedicada para visualização de subpastas
   function renderSubfolderView(subfolderId) {
     const sf = getSubfolderStore()[subfolderId];
@@ -2884,31 +2991,11 @@ function injectHierarchySupport(html: string): string {
                   renderSubfolderView(subs[0].id);
                 }
               } else if (subs.length > 1) {
-                // Se tem VÁRIAS subpastas: se targetId for subpasta customizada, usa atalho direto
-                const sfStore = typeof getSubfolderStore === 'function' ? getSubfolderStore() : {};
-                if (sfStore[targetId] && typeof renderSubfolderView === 'function') {
-                  renderSubfolderView(targetId);
-                } else {
-                  // Rota nativa ou subpasta: navega sempre até a pasta alvo
-                  if (typeof window.navigateTo === 'function') {
-                    window.navigateTo(targetId);
-                  } else if (typeof navigateTo === 'function') {
-                    navigateTo(targetId);
-                  } else {
-                    try { card.click(); } catch (err) { console.warn('Erro ao abrir pasta com múltiplas subpastas:', err); }
-                  }
-                  // Aguarda 250ms após navegação: procura apenas por ID exato e rola/destaca se visível
-                  setTimeout(() => {
-                    const blockEl = document.getElementById('mr-subfolders-block-' + targetId);
-                    if (blockEl && blockEl.offsetParent !== null) {
-                      blockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      blockEl.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
-                      blockEl.style.boxShadow = '0 0 0 3px #86efac, 0 4px 16px rgba(22,163,74,0.18)';
-                      setTimeout(() => {
-                        if (blockEl) blockEl.style.boxShadow = '';
-                      }, 1800);
-                    }
-                  }, 250);
+                // Se tem VÁRIAS subpastas: renderiza seletor de subpastas diretamente sem depender de navegação nativa
+                if (typeof renderSubfoldersPicker === 'function') {
+                  renderSubfoldersPicker(targetId);
+                } else if (typeof window.renderSubfoldersPicker === 'function') {
+                  window.renderSubfoldersPicker(targetId);
                 }
               } else {
                 // Se NÃO tem subpastas: toast discreto avisando e não navega
