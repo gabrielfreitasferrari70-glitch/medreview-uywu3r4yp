@@ -1859,12 +1859,28 @@ function injectHierarchySupport(html: string): string {
     // 2. Garante que se o usuário voltar à pasta pai ela estará devidamente listada (requisito 2)
     setTimeout(() => {
       navigateTo(subfolderId);
+      enhanceViews();
+      requestAnimationFrame(() => enhanceViews());
+      setTimeout(() => enhanceViews(), 40);
+      setTimeout(() => enhanceViews(), 120);
+      setTimeout(() => enhanceViews(), 300);
     }, 40);
   };
 
   // 9. Adaptador para navegar até subpastas
   const origNavigateTo = window.navigateTo;
   window.navigateTo = function(target) {
+    // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e dos irmãos ocultados
+    const subWrapper = document.getElementById('mr-subfolder-wrapper');
+    if (subWrapper) {
+      subWrapper.style.display = 'none';
+      if (subWrapper.parentNode) {
+        Array.from(subWrapper.parentNode.children).forEach(ch => {
+          ch.style.display = '';
+        });
+      }
+    }
+
     const sfStore = getSubfolderStore();
     if (sfStore[target]) {
       // É uma subpasta customizada: renderiza visão de pasta dedicada
@@ -1873,6 +1889,11 @@ function injectHierarchySupport(html: string): string {
     }
     if (typeof origNavigateTo === 'function') {
       origNavigateTo(target);
+      enhanceViews();
+      requestAnimationFrame(() => enhanceViews());
+      setTimeout(() => enhanceViews(), 40);
+      setTimeout(() => enhanceViews(), 120);
+      setTimeout(() => enhanceViews(), 300);
     }
   };
 
@@ -2363,6 +2384,11 @@ function injectHierarchySupport(html: string): string {
     } else {
       viewContainer.innerHTML = contentHtml;
     }
+    enhanceViews();
+    requestAnimationFrame(() => enhanceViews());
+    setTimeout(() => enhanceViews(), 40);
+    setTimeout(() => enhanceViews(), 120);
+    setTimeout(() => enhanceViews(), 300);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -3042,7 +3068,42 @@ function injectHierarchySupport(html: string): string {
   };
 
   // Observador de mutações para garantir injeção contínua ao trocar de tela
-  const observer = new MutationObserver(() => {
+  const observer = new MutationObserver((mutations) => {
+    // Higienização incondicional de nós adicionados pelo snapshot externo
+    try {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node;
+            // Remove painéis e estatísticas antigas soltas injetadas pelo snapshot
+            if (el.matches && el.matches('.deck-stats, .stats-overview, .folder-stats, .deck-performance, .deck-performance-panel, .deck-stats-panel, [data-stats-panel]')) {
+              if (!el.closest('#global-stats-modal') && !el.closest('.med-topbar')) el.remove();
+            } else if (el.querySelectorAll) {
+              el.querySelectorAll('.deck-stats, .stats-overview, .folder-stats, .deck-performance, .deck-performance-panel, .deck-stats-panel, [data-stats-panel]').forEach(p => {
+                if (!p.closest('#global-stats-modal') && !p.closest('.med-topbar')) p.remove();
+              });
+            }
+
+            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot, limpa as flags para forçar re-higienização
+            const recycledCards = [];
+            if (el.matches && (el.matches('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]'))) {
+              recycledCards.push(el);
+            }
+            if (el.querySelectorAll) {
+              el.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]').forEach(c => recycledCards.push(c));
+            }
+            recycledCards.forEach(card => {
+              // Limpa flags para re-executar sanitização completa e reaplicar .mr-tutoria-card / .mr-folder-card
+              card.removeAttribute('data-mr-folder-card-header');
+              card.removeAttribute('data-mr-folder-card-footer');
+            });
+          }
+        });
+      });
+    } catch (e) {
+      console.warn('Erro ao higienizar mutações:', e);
+    }
+
     enhanceViews();
     removePastasNavButton();
   });
