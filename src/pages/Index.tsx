@@ -1910,6 +1910,10 @@ function injectHierarchySupport(html: string): string {
         }
         window.__mrHiddenMainEl = null;
       }
+      document.querySelectorAll('[data-mr-subfolder-hidden-banner="1"]').forEach(el => {
+        el.style.display = '';
+        el.removeAttribute('data-mr-subfolder-hidden-banner');
+      });
     }
 
     const sfStore = getSubfolderStore();
@@ -2335,6 +2339,12 @@ function injectHierarchySupport(html: string): string {
         subWrapper.id = 'mr-subfolder-wrapper';
         topbar.parentNode.appendChild(subWrapper);
       }
+      document.querySelectorAll('p, div').forEach(el => {
+        if (el.textContent && el.textContent.includes('Motor de repetição espaçada: FSRS-5') && !el.closest('#mr-subfolder-wrapper') && !el.querySelector('#mr-subfolder-wrapper')) {
+          el.setAttribute('data-mr-subfolder-hidden-banner', '1');
+          el.style.display = 'none';
+        }
+      });
       const mainContent = document.querySelector('.main-content-area, main, .container');
       if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
         window.__mrHiddenMainEl = mainContent;
@@ -2518,6 +2528,12 @@ function injectHierarchySupport(html: string): string {
         subWrapper.id = 'mr-subfolder-wrapper';
         topbar.parentNode.appendChild(subWrapper);
       }
+      document.querySelectorAll('p, div').forEach(el => {
+        if (el.textContent && el.textContent.includes('Motor de repetição espaçada: FSRS-5') && !el.closest('#mr-subfolder-wrapper') && !el.querySelector('#mr-subfolder-wrapper')) {
+          el.setAttribute('data-mr-subfolder-hidden-banner', '1');
+          el.style.display = 'none';
+        }
+      });
       // Oculta apenas o container principal de conteúdo (.main-content-area, main, .container)
       const mainContent = document.querySelector('.main-content-area, main, .container');
       if (mainContent && mainContent !== subWrapper && mainContent !== topbar) {
@@ -3305,6 +3321,10 @@ function injectHierarchySupport(html: string): string {
         }
         window.__mrHiddenMainEl = null;
       }
+      document.querySelectorAll('[data-mr-subfolder-hidden-banner="1"]').forEach(el => {
+        el.style.display = '';
+        el.removeAttribute('data-mr-subfolder-hidden-banner');
+      });
     }
 
     if (typeof origRoute === 'function') {
