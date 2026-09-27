@@ -2524,10 +2524,38 @@ function injectHierarchySupport(html: string): string {
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   function enhanceViews() {
     suppressNativeStatsModal();
+    // Garante que cartões de subpasta (.mr-subfolder-card) tenham clique funcional e desimpedido para abrir a subpasta
+    try {
+      const subfolderCards = document.querySelectorAll('.mr-subfolder-card');
+      subfolderCards.forEach(sCard => {
+        const onclickAttr = sCard.getAttribute('onclick') || '';
+        const match = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/) || onclickAttr.match(/renderSubfolderView(['"]([^'"]+)['"])/);
+        const subId = match ? match[1] : sCard.getAttribute('data-subfolder-id');
+        if (subId) {
+          sCard.style.cursor = 'pointer';
+          sCard.onclick = function(e) {
+            e.stopPropagation();
+            if (typeof renderSubfolderView === 'function' && getSubfolderStore()[subId]) {
+              renderSubfolderView(subId);
+            } else if (typeof window.navigateTo === 'function') {
+              window.navigateTo(subId);
+            } else if (typeof navigateTo === 'function') {
+              navigateTo(subId);
+            }
+          };
+        }
+      });
+    } catch (e) {
+      console.warn('Erro ao assegurar cliques de subpastas:', e);
+    }
+
     // Padronização visual dos cartões de pasta (.mr-folder-card)
     try {
       const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]');
       folderCards.forEach(card => {
+        // EXCLUIR .mr-subfolder-card da injeção de rodapé/decoração para preservar o clique nativo de abrir a subpasta
+        if (card.classList.contains('mr-subfolder-card')) return;
+
         // Guarda para não duplicar cabeçalho
         const alreadyHasHeader = card.getAttribute('data-mr-folder-card-header') === '1';
 
@@ -2852,19 +2880,47 @@ function injectHierarchySupport(html: string): string {
                   window.navigateTo(subs[0].id);
                 } else if (typeof navigateTo === 'function') {
                   navigateTo(subs[0].id);
+                } else if (typeof renderSubfolderView === 'function') {
+                  renderSubfolderView(subs[0].id);
                 }
               } else if (subs.length > 1) {
-                // Se tem VÁRIAS subpastas: navega para a pasta pai onde as subpastas dela estão listadas como cartões
-                if (typeof window.navigateTo === 'function') {
-                  window.navigateTo(targetId);
-                } else if (typeof navigateTo === 'function') {
-                  navigateTo(targetId);
+                // Se tem VÁRIAS subpastas: navega para a view da pasta pai renderizada como subfolder view (onde as subpastas aparecem como cartões)
+                // Se targetId existir no getSubfolderStore, renderSubfolderView funciona diretamente
+                const sfStore = typeof getSubfolderStore === 'function' ? getSubfolderStore() : {};
+                if (sfStore[targetId] && typeof renderSubfolderView === 'function') {
+                  renderSubfolderView(targetId);
                 } else {
-                  // Fallback: dispara clique nativo no cartão se existir
-                  try {
-                    card.click();
-                  } catch (err) {
-                    console.warn('Erro ao abrir pasta com múltiplas subpastas:', err);
+                  // Se targetId for uma pasta pai nativa (ex: tutoria, tutoria_1, etc.) ou não estiver no subfolderStore:
+                  // Tenta rolar e destacar suavemente o bloco de subpastas na tela caso já esteja visível
+                  const blockEl = document.getElementById('mr-subfolders-block-' + targetId) || document.querySelector('[id*="mr-subfolders-block-"]');
+                  if (blockEl && blockEl.offsetParent !== null) {
+                    blockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    blockEl.style.transition = 'box-shadow 0.3s ease, transform 0.3s ease';
+                    blockEl.style.boxShadow = '0 0 0 3px #86efac, 0 4px 16px rgba(22,163,74,0.18)';
+                    setTimeout(() => {
+                      if (blockEl) blockEl.style.boxShadow = '';
+                    }, 1800);
+                  } else {
+                    // Navega até a pasta pai para renderizar seus cartões e o bloco de subpastas
+                    if (typeof window.navigateTo === 'function') {
+                      window.navigateTo(targetId);
+                    } else if (typeof navigateTo === 'function') {
+                      navigateTo(targetId);
+                    } else {
+                      try { card.click(); } catch (err) { console.warn('Erro ao abrir pasta com múltiplas subpastas:', err); }
+                    }
+                    // Aguarda render e faz scroll suave no bloco
+                    setTimeout(() => {
+                      const afterBlock = document.getElementById('mr-subfolders-block-' + targetId);
+                      if (afterBlock) {
+                        afterBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        afterBlock.style.transition = 'box-shadow 0.3s ease';
+                        afterBlock.style.boxShadow = '0 0 0 3px #86efac, 0 4px 16px rgba(22,163,74,0.18)';
+                        setTimeout(() => {
+                          if (afterBlock) afterBlock.style.boxShadow = '';
+                        }, 1800);
+                      }
+                    }, 250);
                   }
                 }
               } else {
@@ -3195,13 +3251,15 @@ function injectHierarchySupport(html: string): string {
               });
             }
 
-            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot, limpa as flags para forçar re-higienização
+            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot, limpa as flags para forçar re-higienização (exceto .mr-subfolder-card)
             const recycledCards = [];
-            if (el.matches && (el.matches('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]'))) {
-              recycledCards.push(el);
+            if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]'))) {
+              if (!el.classList.contains('mr-subfolder-card')) recycledCards.push(el);
             }
             if (el.querySelectorAll) {
-              el.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]').forEach(c => recycledCards.push(c));
+              el.querySelectorAll('.deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]').forEach(c => {
+                if (!c.classList.contains('mr-subfolder-card')) recycledCards.push(c);
+              });
             }
             recycledCards.forEach(card => {
               // Limpa flags para re-executar sanitização completa e reaplicar .mr-tutoria-card / .mr-folder-card
