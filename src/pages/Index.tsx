@@ -738,6 +738,253 @@ function injectHierarchySupport(html: string): string {
   </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalSubfolderHtml);
 
+  // Injeta Modal de Confirmação de Exclusão de Pasta
+  const modalFolderDeleteHtml = \`
+  <div id="mr-folder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderDeleteModal()">
+    <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #fecaca; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #fee2e2; background:#fef2f2;">
+        <h3 id="mr-folder-delete-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#991b1b; display:flex; align-items:center; gap:0.45rem;">
+          <span>🗑</span> Excluir Pasta
+        </h3>
+        <button type="button" onclick="closeFolderDeleteModal()" style="background:none; border:none; font-size:1.45rem; cursor:pointer; color:#991b1b; line-height:1;" title="Fechar">&times;</button>
+      </div>
+      <div style="padding:1.35rem; margin:0;">
+        <p style="margin:0 0 1.35rem 0; color:#334155; font-size:0.92rem; line-height:1.5; font-weight:500;">
+          Excluir pasta? As subpastas serão removidas e os cartões serão preservados, migrando para o nível superior — o progresso FSRS-5 de cada carta é mantido.
+        </p>
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem;">
+          <button type="button" onclick="closeFolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
+          <button type="button" id="mr-folder-delete-confirm-btn" onclick="executeFolderDelete()" style="background:#dc2626; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>\`;
+  document.body.insertAdjacentHTML('beforeend', modalFolderDeleteHtml);
+
+  // Esc fecha modal de exclusão
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const delModal = document.getElementById('mr-folder-delete-modal');
+      if (delModal && delModal.style.display !== 'none' && delModal.style.display !== '') {
+        closeFolderDeleteModal();
+      }
+    }
+  });
+
+  // Funções de controle do modal de exclusão de pasta
+  window.__pendingDeleteFolderId = null;
+
+  window.openFolderDeleteModal = function(folderId) {
+    if (!folderId) return;
+    window.__pendingDeleteFolderId = folderId;
+    const modal = document.getElementById('mr-folder-delete-modal');
+    if (modal) modal.style.display = 'flex';
+  };
+
+  window.closeFolderDeleteModal = function() {
+    window.__pendingDeleteFolderId = null;
+    const modal = document.getElementById('mr-folder-delete-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  window.executeFolderDelete = function() {
+    const folderId = window.__pendingDeleteFolderId;
+    if (!folderId) {
+      closeFolderDeleteModal();
+      return;
+    }
+
+    const info = resolveFolderInfo(folderId);
+
+    // 1. Coletar todas as cartas da pasta e de suas subpastas
+    const cardsToMigrate = typeof getFolderAllCards === 'function' ? getFolderAllCards(folderId) : [];
+
+    // Fallback se getFolderAllCards retornou vazio mas info.cards tem itens
+    if (cardsToMigrate.length === 0 && info && Array.isArray(info.cards) && info.cards.length > 0) {
+      info.cards.forEach(c => { if (c && c.id) cardsToMigrate.push(c); });
+    }
+
+    // 2. Determinar destino: nível superior (parent) ou container raiz correspondente
+    let targetParentId = info ? info.parent : null;
+    let targetCardsArray = null;
+    let targetDisplayName = 'Nível Superior';
+
+    if (targetParentId) {
+      const pInfo = resolveFolderInfo(targetParentId);
+      if (pInfo) {
+        targetDisplayName = pInfo.name || targetParentId;
+      }
+    }
+
+    // Localiza array de cartas de destino
+    if (targetParentId === 'tutoria') {
+      if (!state.tutoria_highlight) state.tutoria_highlight = { cards: [] };
+      if (!Array.isArray(state.tutoria_highlight.cards)) state.tutoria_highlight.cards = [];
+      targetCardsArray = state.tutoria_highlight.cards;
+      targetDisplayName = 'Tutoria';
+    } else if (targetParentId === 'provas') {
+      if (!state.provas) state.provas = {};
+      const provaKeys = Object.keys(state.provas);
+      if (provaKeys.length > 0) {
+        const firstKey = provaKeys[0];
+        if (!Array.isArray(state.provas[firstKey].cards)) state.provas[firstKey].cards = [];
+        targetCardsArray = state.provas[firstKey].cards;
+        targetDisplayName = state.provas[firstKey].name || state.provas[firstKey].title || 'Provas';
+      } else {
+        if (!state.custom_prova_folders) state.custom_prova_folders = {};
+        if (!state.custom_prova_folders['provas_geral']) {
+          state.custom_prova_folders['provas_geral'] = { name: 'Provas Geral', cards: [], parent: 'provas' };
+        }
+        targetCardsArray = state.custom_prova_folders['provas_geral'].cards;
+        targetDisplayName = 'Provas Geral';
+      }
+    } else if (targetParentId && state.tutorias_numbered && state.tutorias_numbered[targetParentId]) {
+      if (!Array.isArray(state.tutorias_numbered[targetParentId].cards)) state.tutorias_numbered[targetParentId].cards = [];
+      targetCardsArray = state.tutorias_numbered[targetParentId].cards;
+    } else if (targetParentId && state.custom_tutoria_folders && state.custom_tutoria_folders[targetParentId]) {
+      if (!Array.isArray(state.custom_tutoria_folders[targetParentId].cards)) state.custom_tutoria_folders[targetParentId].cards = [];
+      targetCardsArray = state.custom_tutoria_folders[targetParentId].cards;
+    } else if (targetParentId && state.custom_prova_folders && state.custom_prova_folders[targetParentId]) {
+      if (!Array.isArray(state.custom_prova_folders[targetParentId].cards)) state.custom_prova_folders[targetParentId].cards = [];
+      targetCardsArray = state.custom_prova_folders[targetParentId].cards;
+    } else if (targetParentId && state.custom_root_folders && state.custom_root_folders[targetParentId]) {
+      if (!Array.isArray(state.custom_root_folders[targetParentId].cards)) state.custom_root_folders[targetParentId].cards = [];
+      targetCardsArray = state.custom_root_folders[targetParentId].cards;
+    } else if (targetParentId && state.provas && state.provas[targetParentId]) {
+      if (!Array.isArray(state.provas[targetParentId].cards)) state.provas[targetParentId].cards = [];
+      targetCardsArray = state.provas[targetParentId].cards;
+    } else {
+      const sfStore = getSubfolderStore();
+      if (targetParentId && sfStore[targetParentId]) {
+        if (!Array.isArray(sfStore[targetParentId].cards)) sfStore[targetParentId].cards = [];
+        targetCardsArray = sfStore[targetParentId].cards;
+      }
+    }
+
+    // Se ainda não encontrou destino (ou não tinha parent), envia para o container raiz correspondente ao tipo
+    if (!targetCardsArray) {
+      const isProva = (folderId.toLowerCase().includes('prova') || (info && (info.type === 'prova_item' || info.parent === 'provas')));
+      if (isProva) {
+        if (state.provas && Object.keys(state.provas).length > 0) {
+          const firstKey = Object.keys(state.provas)[0];
+          if (!Array.isArray(state.provas[firstKey].cards)) state.provas[firstKey].cards = [];
+          targetCardsArray = state.provas[firstKey].cards;
+          targetDisplayName = state.provas[firstKey].name || state.provas[firstKey].title || 'Provas';
+          targetParentId = firstKey;
+        } else {
+          if (!state.custom_prova_folders) state.custom_prova_folders = {};
+          if (!state.custom_prova_folders['provas_geral']) {
+            state.custom_prova_folders['provas_geral'] = { name: 'Provas Geral', cards: [], parent: 'provas' };
+          }
+          targetCardsArray = state.custom_prova_folders['provas_geral'].cards;
+          targetDisplayName = 'Provas Geral';
+          targetParentId = 'provas_geral';
+        }
+      } else {
+        if (!state.tutoria_highlight) state.tutoria_highlight = { cards: [] };
+        if (!Array.isArray(state.tutoria_highlight.cards)) state.tutoria_highlight.cards = [];
+        targetCardsArray = state.tutoria_highlight.cards;
+        targetDisplayName = 'Tutoria';
+        targetParentId = 'tutoria';
+      }
+    }
+
+    // 3. Migrar cada carta para o nível superior com PRESERVAÇÃO TOTAL de FSRS-5
+    const existingTargetCardIds = new Set(targetCardsArray.map(c => c && c.id).filter(Boolean));
+    let migratedCount = 0;
+
+    cardsToMigrate.forEach(c => {
+      if (!c || !c.id) return;
+      c.containerId = targetParentId;
+      c.folderTitle = targetDisplayName;
+      if (!existingTargetCardIds.has(c.id)) {
+        targetCardsArray.push(c);
+        existingTargetCardIds.add(c.id);
+        migratedCount++;
+      } else {
+        migratedCount++;
+      }
+    });
+
+    // 4. Remover do store de subpastas as subpastas da pasta e seus descendentes
+    const sfStore = getSubfolderStore();
+    const subsToRemove = new Set();
+
+    function collectDescendantSubfolders(parentId) {
+      Object.values(sfStore).forEach(s => {
+        if (s && (s.parentId === parentId || s.parent === parentId)) {
+          if (!subsToRemove.has(s.id)) {
+            subsToRemove.add(s.id);
+            collectDescendantSubfolders(s.id);
+          }
+        }
+      });
+    }
+
+    collectDescendantSubfolders(folderId);
+    subsToRemove.add(folderId);
+
+    subsToRemove.forEach(sid => {
+      if (sfStore[sid]) {
+        delete sfStore[sid];
+      }
+    });
+    persistSubfolders();
+
+    // 5. Remover pasta do registro correspondente no state
+    if (state.custom_tutoria_folders && state.custom_tutoria_folders[folderId]) {
+      delete state.custom_tutoria_folders[folderId];
+    }
+    if (state.custom_prova_folders && state.custom_prova_folders[folderId]) {
+      delete state.custom_prova_folders[folderId];
+    }
+    if (state.custom_root_folders && state.custom_root_folders[folderId]) {
+      delete state.custom_root_folders[folderId];
+    }
+    if (state.tutorias_numbered && state.tutorias_numbered[folderId]) {
+      delete state.tutorias_numbered[folderId];
+    }
+    if (state.provas && state.provas[folderId]) {
+      delete state.provas[folderId];
+    }
+
+    // 6. Salvar estado
+    if (typeof saveState === 'function') {
+      saveState();
+    }
+
+    // Fechar modal
+    closeFolderDeleteModal();
+
+    // 7. Toast no padrão do app: "Pasta excluída. N cartas migradas para [Destino]."
+    const toastMsg = 'Pasta excluída. ' + migratedCount + ' cartas migradas para ' + targetDisplayName + '.';
+    if (typeof showMedReviewToast === 'function') {
+      showMedReviewToast(toastMsg, '', '🗑');
+    } else if (typeof showToast === 'function') {
+      showToast(toastMsg);
+    } else {
+      alert(toastMsg);
+    }
+
+    // 8. Re-render seguro: requestAnimationFrame + setTimeout(enhanceViews,120) + setTimeout(enhanceViews,300)
+    const currentSubWrapper = document.getElementById('mr-subfolder-wrapper');
+    if (currentSubWrapper && currentSubWrapper.style.display !== 'none') {
+      if (typeof window.navigateTo === 'function') {
+        window.navigateTo(targetParentId || 'home');
+      } else if (typeof navigateTo === 'function') {
+        navigateTo(targetParentId || 'home');
+      }
+    } else if (typeof renderRoute === 'function') {
+      renderRoute();
+    }
+
+    requestAnimationFrame(() => {
+      enhanceViews();
+      setTimeout(enhanceViews, 120);
+      setTimeout(enhanceViews, 300);
+    });
+  };
+
   // Injeta Modal de Estatísticas Gerais Globais
   const modalGlobalStatsHtml = \`
   <div id="global-stats-modal" style="display:none; position:fixed; inset:0; z-index:196; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeGlobalStatsModal()">
@@ -2844,6 +3091,28 @@ function injectHierarchySupport(html: string): string {
               navigateTo(subId);
             }
           };
+
+          // Injeção do botão 🗑 no canto superior direito do cartão de subpasta
+          if (sCard.getAttribute('data-mr-folder-top-delete') !== '1' && !sCard.querySelector('.mr-folder-card-top-delete')) {
+            const currentPos = window.getComputedStyle(sCard).position;
+            if (!currentPos || currentPos === 'static') {
+              sCard.style.position = 'relative';
+            }
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'mr-folder-card-top-delete';
+            delBtn.title = 'Excluir pasta';
+            delBtn.style.cssText = 'position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
+            delBtn.innerHTML = '🗑';
+            delBtn.onclick = function(e) {
+              e.stopPropagation();
+              if (typeof window.openFolderDeleteModal === 'function') {
+                window.openFolderDeleteModal(subId);
+              }
+            };
+            sCard.appendChild(delBtn);
+            sCard.setAttribute('data-mr-folder-top-delete', '1');
+          }
         }
       });
     } catch (e) {
@@ -2857,12 +3126,49 @@ function injectHierarchySupport(html: string): string {
         // EXCLUIR .mr-subfolder-card da injeção de rodapé/decoração para preservar o clique nativo de abrir a subpasta
         if (card.classList.contains('mr-subfolder-card')) return;
 
+        // Injeção do botão 🗑 no canto superior direito de todo .mr-folder-card (com guard de duplicidade)
+        if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
+          // Garante position:relative inline no cartão
+          const currentPos = window.getComputedStyle(card).position;
+          if (!currentPos || currentPos === 'static') {
+            card.style.position = 'relative';
+          }
+
+          // Determina id da pasta para exclusão
+          const rawOnclick = card.getAttribute('onclick') || '';
+          const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
+                          rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
+                          rawOnclick.match(/tutoria_d+/i);
+          const cardFolderId = card.getAttribute('data-folder-id') ||
+                               card.getAttribute('data-deck-id') ||
+                               card.getAttribute('data-subfolder-id') ||
+                               (idMatch ? idMatch[1] || idMatch[0] : null);
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'mr-folder-card-top-delete';
+          delBtn.title = 'Excluir pasta';
+          delBtn.style.cssText = 'position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
+          delBtn.innerHTML = '🗑';
+          delBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (cardFolderId && typeof window.openFolderDeleteModal === 'function') {
+              window.openFolderDeleteModal(cardFolderId);
+            } else if (typeof window.openFolderDeleteModal === 'function') {
+              // Fallback se não achou id pré-determinado, tenta re-resolver no momento do clique
+              const effId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+              window.openFolderDeleteModal(effId);
+            }
+          };
+          card.appendChild(delBtn);
+          card.setAttribute('data-mr-folder-top-delete', '1');
+        }
+
         // Guarda para não duplicar cabeçalho
         const alreadyHasHeader = card.getAttribute('data-mr-folder-card-header') === '1';
 
         card.classList.add('mr-folder-card');
         card.setAttribute('data-mr-folder-card', '1');
-
         const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
         const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
 
