@@ -1882,17 +1882,17 @@ function injectHierarchySupport(html: string): string {
       return;
     }
 
+    // Limpa contexto ativo após uso
+    window.__activeFolderContext = null;
+
     // 1. Navega automaticamente para a subpasta recém-criada (requisito 1)
     // 2. Garante que se o usuário voltar à pasta pai ela estará devidamente listada (requisito 2)
-    setTimeout(() => {
-      suppressNativeStatsModal();
-      navigateTo(subfolderId);
-      requestAnimationFrame(() => {
-        enhanceViews();
-        setTimeout(enhanceViews, 120);
-        setTimeout(enhanceViews, 300);
-      });
-    }, 40);
+    navigateTo(subfolderId);
+    requestAnimationFrame(() => {
+      enhanceViews();
+      setTimeout(enhanceViews, 120);
+      setTimeout(enhanceViews, 300);
+    });
   };
 
   // 9. Adaptador para navegar até subpastas
