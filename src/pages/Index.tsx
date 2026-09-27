@@ -2299,8 +2299,8 @@ function injectHierarchySupport(html: string): string {
         const onclickAttr = card.getAttribute('onclick') || '';
         const navMatch = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/)?.[1] ||
                          onclickAttr.match(/studyDeck(['"]([^'"]+)['"])/)?.[1] ||
-                         onclickAttr.match(/tutoria_d+/i)?.[0];
-        const titleTutoriaMatch = titleText.match(/tutorias*(d+)/i);
+                         onclickAttr.match(/tutoria_\\d+/i)?.[0];
+        const titleTutoriaMatch = titleText.match(/tutoria\\s*(\\d+)/i);
         const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
 
         const effectiveFolderId = card.getAttribute('data-folder-id') ||
@@ -2362,6 +2362,7 @@ function injectHierarchySupport(html: string): string {
 
         // Remove botões de reset nativos soltos do canto superior direito
         card.querySelectorAll('button, a, span.btn, .action-btn').forEach(btn => {
+          if (btn.closest('.mr-folder-card-footer')) return;
           const txt = (btn.textContent || '').trim();
           const title = (btn.getAttribute('title') || '').toLowerCase();
           const clk = btn.getAttribute('onclick') || '';
@@ -2418,7 +2419,7 @@ function injectHierarchySupport(html: string): string {
         if (isTutoriaCard) {
           // Busca em nós de texto e elementos filhos fora do header já criado
           const findCardCountInText = (str) => {
-            const m = (str || '').match(/(d+)s*cartas?/i);
+            const m = (str || '').match(/(\\d+)\\s*cartas?/i);
             return m ? parseInt(m[1], 10) : null;
           };
 
@@ -2474,7 +2475,7 @@ function injectHierarchySupport(html: string): string {
           card.querySelectorAll('p, div, span, small').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
               const txt = (el.textContent || '').trim();
-              if (txt.match(/^d+s*cartas?$/i) || txt === '📁' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
+              if (txt.match(/^\\d+\\s*cartas?$/i) || txt === '📁' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
                 el.remove();
               }
             }
@@ -2483,7 +2484,7 @@ function injectHierarchySupport(html: string): string {
           Array.from(card.childNodes).forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
               const val = (node.nodeValue || '').trim();
-              if (val.match(/^d+s*cartas?$/i) || val === '📁' || val.toLowerCase() === 'cartas' || val.toLowerCase() === 'carta') {
+              if (val.match(/^\\d+\\s*cartas?$/i) || val === '📁' || val.toLowerCase() === 'cartas' || val.toLowerCase() === 'carta') {
                 node.remove();
               }
             }
@@ -2493,9 +2494,11 @@ function injectHierarchySupport(html: string): string {
         // Injeção do RODAPÉ padronizado (.mr-folder-card-footer)
         if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
           const allFolderCards = effectiveFolderId ? getFolderAllCards(effectiveFolderId) : [];
-          let totalCards = allFolderCards.length;
-          if (isTutoriaCard && (totalCards === 0 || totalCards === null || typeof totalCards === 'undefined') && typeof nativeCardCount === 'number' && nativeCardCount > 0) {
+          let totalCards = 0;
+          if (typeof nativeCardCount === 'number' && nativeCardCount > 0) {
             totalCards = nativeCardCount;
+          } else if (allFolderCards && allFolderCards.length > 0) {
+            totalCards = allFolderCards.length;
           }
 
           let masteredCards = 0;
