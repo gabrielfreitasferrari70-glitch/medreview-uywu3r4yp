@@ -187,8 +187,8 @@ function injectHierarchySupport(html: string): string {
     const onclickAttr = card.getAttribute('onclick') || '';
     const navMatch = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/)?.[1] ||
                      onclickAttr.match(/studyDeck(['"]([^'"]+)['"])/)?.[1] ||
-                     onclickAttr.match(/tutoria_d+/i)?.[0];
-    const titleTutoriaMatch = titleText.match(/tutorias*(d+)/i);
+                     onclickAttr.match(/tutoria_\\d+/i)?.[0];
+    const titleTutoriaMatch = titleText.match(/tutoria\\s*(\\d+)/i);
     const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
 
     const effectiveFolderId = card.getAttribute('data-folder-id') ||
@@ -1655,15 +1655,18 @@ function injectHierarchySupport(html: string): string {
       if (raw) localData = JSON.parse(raw);
     } catch { /* intentionally ignored */ }
 
-    if (!state.subfolders) {
-      state.subfolders = (localData && typeof localData === 'object' && !Array.isArray(localData)) ? localData : {};
+    if (typeof state !== 'undefined' && state) {
+      if (!state.subfolders) {
+        state.subfolders = (localData && typeof localData === 'object' && !Array.isArray(localData)) ? localData : {};
+      }
+      return state.subfolders;
     }
-    return state.subfolders;
+    return (localData && typeof localData === 'object' && !Array.isArray(localData)) ? localData : {};
   }
 
   function persistSubfolders() {
     try {
-      const sf = (state && state.subfolders) ? state.subfolders : getSubfolderStore();
+      const sf = (typeof state !== 'undefined' && state && state.subfolders) ? state.subfolders : getSubfolderStore();
       localStorage.setItem('medreview_subfolders', JSON.stringify(sf));
     } catch { /* intentionally ignored */ }
   }
@@ -1671,6 +1674,7 @@ function injectHierarchySupport(html: string): string {
   // 4. Resolvedor centralizado de informações de pasta
   window.resolveFolderInfo = function(targetId) {
     if (!targetId) return null;
+    const hasState = typeof state !== 'undefined' && state;
 
     // Tutoria raiz
     if (targetId === 'tutoria') {
@@ -1678,7 +1682,7 @@ function injectHierarchySupport(html: string): string {
         id: 'tutoria',
         name: 'Tutoria',
         parent: null,
-        cards: (state.tutoria_highlight && state.tutoria_highlight.cards) || [],
+        cards: (hasState && state.tutoria_highlight && state.tutoria_highlight.cards) || [],
         isRoot: true,
         type: 'tutoria'
       };
@@ -1695,7 +1699,7 @@ function injectHierarchySupport(html: string): string {
       };
     }
     // Tutorias numeradas
-    if (state.tutorias_numbered && state.tutorias_numbered[targetId]) {
+    if (hasState && state.tutorias_numbered && state.tutorias_numbered[targetId]) {
       const obj = state.tutorias_numbered[targetId];
       return {
         id: targetId,
@@ -1707,7 +1711,7 @@ function injectHierarchySupport(html: string): string {
       };
     }
     // Provas de módulo (ex: cardiorrespiratorio, urogenital, etc.)
-    if (state.provas && state.provas[targetId]) {
+    if (hasState && state.provas && state.provas[targetId]) {
       const obj = state.provas[targetId];
       return {
         id: targetId,
@@ -1719,7 +1723,7 @@ function injectHierarchySupport(html: string): string {
       };
     }
     // custom_tutoria_folders
-    if (state.custom_tutoria_folders && state.custom_tutoria_folders[targetId]) {
+    if (hasState && state.custom_tutoria_folders && state.custom_tutoria_folders[targetId]) {
       const obj = state.custom_tutoria_folders[targetId];
       return {
         id: targetId,
@@ -1731,7 +1735,7 @@ function injectHierarchySupport(html: string): string {
       };
     }
     // custom_prova_folders
-    if (state.custom_prova_folders && state.custom_prova_folders[targetId]) {
+    if (hasState && state.custom_prova_folders && state.custom_prova_folders[targetId]) {
       const obj = state.custom_prova_folders[targetId];
       return {
         id: targetId,
@@ -1743,7 +1747,7 @@ function injectHierarchySupport(html: string): string {
       };
     }
     // custom_root_folders
-    if (state.custom_root_folders && state.custom_root_folders[targetId]) {
+    if (hasState && state.custom_root_folders && state.custom_root_folders[targetId]) {
       const obj = state.custom_root_folders[targetId];
       return {
         id: targetId,
@@ -2029,6 +2033,7 @@ function injectHierarchySupport(html: string): string {
   window.getAllFoldersHierarchy = function() {
     const rootNodes = [];
     const sfStore = getSubfolderStore();
+    const hasState = typeof state !== 'undefined' && state;
 
     // 1. PBL / Tutoria (Raiz de Tutoria)
     const tutoriaNode = {
@@ -2037,12 +2042,12 @@ function injectHierarchySupport(html: string): string {
       icon: '🩺',
       type: 'tutoria_root',
       badge: 'Pasta Principal',
-      cardCount: (state.tutoria_highlight && Array.isArray(state.tutoria_highlight.cards)) ? state.tutoria_highlight.cards.length : 0,
+      cardCount: (hasState && state.tutoria_highlight && Array.isArray(state.tutoria_highlight.cards)) ? state.tutoria_highlight.cards.length : 0,
       children: []
     };
 
     // Tutorias numeradas padrão
-    if (state.tutorias_numbered) {
+    if (hasState && state.tutorias_numbered) {
       Object.entries(state.tutorias_numbered).forEach(([id, obj]) => {
         if (!obj) return;
         tutoriaNode.children.push({
@@ -2058,7 +2063,7 @@ function injectHierarchySupport(html: string): string {
     }
 
     // Pastas customizadas em tutoria
-    if (state.custom_tutoria_folders) {
+    if (hasState && state.custom_tutoria_folders) {
       Object.entries(state.custom_tutoria_folders).forEach(([id, obj]) => {
         if (!obj) return;
         tutoriaNode.children.push({
@@ -2085,7 +2090,7 @@ function injectHierarchySupport(html: string): string {
       children: []
     };
 
-    if (state.provas) {
+    if (hasState && state.provas) {
       Object.entries(state.provas).forEach(([id, obj]) => {
         if (!obj) return;
         provasNode.children.push({
@@ -2100,7 +2105,7 @@ function injectHierarchySupport(html: string): string {
       });
     }
 
-    if (state.custom_prova_folders) {
+    if (hasState && state.custom_prova_folders) {
       Object.entries(state.custom_prova_folders).forEach(([id, obj]) => {
         if (!obj) return;
         provasNode.children.push({
@@ -2117,7 +2122,7 @@ function injectHierarchySupport(html: string): string {
     rootNodes.push(provasNode);
 
     // 3. Outras pastas raiz personalizadas (se houver)
-    if (state.custom_root_folders) {
+    if (hasState && state.custom_root_folders) {
       Object.entries(state.custom_root_folders).forEach(([id, obj]) => {
         if (!obj) return;
         rootNodes.push({
@@ -3776,10 +3781,10 @@ function injectHierarchySupport(html: string): string {
           const rawOnclick = card.getAttribute('onclick') || '';
           const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
                           rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
-                          rawOnclick.match(/tutoria_d+/i);
+                          rawOnclick.match(/tutoria_\\d+/i);
           const rawTitleCard = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
           const titleCardTxt = (rawTitleCard?.textContent || card.getAttribute('data-folder-name') || '').trim();
-          const cardTutoriaMatch = titleCardTxt.match(/tutorias*(d+)/i);
+          const cardTutoriaMatch = titleCardTxt.match(/tutoria\\s*(\\d+)/i);
           const cardTutoriaId = cardTutoriaMatch ? ('tutoria_' + cardTutoriaMatch[1]) : null;
 
           const cardFolderId = card.getAttribute('data-folder-id') ||
@@ -3838,9 +3843,9 @@ function injectHierarchySupport(html: string): string {
         const lowerId = (effectiveFolderId || '').toLowerCase();
 
         // 1. Flags de identificação conforme plano
-        const isCustomRoot = !!(state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
-        const isCustomProva = !!(state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
-        const isCustomTutoria = !!(state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
+        const isCustomRoot = !!(typeof state !== 'undefined' && state && state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
+        const isCustomProva = !!(typeof state !== 'undefined' && state && state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
+        const isCustomTutoria = !!(typeof state !== 'undefined' && state && state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
 
         // 2. isTutoriaCard existente
         const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
@@ -4218,7 +4223,7 @@ function injectHierarchySupport(html: string): string {
       topbarButtons.forEach(btn => {
         // Não remove botões que NÃO sejam o de Pastas
         if (btn.classList.contains('mr-global-stats-btn') || btn.classList.contains('med-settings-btn')) return;
-        const text = (btn.textContent || '').trim().replace(/s+/g, ' ');
+        const text = (btn.textContent || '').trim().replace(/\\s+/g, ' ');
         // Identifica estritamente o botão "📁 Pastas" ou "Pastas" da topbar
         if (text === '📁 Pastas' || text === 'Pastas' || (text.includes('Pastas') && !text.includes('Nova') && !text.includes('Estudo') && !text.includes('Subpastas'))) {
           btn.remove();
@@ -4443,7 +4448,7 @@ function injectHierarchySupport(html: string): string {
       const candidates = tb.querySelectorAll('button, a, .med-nav-btn');
       candidates.forEach(btn => {
         if (btn.classList.contains('mr-global-stats-btn') || btn.classList.contains('med-settings-btn')) return;
-        const text = (btn.textContent || '').trim().replace(/s+/g, ' ');
+        const text = (btn.textContent || '').trim().replace(/\\s+/g, ' ');
         if (text === '📁 Pastas' || text === 'Pastas' || (text.includes('Pastas') && !text.includes('Nova') && !text.includes('Estudo') && !text.includes('Subpastas'))) {
           btn.remove();
         }
