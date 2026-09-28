@@ -3801,7 +3801,6 @@ function injectHierarchySupport(html: string): string {
           card.appendChild(delBtn);
           card.setAttribute('data-mr-folder-top-delete', '1');
         }
-
         // Guarda para não duplicar cabeçalho
         const alreadyHasHeader = card.getAttribute('data-mr-folder-card-header') === '1';
 
@@ -4509,6 +4508,7 @@ function injectHierarchySupport(html: string): string {
               // Limpa flags para re-executar sanitização completa e reaplicar .mr-tutoria-card / .mr-folder-card
               card.removeAttribute('data-mr-folder-card-header');
               card.removeAttribute('data-mr-folder-card-footer');
+              card.removeAttribute('data-mr-folder-top-delete');
             });
           }
         });
