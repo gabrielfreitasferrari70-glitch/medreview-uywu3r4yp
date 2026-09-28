@@ -182,8 +182,8 @@ function injectHierarchySupport(html: string): string {
   }
 
   function _executeDecorateCardElementImmediately(card) {
-    // Remoção incondicional de tags de imagem e mídias nativas quebradas do snapshot
-    card.querySelectorAll('img, picture, object, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
+    // Remoção incondicional e agressiva de tags de imagem e mídias nativas quebradas do snapshot
+    card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
 
     const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
     const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
@@ -249,19 +249,39 @@ function injectHierarchySupport(html: string): string {
       card.classList.add('mr-tutoria-card');
     }
 
-    // Garante position relative para o botão 🗑
+    // Captura da contagem de cartas existente no cartão ANTES da limpeza (para não perder o número nativo)
+    let nativeCardCount = null;
+    const findCardCountInText = (str) => {
+      const m = (str || '').match(/(\\d+)\\s*cartas?/i);
+      return m ? parseInt(m[1], 10) : null;
+    };
+    card.querySelectorAll('p, div, span, small, b, strong, em').forEach(el => {
+      if (nativeCardCount === null && !el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
+        const parsed = findCardCountInText(el.textContent);
+        if (parsed !== null && parsed > 0) nativeCardCount = parsed;
+      }
+    });
+
+    // Garante position relative e coluna única para o cartão
     const currentPos = window.getComputedStyle(card).position;
     if (!currentPos || currentPos === 'static') {
       card.style.position = 'relative';
     }
 
-    // Injeta botão 🗑 no canto superior direito
-    if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
-      const delBtn = document.createElement('button');
+    // Oculta/remove expurgando imagens e mídias nativas residuais
+    card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => {
+      el.remove();
+    });
+
+    // Injeta botão 🗑 no canto superior direito como filho direto do cartão
+    let delBtn = card.querySelector('.mr-folder-card-top-delete');
+    if (!delBtn) {
+      delBtn = document.createElement('button');
       delBtn.type = 'button';
       delBtn.className = 'mr-folder-card-top-delete';
       delBtn.title = 'Excluir pasta';
       delBtn.setAttribute('data-mr-folder-delete', '1');
+      delBtn.setAttribute('data-mr-decorated', '1');
       if (effectiveFolderId) delBtn.setAttribute('data-folder-id', effectiveFolderId);
       if (cleanTitle) delBtn.setAttribute('data-folder-title', cleanTitle);
       delBtn.textContent = '🗑';
@@ -275,70 +295,60 @@ function injectHierarchySupport(html: string): string {
       };
       card.appendChild(delBtn);
       card.setAttribute('data-mr-folder-top-delete', '1');
+    } else {
+      delBtn.setAttribute('data-mr-decorated', '1');
+      if (delBtn.parentElement !== card) {
+        card.appendChild(delBtn);
+      }
     }
 
-    // Cabeçalho padronizado
-    if (card.getAttribute('data-mr-folder-card-header') !== '1') {
-      let headerEl = card.querySelector('.mr-folder-card-header');
-      if (!headerEl) {
-        headerEl = document.createElement('div');
-        headerEl.className = 'mr-folder-card-header mr-tutoria-header';
-        headerEl.innerHTML =
-          '<span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
-          '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">' +
-            '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
-            '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
-              (escapeHtml(cleanTitle) || 'Pasta') +
-            '</span>' +
-          '</div>';
+    // Cabeçalho padronizado como filho DIRETO do root do cartão
+    let headerEl = card.querySelector('.mr-folder-card-header');
+    if (!headerEl) {
+      headerEl = document.createElement('div');
+      headerEl.className = 'mr-folder-card-header mr-tutoria-header';
+      headerEl.setAttribute('data-mr-decorated', '1');
+      headerEl.innerHTML =
+        '<span class="mr-folder-card-badge" data-mr-decorated="1" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
+        '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
+          '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
+          '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
+            (escapeHtml(cleanTitle) || 'Pasta') +
+          '</span>' +
+        '</div>';
 
-        if (rawTitleEl && rawTitleEl.parentNode) {
-          rawTitleEl.remove();
-        }
+      if (rawTitleEl && rawTitleEl.parentNode) {
+        rawTitleEl.remove();
+      }
+      card.insertBefore(headerEl, card.firstChild);
+    } else {
+      headerEl.setAttribute('data-mr-decorated', '1');
+      if (headerEl.parentElement !== card) {
         card.insertBefore(headerEl, card.firstChild);
       }
-      card.setAttribute('data-mr-folder-card-header', '1');
     }
+    card.setAttribute('data-mr-folder-card-header', '1');
 
-    // Limpeza de ícones e textos duplicados
-    card.querySelectorAll('.deck-icon, .folder-icon, img, svg, i').forEach(el => {
-      if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
-        el.remove();
-      }
-    });
-    card.querySelectorAll('p, div, span, small').forEach(el => {
-      if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
-        const txt = (el.textContent || '').trim();
-        if (txt.match(/^\\d+\\s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
-          el.remove();
-        }
-      }
-    });
+    // Rodapé padronizado como filho DIRETO no fundo (último filho)
+    let footerEl = card.querySelector('.mr-folder-card-footer');
+    const allFolderCards = effectiveFolderId && typeof getFolderAllCards === 'function' ? getFolderAllCards(effectiveFolderId) : [];
+    let totalCards = (allFolderCards && allFolderCards.length > 0) ? allFolderCards.length : (typeof nativeCardCount === 'number' ? nativeCardCount : 0);
 
-    // Rodapé padronizado
-    if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
-      const allFolderCards = effectiveFolderId && typeof getFolderAllCards === 'function' ? getFolderAllCards(effectiveFolderId) : [];
-      const totalCards = allFolderCards ? allFolderCards.length : 0;
-      let masteredCards = 0;
-      allFolderCards.forEach(c => {
-        const ivl = typeof c.interval === 'number' ? c.interval : (typeof c.fsrsS === 'number' ? c.fsrsS : 0);
-        if (ivl >= 21) masteredCards++;
-      });
-      const pct = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
-
+    if (!footerEl || card.getAttribute('data-mr-folder-card-footer') !== '1') {
       const oldFooters = card.querySelectorAll('.mr-folder-card-footer, .deck-footer, .folder-footer');
       oldFooters.forEach(f => f.remove());
 
-      const footerEl = document.createElement('div');
+      footerEl = document.createElement('div');
       footerEl.className = 'mr-folder-card-footer';
+      footerEl.setAttribute('data-mr-decorated', '1');
       footerEl.innerHTML =
-        '<div class="mr-folder-card-footer-left">' +
-          '<span class="mr-folder-card-count-chip">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
+        '<div class="mr-folder-card-footer-left" data-mr-decorated="1">' +
+          '<span class="mr-folder-card-count-chip" data-mr-decorated="1">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
         '</div>' +
-        '<div class="mr-folder-card-actions">' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+        '<div class="mr-folder-card-actions" data-mr-decorated="1">' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" data-mr-decorated="1" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" data-mr-decorated="1" title="Adicionar carta nesta pasta">+ Carta</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" data-mr-decorated="1" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
         '</div>';
       const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
       if (resetBtn) {
@@ -392,21 +402,33 @@ function injectHierarchySupport(html: string): string {
         };
       }
 
-      const delBtnFooter = footerEl.querySelector('.mr-folder-card-btn-delete');
-      if (delBtnFooter) {
-        delBtnFooter.onclick = function(e) {
-          e.stopPropagation();
-          const effId = effectiveFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
-          const effTitle = cleanTitle || titleText || '';
-          if (typeof window.openFolderDeleteModal === 'function') {
-            window.openFolderDeleteModal(effId, effTitle);
-          }
-        };
-      }
-
       card.appendChild(footerEl);
       card.setAttribute('data-mr-folder-card-footer', '1');
+    } else {
+      footerEl.setAttribute('data-mr-decorated', '1');
+      if (footerEl.parentElement !== card || card.lastElementChild !== footerEl) {
+        card.appendChild(footerEl);
+      }
     }
+
+    // Limpeza rigorosa: remove filhos nativos estranhos e wrappers não decorados
+    Array.from(card.children).forEach(child => {
+      if (
+        child !== headerEl &&
+        child !== footerEl &&
+        child !== delBtn &&
+        child.getAttribute('data-mr-decorated') !== '1'
+      ) {
+        child.remove();
+      }
+    });
+
+    // Limpeza interna residual de ícones e textos duplicados ou soltos do snapshot
+    card.querySelectorAll('.deck-icon, .folder-icon, img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), i').forEach(el => {
+      if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
+        el.remove();
+      }
+    });
   }
   window.__decorateCardElementImmediately = decorateCardElementImmediately;
 
@@ -501,19 +523,22 @@ function injectHierarchySupport(html: string): string {
       pointer-events: none !important;
     }
 
-    .mr-folder-card {
-      position: relative;
-      background: #ffffff;
-      border-radius: 16px;
-      border: 1.5px solid #d1fae5;
-      box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
-      transition: all 0.2s ease;
-      cursor: pointer;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+    .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card {
+      position: relative !important;
+      background: #ffffff !important;
+      border-radius: 16px !important;
+      border: 1.5px solid #d1fae5 !important;
+      box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04) !important;
+      transition: all 0.2s ease !important;
+      cursor: pointer !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      padding: 1.15rem 1rem !important;
+      box-sizing: border-box !important;
     }
-    .mr-folder-card::before {
+    .mr-folder-card::before, .mr-tutoria-card::before, .deck-card::before, .folder-card::before {
       content: '';
       position: absolute;
       top: 0;
@@ -524,70 +549,79 @@ function injectHierarchySupport(html: string): string {
       border-top-left-radius: 15px;
       border-top-right-radius: 15px;
     }
-    .mr-folder-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 24px rgba(22, 163, 74, 0.12);
+    .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover {
+      transform: translateY(-3px) !important;
+      box-shadow: 0 8px 24px rgba(22, 163, 74, 0.12) !important;
     }
-    .mr-folder-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
+    .mr-folder-card-header,
     .mr-tutoria-card .mr-folder-card-header,
-    .mr-folder-card-header.mr-tutoria-header {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
+    .mr-folder-card-header.mr-tutoria-header,
+    .mr-folder-card .mr-folder-card-header,
+    .deck-card .mr-folder-card-header,
+    .folder-card .mr-folder-card-header {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      justify-content: flex-start !important;
+      gap: 0.55rem !important;
+      margin-bottom: 0.85rem !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      padding-right: 42px !important;
+      box-sizing: border-box !important;
     }
     .mr-folder-card-title {
-      font-size: 1.05rem;
-      font-weight: 800;
-      color: #0f172a;
-      line-height: 1.35;
+      font-size: 1.15rem !important;
+      font-weight: 800 !important;
+      color: #14532d !important;
+      line-height: 1.35 !important;
+      display: inline !important;
+      width: 100% !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
     }
     .mr-folder-card-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.25rem 0.65rem;
-      border-radius: 9999px;
-      background: #f0fdf4;
-      color: #15803d;
-      border: 1px solid #bbf7d0;
-      font-size: 0.75rem;
-      font-weight: 700;
-      white-space: nowrap;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 0.35rem !important;
+      padding: 0.25rem 0.65rem !important;
+      border-radius: 9999px !important;
+      background: #f0fdf4 !important;
+      color: #15803d !important;
+      border: 1px solid #bbf7d0 !important;
+      font-size: 0.75rem !important;
+      font-weight: 700 !important;
+      white-space: nowrap !important;
+      align-self: flex-start !important;
+      margin-bottom: 0.15rem !important;
     }
-    .mr-folder-card-footer {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      justify-content: flex-start;
-      gap: 0.6rem;
-      margin-top: auto;
-      padding-top: 0.75rem;
-      border-top: 1px dashed #e2e8f0;
-      font-size: 0.8rem;
-      color: #64748b;
-      width: 100%;
-      box-sizing: border-box;
+    .mr-folder-card-footer,
+    .mr-tutoria-card .mr-folder-card-footer,
+    .mr-folder-card .mr-folder-card-footer,
+    .deck-card .mr-folder-card-footer,
+    .folder-card .mr-folder-card-footer {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      justify-content: flex-start !important;
+      gap: 0.65rem !important;
+      margin-top: auto !important;
+      position: relative !important;
+      padding-top: 0.85rem !important;
+      border-top: 1.5px dashed #cbd5e1 !important;
+      font-size: 0.8rem !important;
+      color: #64748b !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
     }
-    .mr-folder-card-footer-left { display:flex; align-items:center; justify-content:flex-start; width:100%; min-width:0; }
-    .mr-folder-card-count-chip { display:inline-flex; align-items:center; justify-content:center; gap:0.35rem; min-height:28px; height:28px; padding:0 0.75rem; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; font-size:0.76rem; font-weight:700; box-sizing:border-box; }
-    .mr-folder-card-progress-box { display:flex; flex-direction:column; gap:0.2rem; min-width:85px; }
-    .mr-folder-card-progress-label { font-size:0.72rem; font-weight:700; color:#166534; }
-    .mr-folder-card-progress-track { width:100%; height:4px; background:#e2e8f0; border-radius:9999px; overflow:hidden; }
-    .mr-folder-card-progress-bar { height:100%; background:#16a34a; border-radius:9999px; transition:width 0.3s ease; }
-    .mr-folder-card-actions { display:flex; align-items:center; justify-content:space-between; gap:0.45rem; width:100%; flex-wrap:nowrap; box-sizing:border-box; }
-    .mr-folder-card-btn-action { border:none; background:transparent; height:34px; min-height:34px; padding:0 0.5rem; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem; flex:1 1 0%; width:0; box-sizing:border-box; line-height:1; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
-    .mr-folder-card-btn-reset { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; } .mr-folder-card-btn-reset:hover { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
-    .mr-folder-card-btn-add { color:#ffffff; background:#16a34a; border:1px solid #16a34a; border-radius:8px; font-weight:800; box-shadow:0 1px 3px rgba(22,163,74,0.2); } .mr-folder-card-btn-add:hover { background:#15803d; border-color:#15803d; }
-    .mr-folder-card-btn-subfolder { color:#166534; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; font-weight:700; box-shadow:0 1px 2px rgba(22,163,74,0.06); } .mr-folder-card-btn-subfolder:hover { background:#dcfce7; border-color:#22c55e; color:#14532d; }
+    .mr-folder-card-footer-left { display:flex !important; align-items:center !important; justify-content:flex-start !important; width:100% !important; min-width:0 !important; }
+    .mr-folder-card-count-chip { display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.35rem !important; min-height:28px !important; height:28px !important; padding:0 0.75rem !important; background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; border-radius:9999px !important; font-size:0.78rem !important; font-weight:700 !important; box-sizing:border-box !important; white-space:nowrap !important; }
+    .mr-folder-card-actions { display:flex !important; align-items:center !important; justify-content:space-between !important; gap:0.45rem !important; width:100% !important; flex-wrap:wrap !important; box-sizing:border-box !important; margin-left:0 !important; }
+    .mr-folder-card-btn-action { border:none !important; height:34px !important; min-height:34px !important; min-width:80px !important; padding:0 0.5rem !important; border-radius:8px !important; font-size:0.78rem !important; font-weight:700 !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.35rem !important; flex:1 1 0% !important; box-sizing:border-box !important; line-height:1 !important; white-space:nowrap !important; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important; }
+    .mr-folder-card-btn-reset { color:#15803d !important; background:#f0fdf4 !important; border:1px solid #bbf7d0 !important; border-radius:8px !important; } .mr-folder-card-btn-reset:hover { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+    .mr-folder-card-btn-add { color:#ffffff !important; background:#16a34a !important; border:1px solid #16a34a !important; border-radius:8px !important; font-weight:800 !important; box-shadow:0 1px 3px rgba(22,163,74,0.2) !important; } .mr-folder-card-btn-add:hover { background:#15803d !important; border-color:#15803d !important; }
+    .mr-folder-card-btn-subfolder { color:#166534 !important; background:#f0fdf4 !important; border:1px solid #86efac !important; border-radius:8px !important; font-weight:700 !important; box-shadow:0 1px 2px rgba(22,163,74,0.06) !important; } .mr-folder-card-btn-subfolder:hover { background:#dcfce7 !important; border-color:#22c55e !important; color:#14532d !important; }
 
     /* Toast Flutuante MedReview */
     .mr-toast-container {
@@ -732,34 +766,75 @@ function injectHierarchySupport(html: string): string {
     }
 
     /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
-    .mr-tutoria-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete),
-    .mr-folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete) {
+    .mr-tutoria-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]),
+    .mr-folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]),
+    .deck-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]),
+    .folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]) {
       display: none !important;
+      visibility: hidden !important;
+      height: 0 !important;
+      max-height: 0 !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
     .mr-tutoria-card img,
     .mr-tutoria-card picture,
     .mr-tutoria-card object,
+    .mr-tutoria-card embed,
+    .mr-tutoria-card canvas,
     .mr-tutoria-card svg:not(.mr-allowed-svg),
     .mr-folder-card img,
     .mr-folder-card picture,
     .mr-folder-card object,
-    .mr-folder-card svg:not(.mr-allowed-svg) {
+    .mr-folder-card embed,
+    .mr-folder-card canvas,
+    .mr-folder-card svg:not(.mr-allowed-svg),
+    .deck-card img,
+    .deck-card picture,
+    .deck-card object,
+    .deck-card embed,
+    .deck-card canvas,
+    .deck-card svg:not(.mr-allowed-svg),
+    .folder-card img,
+    .folder-card picture,
+    .folder-card object,
+    .folder-card embed,
+    .folder-card canvas,
+    .folder-card svg:not(.mr-allowed-svg) {
       display: none !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      height: 0 !important;
+      max-width: 0 !important;
+      max-height: 0 !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
     .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 1.15rem !important; align-items: stretch !important; }
     @media (max-width: 900px) {
       .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
     }
-    .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card, .mr-subfolder-card { position: relative !important; background: #ffffff !important; border-radius: 16px !important; border: 1.5px solid #d1fae5 !important; box-shadow: 0 3px 12px rgba(15,23,42,0.04) !important; cursor: pointer !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; width: 100% !important; height: 100% !important; box-sizing: border-box !important; padding: 1.15rem 0.95rem !important; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
+    .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card, .mr-subfolder-card { position: relative !important; background: #ffffff !important; border-radius: 16px !important; border: 1.5px solid #d1fae5 !important; box-shadow: 0 3px 12px rgba(15,23,42,0.04) !important; cursor: pointer !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; width: 100% !important; height: 100% !important; min-height: 200px !important; box-sizing: border-box !important; padding: 1.15rem 1rem !important; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
+    /* Neutralização total de qualquer posicionamento absoluto de conteúdo legado dentro dos cartões */
+    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
+    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
+    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
+    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
+      display: none !important;
+    }
     .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
     .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover, .mr-subfolder-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(22,163,74,0.14) !important; border-color: #86efac !important; }
-    .mr-folder-card-header { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.6rem !important; margin-bottom: 0.85rem !important; min-width: 0 !important; }
-    .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 44px !important; box-sizing: border-box !important; }
-    .mr-tutoria-card .mr-folder-card-badge, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge { align-self: flex-start !important; margin-bottom: 0.15rem !important; }
-    .mr-tutoria-card .mr-folder-card-title-wrap, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap { width: 100% !important; }
-    .mr-folder-card-title { font-size: 1.15rem !important; font-weight: 800 !important; color: #14532d !important; line-height: 1.3 !important; letter-spacing: -0.01em !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+    .mr-folder-card-header, .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header, .mr-folder-card .mr-folder-card-header, .deck-card .mr-folder-card-header, .folder-card .mr-folder-card-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 42px !important; box-sizing: border-box !important; }
+    .mr-tutoria-card .mr-folder-card-badge, .mr-folder-card .mr-folder-card-badge, .deck-card .mr-folder-card-badge, .folder-card .mr-folder-card-badge, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge { align-self: flex-start !important; margin-bottom: 0.15rem !important; }
+    .mr-tutoria-card .mr-folder-card-title-wrap, .mr-folder-card .mr-folder-card-title-wrap, .deck-card .mr-folder-card-title-wrap, .folder-card .mr-folder-card-title-wrap, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap { width: 100% !important; display: block !important; }
+    .mr-folder-card-icon { font-size: 1.2rem !important; line-height: 1 !important; display: inline-block !important; vertical-align: -0.1em !important; margin-right: 0.45rem !important; }
+    .mr-folder-card-title { font-size: 1.15rem !important; font-weight: 800 !important; color: #14532d !important; line-height: 1.35 !important; letter-spacing: -0.01em !important; white-space: normal !important; word-break: normal !important; overflow-wrap: break-word !important; overflow: visible !important; text-overflow: clip !important; display: inline !important; width: 100% !important; }
     .mr-folder-card-badge { display: inline-flex !important; align-items: center !important; gap: 0.35rem !important; padding: 0.25rem 0.65rem !important; border-radius: 9999px !important; background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; font-size: 0.75rem !important; font-weight: 700 !important; white-space: nowrap !important; flex-shrink: 0 !important; }
-    .mr-folder-card-footer { display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.75rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; color: #64748b !important; width: 100% !important; box-sizing: border-box !important; }
+    .mr-folder-card-footer { display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.65rem !important; margin-top: auto !important; position: relative !important; padding-top: 0.85rem !important; border-top: 1.5px dashed #cbd5e1 !important; font-size: 0.8rem !important; color: #64748b !important; width: 100% !important; box-sizing: border-box !important; }
 
     /* Slot do botão 🗑 no canto superior direito de qualquer cartão de pasta */
     .mr-tutoria-card .mr-folder-card-top-delete,
@@ -801,10 +876,11 @@ function injectHierarchySupport(html: string): string {
       flex-direction: column !important;
       align-items: stretch !important;
       justify-content: flex-start !important;
-      gap: 0.6rem !important;
+      gap: 0.65rem !important;
       margin-top: auto !important;
-      padding-top: 0.75rem !important;
-      border-top: 1px dashed #e2e8f0 !important;
+      position: relative !important;
+      padding-top: 0.85rem !important;
+      border-top: 1.5px dashed #cbd5e1 !important;
       width: 100% !important;
       box-sizing: border-box !important;
     }
@@ -822,7 +898,7 @@ function injectHierarchySupport(html: string): string {
     .mr-subfolder-card .mr-folder-card-count-chip {
       white-space: nowrap !important;
       flex-shrink: 0 !important;
-      font-size: 0.76rem !important;
+      font-size: 0.78rem !important;
       min-height: 28px !important;
       height: 28px !important;
       padding: 0 0.75rem !important;
@@ -831,6 +907,9 @@ function injectHierarchySupport(html: string): string {
       justify-content: center !important;
       border-radius: 9999px !important;
       font-weight: 700 !important;
+      background: #f0fdf4 !important;
+      color: #15803d !important;
+      border: 1px solid #bbf7d0 !important;
       box-sizing: border-box !important;
     }
     .mr-tutoria-card .mr-folder-card-actions,
@@ -841,12 +920,14 @@ function injectHierarchySupport(html: string): string {
       justify-content: space-between !important;
       gap: 0.45rem !important;
       width: 100% !important;
-      flex-wrap: nowrap !important;
+      flex-wrap: wrap !important;
       margin-left: 0 !important;
       box-sizing: border-box !important;
     }
     .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action,
     .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
+    .deck-card .mr-folder-card-actions .mr-folder-card-btn-action,
+    .folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
     .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-action {
       white-space: nowrap !important;
       font-size: 0.78rem !important;
@@ -858,10 +939,10 @@ function injectHierarchySupport(html: string): string {
       gap: 0.35rem !important;
       height: 34px !important;
       min-height: 34px !important;
+      min-width: 80px !important;
       padding: 0 0.5rem !important;
       border-radius: 8px !important;
       flex: 1 1 0% !important;
-      width: 0 !important;
       box-sizing: border-box !important;
       line-height: 1 !important;
     }
@@ -3783,7 +3864,7 @@ function injectHierarchySupport(html: string): string {
         if (card.classList.contains('mr-subfolder-card')) return;
 
         // Remoção incondicional de tags de imagem e mídias nativas quebradas do snapshot
-        card.querySelectorAll('img, picture, object, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
+        card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
 
         // Injeção do botão 🗑 no canto superior direito de todo .mr-folder-card (com guard de duplicidade)
         if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
@@ -3797,10 +3878,10 @@ function injectHierarchySupport(html: string): string {
           const rawOnclick = card.getAttribute('onclick') || '';
           const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
                           rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
-                          rawOnclick.match(/tutoria_\\d+/i);
+                          rawOnclick.match(/tutoria_d+/i);
           const rawTitleCard = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
           const titleCardTxt = (rawTitleCard?.textContent || card.getAttribute('data-folder-name') || '').trim();
-          const cardTutoriaMatch = titleCardTxt.match(/tutoria\\s*(\\d+)/i);
+          const cardTutoriaMatch = titleCardTxt.match(/tutorias*(d+)/i);
           const cardTutoriaId = cardTutoriaMatch ? ('tutoria_' + cardTutoriaMatch[1]) : null;
 
           const cardFolderId = card.getAttribute('data-folder-id') ||
@@ -3814,6 +3895,7 @@ function injectHierarchySupport(html: string): string {
           delBtn.className = 'mr-folder-card-top-delete';
           delBtn.title = 'Excluir pasta';
           delBtn.setAttribute('data-mr-folder-delete', '1');
+          delBtn.setAttribute('data-mr-decorated', '1');
           if (cardFolderId) delBtn.setAttribute('data-folder-id', cardFolderId);
           if (titleCardTxt) delBtn.setAttribute('data-folder-title', titleCardTxt);
           delBtn.textContent = '🗑';
@@ -3836,7 +3918,6 @@ function injectHierarchySupport(html: string): string {
         card.setAttribute('data-mr-folder-card', '1');
         const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
         const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
-
         // 2. DETECÇÃO DE ID em cadeia de prioridades:
         // (a) card.getAttribute('data-folder-id')
         // (b) card.getAttribute('data-deck-id')
@@ -3951,26 +4032,27 @@ function injectHierarchySupport(html: string): string {
           let headerEl = card.querySelector('.mr-folder-card-header');
           if (!headerEl) {
             headerEl = document.createElement('div');
+            headerEl.setAttribute('data-mr-decorated', '1');
             if (shouldUseStandardCard) {
               headerEl.className = 'mr-folder-card-header mr-tutoria-header';
               headerEl.innerHTML =
-                '<span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
-                '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">' +
-                  '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
-                  '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
+                '<span class="mr-folder-card-badge" data-mr-decorated="1" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
+                '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
+                  '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
+                  '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
                     (escapeHtml(cleanTitle) || 'Pasta') +
                   '</span>' +
                 '</div>';
             } else {
               headerEl.className = 'mr-folder-card-header';
               headerEl.innerHTML =
-                '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; flex:1;">' +
-                  '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
-                  '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
+                '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
+                  '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
+                  '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
                     (escapeHtml(cleanTitle) || 'Pasta') +
                   '</span>' +
                 '</div>' +
-                '<span class="mr-folder-card-badge">' + escapeHtml(categoryBadge) + '</span>';
+                '<span class="mr-folder-card-badge" data-mr-decorated="1">' + escapeHtml(categoryBadge) + '</span>';
             }
 
             if (rawTitleEl && rawTitleEl.parentNode) {
@@ -3978,6 +4060,8 @@ function injectHierarchySupport(html: string): string {
             }
 
             card.insertBefore(headerEl, card.firstChild);
+          } else {
+            headerEl.setAttribute('data-mr-decorated', '1');
           }
 
           card.setAttribute('data-mr-folder-card-header', '1');
@@ -4034,22 +4118,21 @@ function injectHierarchySupport(html: string): string {
 
         // Limpeza de ícones e contagens nativas duplicadas no corpo do cartão
         if (shouldUseStandardCard) {
-          // Remove ícone de pasta e ícones residuais no corpo do cartão (.deck-icon, .folder-icon, img, svg, i) fora do header e footer
-          card.querySelectorAll('.deck-icon, .folder-icon, img, svg, i').forEach(el => {
+          // Remove ícone de pasta e mídias residuais no corpo do cartão fora do header e footer
+          card.querySelectorAll('.deck-icon, .folder-icon, img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), i').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
               el.remove();
             }
           });
-          // Remove nós de texto ou elementos com "34 cartas", "cartas", contagem nativa solta no corpo
-          card.querySelectorAll('p, div, span, small').forEach(el => {
-            if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
+          // Remove nós de texto ou elementos soltos com contagem nativa, botões residuais, etc.
+          card.querySelectorAll('p, div, span, small, a, button').forEach(el => {
+            if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer') && !el.classList.contains('mr-folder-card-top-delete')) {
               const txt = (el.textContent || '').trim();
-              if (txt.match(/^\\d+\\s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
+              if (txt.match(/^d+s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta' || txt.includes('Reset') || txt.includes('+ Carta') || txt.includes('Subpasta') || txt.includes('Excluir')) {
                 el.remove();
               }
             }
-          });
-          // Limpa nós de texto soltos filhos diretos do cartão com contagem de cartas
+          });          // Limpa nós de texto soltos filhos diretos do cartão com contagem de cartas
           Array.from(card.childNodes).forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
               const val = (node.nodeValue || '').trim();
@@ -4086,16 +4169,17 @@ function injectHierarchySupport(html: string): string {
 
           const footerEl = document.createElement('div');
           footerEl.className = 'mr-folder-card-footer';
-          const leftContent = '<span class="mr-folder-card-count-chip">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>';
+          footerEl.setAttribute('data-mr-decorated', '1');
+          const leftContent = '<span class="mr-folder-card-count-chip" data-mr-decorated="1">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>';
 
           footerEl.innerHTML =
-            '<div class="mr-folder-card-footer-left">' +
+            '<div class="mr-folder-card-footer-left" data-mr-decorated="1">' +
               leftContent +
             '</div>' +
-            '<div class="mr-folder-card-actions">' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+            '<div class="mr-folder-card-actions" data-mr-decorated="1">' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" data-mr-decorated="1" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" data-mr-decorated="1" title="Adicionar carta nesta pasta">+ Carta</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" data-mr-decorated="1" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
             '</div>';
 
           const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
@@ -4183,6 +4267,30 @@ function injectHierarchySupport(html: string): string {
           card.appendChild(footerEl);
           card.setAttribute('data-mr-folder-card-footer', '1');
         }
+
+        // Anexar header, footer e delBtn como filhos diretos do root do cartão e expurgar irmãos nativos indesejados
+        const directHeader = card.querySelector('.mr-folder-card-header');
+        const directFooter = card.querySelector('.mr-folder-card-footer');
+        const directDel = card.querySelector('.mr-folder-card-top-delete');
+        if (directHeader && directHeader.parentElement !== card) {
+          card.insertBefore(directHeader, card.firstChild);
+        }
+        if (directFooter && directFooter.parentElement !== card) {
+          card.appendChild(directFooter);
+        }
+        if (directDel && directDel.parentElement !== card) {
+          card.appendChild(directDel);
+        }
+        Array.from(card.children).forEach(child => {
+          if (
+            child !== directHeader &&
+            child !== directFooter &&
+            child !== directDel &&
+            child.getAttribute('data-mr-decorated') !== '1'
+          ) {
+            child.remove();
+          }
+        });
       });
     } catch (e) {
       console.warn('Erro ao padronizar cabeçalhos e rodapés de cartões de pasta:', e);
@@ -4512,6 +4620,21 @@ function injectHierarchySupport(html: string): string {
               });
             }
             recycledCards.forEach(card => {
+              // Expurgar na raiz e internamente img, picture, object, embed, canvas, svg do snapshot
+              card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(imgEl => imgEl.remove());
+
+              // Expurgar nós filhos diretos nativos indesejados caso o snapshot reinjete
+              Array.from(card.children).forEach(child => {
+                if (
+                  !child.classList.contains('mr-folder-card-header') &&
+                  !child.classList.contains('mr-folder-card-footer') &&
+                  !child.classList.contains('mr-folder-card-top-delete') &&
+                  child.getAttribute('data-mr-decorated') !== '1'
+                ) {
+                  child.remove();
+                }
+              });
+
               // Só limpa se o card foi substituído de fato pelo snapshot nativo e perdeu nossos elementos
               if (!card.querySelector('.mr-folder-card-header') || !card.querySelector('.mr-folder-card-footer') || !card.querySelector('.mr-folder-card-top-delete')) {
                 card.removeAttribute('data-mr-folder-card-header');
