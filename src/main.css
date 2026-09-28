@@ -294,7 +294,12 @@
    Estrutura consolidada para qualquer tipo de pasta (Tutoria, Provas, Módulos,
    Subpastas, Pastas Raiz e Customizadas). O tipo é diferenciado pelo chip/ícone.
    ========================================================================== */
-.mr-tutoria-card {
+.mr-tutoria-card,
+.mr-folder-card,
+.deck-card.mr-tutoria-card,
+.deck-card.mr-folder-card,
+.folder-card.mr-tutoria-card,
+.folder-card.mr-folder-card {
   position: relative !important;
   background: #ffffff !important;
   border-radius: 16px !important;
@@ -304,6 +309,9 @@
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
   height: 100% !important;
   box-sizing: border-box !important;
   padding: 1.15rem 0.95rem !important;
@@ -314,7 +322,8 @@
 }
 
 /* Faixa verde superior decorativa */
-.mr-tutoria-card::before {
+.mr-tutoria-card::before,
+.mr-folder-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -326,16 +335,28 @@
   border-top-right-radius: 15px;
 }
 
-.mr-tutoria-card:hover {
+.mr-tutoria-card:hover,
+.mr-folder-card:hover {
   transform: translateY(-3px) !important;
   box-shadow: 0 8px 24px rgba(22, 163, 74, 0.14) !important;
   border-color: #86efac !important;
 }
 
-/* Ocultação de elementos residuais soltos no corpo */
-.mr-tutoria-card > p,
-.mr-tutoria-card > span:not(.mr-folder-card-badge),
-.mr-tutoria-card > div:not(.mr-folder-card-header):not(.mr-folder-card-footer) {
+/* Ocultação ampla de wrappers intermediários e elementos não-mr */
+.mr-tutoria-card
+  > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete),
+.mr-folder-card
+  > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete) {
+  display: none !important;
+}
+.mr-tutoria-card img,
+.mr-tutoria-card picture,
+.mr-tutoria-card object,
+.mr-tutoria-card svg:not(.mr-allowed-svg),
+.mr-folder-card img,
+.mr-folder-card picture,
+.mr-folder-card object,
+.mr-folder-card svg:not(.mr-allowed-svg) {
   display: none !important;
 }
 
@@ -491,10 +512,10 @@
 .mr-subfolder-card .mr-folder-card-actions {
   display: flex !important;
   align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 0.5rem !important;
+  justify-content: space-between !important;
+  gap: 0.45rem !important;
   width: 100% !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   margin-left: 0 !important;
   box-sizing: border-box !important;
 }
@@ -512,9 +533,10 @@
   gap: 0.35rem !important;
   height: 34px !important;
   min-height: 34px !important;
-  padding: 0 0.75rem !important;
+  padding: 0 0.5rem !important;
   border-radius: 8px !important;
-  flex: 1 1 auto !important;
+  flex: 1 1 0% !important;
+  width: 0 !important;
   box-sizing: border-box !important;
   line-height: 1 !important;
   transition:
