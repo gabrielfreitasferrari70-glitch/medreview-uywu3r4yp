@@ -1394,7 +1394,7 @@ function injectHierarchySupport(html: string): string {
       </div>
       <div style="padding:1.35rem; margin:0;">
         <p style="margin:0 0 1.35rem 0; color:#334155; font-size:0.92rem; line-height:1.5; font-weight:500;">
-          Excluir pasta? As subpastas serão removidas e os cartões serão preservados, migrando para o nível superior — o progresso FSRS-5 de cada carta é mantido.
+          Excluir pasta? TODAS as cartas desta pasta e de suas subpastas serão excluídas permanentemente, junto com seu progresso FSRS-5. As cartas das outras pastas e subpastas NÃO são afetadas.
         </p>
         <div style="display:flex; justify-content:flex-end; gap:0.6rem;">
           <button type="button" data-mr-delete-cancel="1" data-mr-folder-delete-cancel="1" onclick="closeFolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
@@ -1965,159 +1965,142 @@ function injectHierarchySupport(html: string): string {
 
     const info = resolveFolderInfo(folderId);
 
-    // 1. Coletar todas as cartas da pasta e de suas subpastas
-    const cardsToMigrate = typeof getFolderAllCards === 'function' ? getFolderAllCards(folderId) : [];
-
-    // Fallback se getFolderAllCards retornou vazio mas info.cards tem itens
-    if (cardsToMigrate.length === 0 && info && Array.isArray(info.cards) && info.cards.length > 0) {
-      info.cards.forEach(c => { if (c && c.id) cardsToMigrate.push(c); });
-    }
-
-    // 2. Determinar destino: nível superior (parent) ou container raiz correspondente
-    let targetParentId = info ? info.parent : null;
-    let targetCardsArray = null;
-    let targetDisplayName = 'Nível Superior';
-
-    if (targetParentId) {
-      const pInfo = resolveFolderInfo(targetParentId);
-      if (pInfo) {
-        targetDisplayName = pInfo.name || targetParentId;
-      }
-    }
-
-    // Localiza array de cartas de destino
-    if (targetParentId === 'tutoria') {
-      if (!state.tutoria_highlight) state.tutoria_highlight = { cards: [] };
-      if (!Array.isArray(state.tutoria_highlight.cards)) state.tutoria_highlight.cards = [];
-      targetCardsArray = state.tutoria_highlight.cards;
-      targetDisplayName = 'Tutoria';
-    } else if (targetParentId === 'provas') {
-      if (!state.provas) state.provas = {};
-      const provaKeys = Object.keys(state.provas);
-      if (provaKeys.length > 0) {
-        const firstKey = provaKeys[0];
-        if (!Array.isArray(state.provas[firstKey].cards)) state.provas[firstKey].cards = [];
-        targetCardsArray = state.provas[firstKey].cards;
-        targetDisplayName = state.provas[firstKey].name || state.provas[firstKey].title || 'Provas';
-      } else {
-        if (!state.custom_prova_folders) state.custom_prova_folders = {};
-        if (!state.custom_prova_folders['provas_geral']) {
-          state.custom_prova_folders['provas_geral'] = { name: 'Provas Geral', cards: [], parent: 'provas' };
-        }
-        targetCardsArray = state.custom_prova_folders['provas_geral'].cards;
-        targetDisplayName = 'Provas Geral';
-      }
-    } else if (targetParentId && state.tutorias_numbered && state.tutorias_numbered[targetParentId]) {
-      if (!Array.isArray(state.tutorias_numbered[targetParentId].cards)) state.tutorias_numbered[targetParentId].cards = [];
-      targetCardsArray = state.tutorias_numbered[targetParentId].cards;
-    } else if (targetParentId && state.custom_tutoria_folders && state.custom_tutoria_folders[targetParentId]) {
-      if (!Array.isArray(state.custom_tutoria_folders[targetParentId].cards)) state.custom_tutoria_folders[targetParentId].cards = [];
-      targetCardsArray = state.custom_tutoria_folders[targetParentId].cards;
-    } else if (targetParentId && state.custom_prova_folders && state.custom_prova_folders[targetParentId]) {
-      if (!Array.isArray(state.custom_prova_folders[targetParentId].cards)) state.custom_prova_folders[targetParentId].cards = [];
-      targetCardsArray = state.custom_prova_folders[targetParentId].cards;
-    } else if (targetParentId && state.custom_root_folders && state.custom_root_folders[targetParentId]) {
-      if (!Array.isArray(state.custom_root_folders[targetParentId].cards)) state.custom_root_folders[targetParentId].cards = [];
-      targetCardsArray = state.custom_root_folders[targetParentId].cards;
-    } else if (targetParentId && state.provas && state.provas[targetParentId]) {
-      if (!Array.isArray(state.provas[targetParentId].cards)) state.provas[targetParentId].cards = [];
-      targetCardsArray = state.provas[targetParentId].cards;
-    } else {
-      const sfStore = getSubfolderStore();
-      if (targetParentId && sfStore[targetParentId]) {
-        if (!Array.isArray(sfStore[targetParentId].cards)) sfStore[targetParentId].cards = [];
-        targetCardsArray = sfStore[targetParentId].cards;
-      }
-    }
-
-    // Se ainda não encontrou destino (ou não tinha parent), envia para o container raiz correspondente ao tipo
-    if (!targetCardsArray) {
-      const isProva = (folderId.toLowerCase().includes('prova') || (info && (info.type === 'prova_item' || info.parent === 'provas')));
-      if (isProva) {
-        if (state.provas && Object.keys(state.provas).length > 0) {
-          const firstKey = Object.keys(state.provas)[0];
-          if (!Array.isArray(state.provas[firstKey].cards)) state.provas[firstKey].cards = [];
-          targetCardsArray = state.provas[firstKey].cards;
-          targetDisplayName = state.provas[firstKey].name || state.provas[firstKey].title || 'Provas';
-          targetParentId = firstKey;
-        } else {
-          if (!state.custom_prova_folders) state.custom_prova_folders = {};
-          if (!state.custom_prova_folders['provas_geral']) {
-            state.custom_prova_folders['provas_geral'] = { name: 'Provas Geral', cards: [], parent: 'provas' };
-          }
-          targetCardsArray = state.custom_prova_folders['provas_geral'].cards;
-          targetDisplayName = 'Provas Geral';
-          targetParentId = 'provas_geral';
-        }
-      } else {
-        if (!state.tutoria_highlight) state.tutoria_highlight = { cards: [] };
-        if (!Array.isArray(state.tutoria_highlight.cards)) state.tutoria_highlight.cards = [];
-        targetCardsArray = state.tutoria_highlight.cards;
-        targetDisplayName = 'Tutoria';
-        targetParentId = 'tutoria';
-      }
-    }
-
-    // 3. Migrar cada carta para o nível superior com PRESERVAÇÃO TOTAL de FSRS-5
-    const existingTargetCardIds = new Set(targetCardsArray.map(c => c && c.id).filter(Boolean));
-    let migratedCount = 0;
-
-    cardsToMigrate.forEach(c => {
-      if (!c || !c.id) return;
-      c.containerId = targetParentId;
-      c.folderTitle = targetDisplayName;
-      if (!existingTargetCardIds.has(c.id)) {
-        targetCardsArray.push(c);
-        existingTargetCardIds.add(c.id);
-        migratedCount++;
-      } else {
-        migratedCount++;
-      }
-    });
-
-    // 4. Remover do store de subpastas as subpastas da pasta e seus descendentes
+    // 1. Coleta todas as subpastas descendentes recursivamente via getSubfolderStore()
     const sfStore = getSubfolderStore();
     const subsToRemove = new Set();
-
-    function collectDescendantSubfolders(parentId) {
-      Object.values(sfStore).forEach(s => {
-        if (s && (s.parentId === parentId || s.parent === parentId)) {
+    function collectDescendants(pId) {
+      Object.values(sfStore || {}).forEach(s => {
+        if (s && (s.parentId === pId || s.parent === pId)) {
           if (!subsToRemove.has(s.id)) {
             subsToRemove.add(s.id);
-            collectDescendantSubfolders(s.id);
+            collectDescendants(s.id);
           }
         }
       });
     }
+    collectDescendants(folderId);
 
-    collectDescendantSubfolders(folderId);
-    subsToRemove.add(folderId);
+    // 2. Coleta todas as cartas da pasta e de todas as suas subpastas descendentes em cascata
+    const cardsToDelete = [];
+    const seenCardIds = new Set();
 
+    // (a) getFolderAllCards da pasta (percorre hierarquia completa)
+    const allCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(folderId) : [];
+    allCards.forEach(c => {
+      if (c && c.id && !seenCardIds.has(c.id)) {
+        seenCardIds.add(c.id);
+        cardsToDelete.push(c);
+      }
+    });
+
+    // (b) Cartas diretas da pasta no info (caso não tenham vindo via getFolderAllCards)
+    if (info && Array.isArray(info.cards)) {
+      info.cards.forEach(c => {
+        if (c && c.id && !seenCardIds.has(c.id)) {
+          seenCardIds.add(c.id);
+          cardsToDelete.push(c);
+        }
+      });
+    }
+
+    // (c) Cartas diretas em cada uma das subpastas descendentes
     subsToRemove.forEach(sid => {
-      if (sfStore[sid]) {
+      if (sfStore && sfStore[sid] && Array.isArray(sfStore[sid].cards)) {
+        sfStore[sid].cards.forEach(c => {
+          if (c && c.id && !seenCardIds.has(c.id)) {
+            seenCardIds.add(c.id);
+            cardsToDelete.push(c);
+          }
+        });
+      }
+    });
+
+    const deletedCount = cardsToDelete.length;
+    const cardIdsToDelete = seenCardIds;
+
+    // 3. Remover permanentemente as subpastas descendentes do store e de localStorage
+    subsToRemove.forEach(sid => {
+      if (sfStore && sfStore[sid]) {
+        if (Array.isArray(sfStore[sid].cards)) {
+          sfStore[sid].cards = [];
+        }
         delete sfStore[sid];
       }
-      if (state && state.subfolders && state.subfolders[sid]) {
+      if (typeof state !== 'undefined' && state && state.subfolders && state.subfolders[sid]) {
         delete state.subfolders[sid];
       }
     });
+
+    // Caso a própria pasta esteja registrada no sfStore
+    if (sfStore && sfStore[folderId]) {
+      if (Array.isArray(sfStore[folderId].cards)) {
+        sfStore[folderId].cards = [];
+      }
+      delete sfStore[folderId];
+    }
+    if (typeof state !== 'undefined' && state && state.subfolders && state.subfolders[folderId]) {
+      delete state.subfolders[folderId];
+    }
+
+    // Garante que nenhuma subpasta remanescente retenha cartas apagadas
+    if (sfStore) {
+      Object.values(sfStore).forEach(s => {
+        if (s && Array.isArray(s.cards)) {
+          s.cards = s.cards.filter(c => c && !cardIdsToDelete.has(c.id));
+        }
+      });
+    }
+
+    try {
+      localStorage.setItem('medreview_subfolders', JSON.stringify(sfStore || {}));
+    } catch { /* intentionally ignored */ }
+
     persistSubfolders();
 
-    // 5. Remover pasta do registro correspondente no state
-    if (state.custom_tutoria_folders && state.custom_tutoria_folders[folderId]) {
-      delete state.custom_tutoria_folders[folderId];
+    // 4. Remover a pasta em si de todos os registros do state
+    if (typeof state !== 'undefined' && state) {
+      if (state.custom_tutoria_folders && state.custom_tutoria_folders[folderId]) {
+        delete state.custom_tutoria_folders[folderId];
+      }
+      if (state.custom_prova_folders && state.custom_prova_folders[folderId]) {
+        delete state.custom_prova_folders[folderId];
+      }
+      if (state.custom_root_folders && state.custom_root_folders[folderId]) {
+        delete state.custom_root_folders[folderId];
+      }
+      if (state.tutorias_numbered && state.tutorias_numbered[folderId]) {
+        delete state.tutorias_numbered[folderId];
+      }
+      if (state.provas && state.provas[folderId]) {
+        delete state.provas[folderId];
+      }
     }
-    if (state.custom_prova_folders && state.custom_prova_folders[folderId]) {
-      delete state.custom_prova_folders[folderId];
-    }
-    if (state.custom_root_folders && state.custom_root_folders[folderId]) {
-      delete state.custom_root_folders[folderId];
-    }
-    if (state.tutorias_numbered && state.tutorias_numbered[folderId]) {
-      delete state.tutorias_numbered[folderId];
-    }
-    if (state.provas && state.provas[folderId]) {
-      delete state.provas[folderId];
+
+    // Limpa override de nome da pasta se houver
+    try {
+      const rawOverrides = localStorage.getItem('medreview_folder_name_overrides');
+      if (rawOverrides) {
+        const overrides = JSON.parse(rawOverrides);
+        if (overrides && typeof overrides === 'object') {
+          delete overrides[folderId];
+          subsToRemove.forEach(sid => { delete overrides[sid]; });
+          localStorage.setItem('medreview_folder_name_overrides', JSON.stringify(overrides));
+        }
+      }
+    } catch { /* intentionally ignored */ }
+
+    // 5. Limpa histórico de avaliações do FSRS-5 das cartas excluídas
+    if (cardIdsToDelete.size > 0) {
+      try {
+        const rawHistory = localStorage.getItem('medreview_eval_history');
+        if (rawHistory) {
+          const parsed = JSON.parse(rawHistory);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.filter(h => h && !cardIdsToDelete.has(h.cardId));
+            localStorage.setItem('medreview_eval_history', JSON.stringify(updated));
+          }
+        }
+      } catch { /* intentionally ignored */ }
     }
 
     // 6. Salvar estado
@@ -2128,8 +2111,9 @@ function injectHierarchySupport(html: string): string {
     // Fechar modal
     closeFolderDeleteModal();
 
-    // 7. Toast no padrão do app: "Pasta excluída. N cartas migradas para [Destino]."
-    const toastMsg = 'Pasta excluída. ' + migratedCount + ' cartas migradas para ' + targetDisplayName + '.';
+    // 7. Toast de confirmação com contagem permanente no padrão do modal de subpasta:
+    // "Pasta excluída. N cartas removidas permanentemente."
+    const toastMsg = 'Pasta excluída. ' + deletedCount + ' cartas removidas permanentemente.';
     if (typeof showMedReviewToast === 'function') {
       showMedReviewToast(toastMsg, '', '🗑');
     } else if (typeof showToast === 'function') {
@@ -2138,21 +2122,30 @@ function injectHierarchySupport(html: string): string {
       alert(toastMsg);
     }
 
-    // 8. Re-render seguro: requestAnimationFrame com passe único
+    // 8. Re-render imediato (síncrono) da home + rede de segurança rAF + 120ms + 300ms de enhanceViews
     const currentSubWrapper = document.getElementById('mr-subfolder-wrapper');
     if (currentSubWrapper && currentSubWrapper.style.display !== 'none') {
       if (typeof window.navigateTo === 'function') {
-        window.navigateTo(targetParentId || 'home');
+        window.navigateTo('home');
       } else if (typeof navigateTo === 'function') {
-        navigateTo(targetParentId || 'home');
+        navigateTo('home');
       }
     } else if (typeof renderRoute === 'function') {
       renderRoute();
+    } else if (typeof window.navigateTo === 'function') {
+      window.navigateTo('home');
     }
 
+    // Passes rAF + 120ms + 300ms de enhanceViews como rede de segurança
     requestAnimationFrame(() => {
       enhanceViews();
     });
+    setTimeout(() => {
+      enhanceViews();
+    }, 120);
+    setTimeout(() => {
+      enhanceViews();
+    }, 300);
   };
 
   // Injeta Modal de Estatísticas Gerais Globais
