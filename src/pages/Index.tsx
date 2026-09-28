@@ -4196,7 +4196,7 @@ function injectHierarchySupport(html: string): string {
                   if (typeof saveState === 'function') saveState();
                   if (typeof showToast === 'function') showToast('Pasta excluída com sucesso!');
                   if (typeof renderRoute === 'function') renderRoute();
-                } else if (effId && state.custom_tutoria_folders && state.custom_tutoria_folders[effId]) {
+                } else if (effId && typeof state !== 'undefined' && state && state.custom_tutoria_folders && state.custom_tutoria_folders[effId]) {
                   delete state.custom_tutoria_folders[effId];
                   if (typeof saveState === 'function') saveState();
                   if (typeof showToast === 'function') showToast('Pasta excluída com sucesso!');
