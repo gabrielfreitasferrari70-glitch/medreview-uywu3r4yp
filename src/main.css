@@ -1,5 +1,15 @@
 /* Global styles - Theme, font, utilities, animations and global components */
 
+/* (11) FOUC de painéis nativos de estatística */
+body .deck-stats:not(#global-stats-modal *),
+body .stats-overview:not(#global-stats-modal *),
+body .folder-stats:not(#global-stats-modal *) {
+  display: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+}
+
 /* CHANGE THE FONT BELOW TO WHATEVER YOU WANT */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
 
@@ -329,7 +339,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 5px;
+  height: 4px;
   background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
   border-top-left-radius: 15px;
   border-top-right-radius: 15px;
@@ -439,7 +449,7 @@
   margin-bottom: 0.85rem !important;
   width: 100% !important;
   min-width: 0 !important;
-  padding-right: 88px !important;
+  padding-right: 92px !important;
   box-sizing: border-box !important;
 }
 
@@ -510,8 +520,8 @@
 [data-mr-folder-delete],
 [data-mr-sub-delete] {
   position: absolute !important;
-  top: 12px !important;
-  right: 12px !important;
+  top: 14px !important;
+  right: 14px !important;
   width: 34px !important;
   height: 34px !important;
   min-width: 34px !important;
@@ -553,8 +563,8 @@
 .mr-subfolder-card .mr-folder-card-top-rename,
 [data-mr-folder-rename] {
   position: absolute !important;
-  top: 12px !important;
-  right: 52px !important;
+  top: 14px !important;
+  right: 54px !important;
   width: 34px !important;
   height: 34px !important;
   min-width: 34px !important;
@@ -596,7 +606,7 @@
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 215;
+  z-index: 210;
   background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(4px);
   align-items: center;
@@ -710,8 +720,9 @@
   gap: 0.35rem !important;
   height: 34px !important;
   min-height: 34px !important;
-  min-width: 80px !important;
-  padding: 0 0.5rem !important;
+  min-width: 64px !important;
+  font-size: 0.72rem !important;
+  padding: 0 0.35rem !important;
   border-radius: 8px !important;
   flex: 1 1 0% !important;
   box-sizing: border-box !important;
@@ -741,9 +752,9 @@
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover {
-  background: #fee2e2 !important;
-  color: #b91c1c !important;
-  border-color: #fca5a5 !important;
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+  border-color: #fcd34d !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-add,
@@ -784,31 +795,8 @@
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+.mr-folder-card-footer .mr-folder-card-btn-delete,
+.mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-folder-card-btn-delete {
-  flex: 0 0 34px !important;
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
-  min-height: 34px !important;
-  border-radius: 8px !important;
-  padding: 0 !important;
-  background: #fef2f2 !important;
-  color: #dc2626 !important;
-  border: 1px solid #fecaca !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-  font-size: 15px !important;
-  line-height: 1 !important;
-  box-sizing: border-box !important;
-}
-
-.mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-.mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-.mr-folder-card-btn-delete:hover {
-  background: #fee2e2 !important;
-  border-color: #f87171 !important;
-  color: #b91c1c !important;
+  display: none !important;
 }

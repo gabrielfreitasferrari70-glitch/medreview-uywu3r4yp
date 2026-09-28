@@ -372,7 +372,7 @@ function injectHierarchySupport(html: string): string {
       editBtn.setAttribute('data-mr-decorated', '1');
       if (effectiveFolderId) editBtn.setAttribute('data-folder-id', effectiveFolderId);
       if (cleanTitle) editBtn.setAttribute('data-folder-title', cleanTitle);
-      editBtn.style.cssText = 'position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);';
+      editBtn.style.cssText = 'position:absolute; top:14px; right:54px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);';
       editBtn.textContent = '✏️';
       editBtn.onclick = function(e) {
         e.stopPropagation();
@@ -408,7 +408,7 @@ function injectHierarchySupport(html: string): string {
       delBtn.setAttribute('data-mr-decorated', '1');
       if (effectiveFolderId) delBtn.setAttribute('data-folder-id', effectiveFolderId);
       if (cleanTitle) delBtn.setAttribute('data-folder-title', cleanTitle);
-      delBtn.style.cssText = 'position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
+      delBtn.style.cssText = 'position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
       delBtn.textContent = '🗑';
       delBtn.onclick = function(e) {
         e.stopPropagation();
@@ -675,7 +675,7 @@ function injectHierarchySupport(html: string): string {
       top: 0;
       left: 0;
       right: 0;
-      height: 5px;
+      height: 4px;
       background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
       border-top-left-radius: 15px;
       border-top-right-radius: 15px;
@@ -689,7 +689,8 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-header.mr-tutoria-header,
     .mr-folder-card .mr-folder-card-header,
     .deck-card .mr-folder-card-header,
-    .folder-card .mr-folder-card-header {
+    .folder-card .mr-folder-card-header,
+    .mr-subfolder-card .mr-folder-card-header {
       display: flex !important;
       flex-direction: column !important;
       align-items: flex-start !important;
@@ -698,7 +699,7 @@ function injectHierarchySupport(html: string): string {
       margin-bottom: 0.85rem !important;
       width: 100% !important;
       min-width: 0 !important;
-      padding-right: 42px !important;
+      padding-right: 92px !important;
       box-sizing: border-box !important;
     }
     .mr-folder-card-title {
@@ -749,8 +750,8 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-footer-left { display:flex !important; align-items:center !important; justify-content:flex-start !important; width:100% !important; min-width:0 !important; }
     .mr-folder-card-count-chip { display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.35rem !important; min-height:28px !important; height:28px !important; padding:0 0.75rem !important; background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; border-radius:9999px !important; font-size:0.78rem !important; font-weight:700 !important; box-sizing:border-box !important; white-space:nowrap !important; }
     .mr-folder-card-actions { display:flex !important; align-items:center !important; justify-content:space-between !important; gap:0.45rem !important; width:100% !important; flex-wrap:wrap !important; box-sizing:border-box !important; margin-left:0 !important; }
-    .mr-folder-card-btn-action { border:none !important; height:34px !important; min-height:34px !important; min-width:80px !important; padding:0 0.5rem !important; border-radius:8px !important; font-size:0.78rem !important; font-weight:700 !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.35rem !important; flex:1 1 0% !important; box-sizing:border-box !important; line-height:1 !important; white-space:nowrap !important; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important; }
-    .mr-folder-card-btn-reset { color:#15803d !important; background:#f0fdf4 !important; border:1px solid #bbf7d0 !important; border-radius:8px !important; } .mr-folder-card-btn-reset:hover { background:#fee2e2 !important; color:#b91c1c !important; border-color:#fca5a5 !important; }
+    .mr-folder-card-btn-action { border:none !important; height:34px !important; min-height:34px !important; min-width:64px !important; padding:0 0.35rem !important; border-radius:8px !important; font-size:0.72rem !important; font-weight:700 !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.35rem !important; flex:1 1 0% !important; box-sizing:border-box !important; line-height:1 !important; white-space:nowrap !important; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important; }
+    .mr-folder-card-btn-reset { color:#15803d !important; background:#f0fdf4 !important; border:1px solid #bbf7d0 !important; border-radius:8px !important; } .mr-folder-card-btn-reset:hover { background:#fef3c7 !important; color:#b45309 !important; border-color:#fcd34d !important; }
     .mr-folder-card-btn-add { color:#ffffff !important; background:#16a34a !important; border:1px solid #16a34a !important; border-radius:8px !important; font-weight:800 !important; box-shadow:0 1px 3px rgba(22,163,74,0.2) !important; } .mr-folder-card-btn-add:hover { background:#15803d !important; border-color:#15803d !important; }
     .mr-folder-card-btn-subfolder { color:#166534 !important; background:#f0fdf4 !important; border:1px solid #86efac !important; border-radius:8px !important; font-weight:700 !important; box-shadow:0 1px 2px rgba(22,163,74,0.06) !important; } .mr-folder-card-btn-subfolder:hover { background:#dcfce7 !important; border-color:#22c55e !important; color:#14532d !important; }
 
@@ -833,16 +834,17 @@ function injectHierarchySupport(html: string): string {
       }
     }
 
-    .mr-subfolder-card { align-items: stretch !important; display: flex !important; flex-direction: column !important; width: 100% !important; box-sizing: border-box !important; }
-    .mr-subfolder-card .mr-folder-card-header { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; }
-    .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.75rem !important; border-top: 1px dashed #e2e8f0 !important; }
+    .mr-subfolder-card { align-items: stretch !important; display: flex !important; flex-direction: column !important; width: 100% !important; box-sizing: border-box !important; background: #ffffff !important; }
+    .mr-subfolder-card .mr-folder-card-header { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; padding-right: 92px !important; box-sizing: border-box !important; }
+    .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1.5px dashed #cbd5e1 !important; }
     .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; min-width: 0 !important; }
-    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 0.5rem !important; width: 100% !important; flex-wrap: wrap !important; margin-left: 0 !important; box-sizing: border-box !important; }
+    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; width: 100% !important; flex-wrap: wrap !important; margin-left: 0 !important; box-sizing: border-box !important; }
+    .mr-subfolder-card .mr-folder-card-btn-subfolder { flex: 0 0 auto !important; margin-left: auto !important; padding: 0 0.85rem !important; }
     .mr-subfolder-card:hover {
       border-color: #16a34a;
       transform: translateY(-2px);
       box-shadow: 0 6px 18px rgba(22, 163, 74, 0.14);
-      background: #f0fdf4;
+      background: #ffffff !important;
     }
     .mr-breadcrumb-bar {
       display: flex;
@@ -945,9 +947,9 @@ function injectHierarchySupport(html: string): string {
       opacity: 0 !important;
       pointer-events: none !important;
     }
-    .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 1.15rem !important; align-items: stretch !important; }
+    .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)) !important; gap: 1.15rem !important; align-items: stretch !important; }
     @media (max-width: 900px) {
-      .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; }
+      .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; }
     }
     .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card, .mr-subfolder-card { position: relative !important; background: #ffffff !important; border-radius: 16px !important; border: 1.5px solid #d1fae5 !important; box-shadow: 0 3px 12px rgba(15,23,42,0.04) !important; cursor: pointer !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; width: 100% !important; height: 100% !important; min-height: 200px !important; box-sizing: border-box !important; padding: 1.15rem 1rem !important; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
     /* Neutralização total de qualquer posicionamento absoluto de conteúdo legado dentro dos cartões */
@@ -957,9 +959,9 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
       display: none !important;
     }
-    .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
+    .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
     .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover, .mr-subfolder-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(22,163,74,0.14) !important; border-color: #86efac !important; }
-    .mr-folder-card-header, .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header, .mr-folder-card .mr-folder-card-header, .deck-card .mr-folder-card-header, .folder-card .mr-folder-card-header, .mr-subfolder-card .mr-folder-card-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 88px !important; box-sizing: border-box !important; }
+    .mr-folder-card-header, .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header, .mr-folder-card .mr-folder-card-header, .deck-card .mr-folder-card-header, .folder-card .mr-folder-card-header, .mr-subfolder-card .mr-folder-card-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 92px !important; box-sizing: border-box !important; }
     .mr-tutoria-card .mr-folder-card-badge, .mr-folder-card .mr-folder-card-badge, .deck-card .mr-folder-card-badge, .folder-card .mr-folder-card-badge, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge { align-self: flex-start !important; margin-bottom: 0.15rem !important; }
     .mr-tutoria-card .mr-folder-card-title-wrap, .mr-folder-card .mr-folder-card-title-wrap, .deck-card .mr-folder-card-title-wrap, .folder-card .mr-folder-card-title-wrap, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap { width: 100% !important; display: block !important; }
     .mr-folder-card-icon { font-size: 1.2rem !important; line-height: 1 !important; display: inline-block !important; vertical-align: -0.1em !important; margin-right: 0.45rem !important; }
@@ -974,8 +976,8 @@ function injectHierarchySupport(html: string): string {
     [data-mr-folder-delete],
     [data-mr-sub-delete] {
       position: absolute !important;
-      top: 12px !important;
-      right: 12px !important;
+      top: 14px !important;
+      right: 14px !important;
       width: 34px !important;
       height: 34px !important;
       min-width: 34px !important;
@@ -1012,8 +1014,8 @@ function injectHierarchySupport(html: string): string {
     .mr-subfolder-card .mr-folder-card-top-rename,
     [data-mr-folder-rename] {
       position: absolute !important;
-      top: 12px !important;
-      right: 52px !important;
+      top: 14px !important;
+      right: 54px !important;
       width: 34px !important;
       height: 34px !important;
       min-width: 34px !important;
@@ -1107,7 +1109,7 @@ function injectHierarchySupport(html: string): string {
     .folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
     .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-action {
       white-space: nowrap !important;
-      font-size: 0.78rem !important;
+      font-size: 0.72rem !important;
       font-weight: 700 !important;
       cursor: pointer !important;
       display: inline-flex !important;
@@ -1116,8 +1118,8 @@ function injectHierarchySupport(html: string): string {
       gap: 0.35rem !important;
       height: 34px !important;
       min-height: 34px !important;
-      min-width: 80px !important;
-      padding: 0 0.5rem !important;
+      min-width: 64px !important;
+      padding: 0 0.35rem !important;
       border-radius: 8px !important;
       flex: 1 1 0% !important;
       box-sizing: border-box !important;
@@ -1126,39 +1128,17 @@ function injectHierarchySupport(html: string): string {
     .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete,
     .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
     .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+    .mr-folder-card-footer .mr-folder-card-btn-delete,
+    .mr-folder-card-actions .mr-folder-card-btn-delete,
     .mr-folder-card-btn-delete {
-      flex: 0 0 34px !important;
-      width: 34px !important;
-      height: 34px !important;
-      min-width: 34px !important;
-      min-height: 34px !important;
-      border-radius: 8px !important;
-      padding: 0 !important;
-      background: #fef2f2 !important;
-      color: #dc2626 !important;
-      border: 1px solid #fecaca !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      cursor: pointer !important;
-      font-size: 15px !important;
-      line-height: 1 !important;
-      box-sizing: border-box !important;
-    }
-    .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-    .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-    .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-    .mr-folder-card-btn-delete:hover {
-      background: #fee2e2 !important;
-      border-color: #f87171 !important;
-      color: #b91c1c !important;
+      display: none !important;
     }
   \`;
   document.head.appendChild(styleEl);
 
   // 2. Injeta Modal de Escolha no DOM: "Nova Subpasta" vs "Nova Carta"
   const modalChoiceHtml = \`
-  <div id="create-choice-modal" style="display:none; position:fixed; inset:0; z-index:180; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCreateChoiceModal()">
+  <div id="create-choice-modal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCreateChoiceModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:460px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.24); border:1.5px solid #bbf7d0; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
         <h3 id="create-choice-title" style="margin:0; font-size:1.1rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.5rem;">
@@ -1204,7 +1184,7 @@ function injectHierarchySupport(html: string): string {
 
   // Injeta Modal de Seleção de Pasta/Destino para Importação
   const modalImportTargetSelectHtml = \`
-  <div id="import-target-modal" style="display:none; position:fixed; inset:0; z-index:194; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeImportTargetModal()">
+  <div id="import-target-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeImportTargetModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
       <!-- Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
@@ -1255,7 +1235,7 @@ function injectHierarchySupport(html: string): string {
 
   // Injeta Modal de Importação de Flashcards via CSV
   const modalCsvImportHtml = \`
-  <div id="csv-import-modal" style="display:none; position:fixed; inset:0; z-index:195; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCsvImportModal()">    <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
+  <div id="csv-import-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCsvImportModal()">    <div style="background:#ffffff; border-radius:18px; max-width:620px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
       <!-- Header do Modal -->
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
         <div style="display:flex; align-items:center; gap:0.55rem;">
@@ -1352,7 +1332,7 @@ function injectHierarchySupport(html: string): string {
 
   // Injeta Modal de Criação de Subpasta
   const modalSubfolderHtml = \`
-  <div id="subfolder-create-modal" style="display:none; position:fixed; inset:0; z-index:190; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderCreateModal()">
+  <div id="subfolder-create-modal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderCreateModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.24); border:1.5px solid #bbf7d0; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
         <h3 id="subfolder-modal-title" style="margin:0; font-size:1.1rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
@@ -1384,7 +1364,7 @@ function injectHierarchySupport(html: string): string {
 
   // Injeta Modal de Confirmação de Exclusão de Pasta
   const modalFolderDeleteHtml = \`
-  <div id="mr-folder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderDeleteModal()">
+  <div id="mr-folder-delete-modal" style="display:none; position:fixed; inset:0; z-index:220; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderDeleteModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #fecaca; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #fee2e2; background:#fef2f2;">
         <h3 id="mr-folder-delete-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#991b1b; display:flex; align-items:center; gap:0.45rem;">
@@ -1767,7 +1747,7 @@ function injectHierarchySupport(html: string): string {
   window.executeFolderRename = executeFolderRename;
   // Injeta Modal de Confirmação de Exclusão de SUBPASTA (Exclusão em cascata restrita)
   const modalSubfolderDeleteHtml = \`
-  <div id="mr-subfolder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderDeleteModal()">
+  <div id="mr-subfolder-delete-modal" style="display:none; position:fixed; inset:0; z-index:220; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderDeleteModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #fecaca; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #fee2e2; background:#fef2f2;">
         <h3 id="mr-subfolder-delete-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#991b1b; display:flex; align-items:center; gap:0.45rem;">
@@ -2150,7 +2130,7 @@ function injectHierarchySupport(html: string): string {
 
   // Injeta Modal de Estatísticas Gerais Globais
   const modalGlobalStatsHtml = \`
-  <div id="global-stats-modal" style="display:none; position:fixed; inset:0; z-index:196; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeGlobalStatsModal()">
+  <div id="global-stats-modal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeGlobalStatsModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:760px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #86efac; overflow:hidden; animation:mr-fade-up 0.2s ease-out; max-height:90vh; display:flex; flex-direction:column;">
       <!-- Header do Modal -->
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.4rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
@@ -3861,8 +3841,8 @@ function injectHierarchySupport(html: string): string {
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
-            <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${s.id}', '\${escapeHtml(s.name)}', true);" style="position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
-            <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" data-mr-sub-delete="1" data-mr-folder-delete="1" data-is-subfolder="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${s.id}', true);" style="position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
+            <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${s.id}', '\${escapeHtml(s.name)}', true);" style="position:absolute; top:14px; right:54px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
+            <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" data-mr-sub-delete="1" data-mr-folder-delete="1" data-is-subfolder="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${s.id}', true);" style="position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
               <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
               <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
@@ -3875,7 +3855,7 @@ function injectHierarchySupport(html: string): string {
                 <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
               <div class="mr-folder-card-actions">
-                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')" style="flex:0 0 auto !important; margin-left:auto !important; padding:0 0.85rem !important;">Abrir ➜</button>
               </div>
             </div>
           </div>
@@ -3988,21 +3968,23 @@ function injectHierarchySupport(html: string): string {
               </div>
               <p style="margin:0; color:#64748b; font-size:0.85rem; line-height:1.35;">\${escapeHtml(sf.description || 'Subpasta de estudo médica')}</p>
             </div>
-            <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-              <button type="button" class="btn btn-sm mr-import-csv-btn" onclick="openCsvImportModal('\${subfolderId}')" style="background:#f0fdf4; color:#15803d; font-weight:800; padding:0.45rem 0.95rem; border-radius:9px; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+              <button type="button" class="btn btn-sm mr-import-csv-btn" onclick="openCsvImportModal('${subfolderId}')" style="background:#f0fdf4 !important; color:#15803d !important; font-weight:700 !important; font-size:0.82rem !important; height:36px !important; padding:0 0.85rem !important; border-radius:8px !important; border:1.5px solid #86efac !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.4rem !important; box-sizing:border-box !important; box-shadow:0 1px 4px rgba(0,0,0,0.04) !important;">
                 <span>📥</span> Importar CSV
               </button>
-              <button type="button" class="btn btn-sm" onclick="openCreateChoice('\${subfolderId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
-                <span>➕</span> Criar (Pasta ou Carta)
+              <button type="button" class="btn btn-sm" onclick="openCreateChoice('${subfolderId}')" style="background:#16a34a !important; color:#fff !important; font-weight:700 !important; font-size:0.82rem !important; height:36px !important; padding:0 0.85rem !important; border-radius:8px !important; border:none !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.4rem !important; box-sizing:border-box !important; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25) !important;">
+                <span>➕</span> Nova Subpasta
               </button>
-              <button type="button" class="btn btn-sm" onclick="startSubfolderStudy('\${subfolderId}')" style="background:#059669; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem;">
-                <span>⚡</span> Revisar (\${cards.length})
+              <button type="button" class="btn btn-sm" onclick="openNewCardModal('${subfolderId}')" style="background:#15803d !important; color:#fff !important; font-weight:700 !important; font-size:0.82rem !important; height:36px !important; padding:0 0.85rem !important; border-radius:8px !important; border:none !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.4rem !important; box-sizing:border-box !important;">
+                <span>🗂️</span> Nova Carta
               </button>
-              <button type="button" class="btn btn-sm mr-folder-card-top-delete" title="Excluir subpasta" data-mr-sub-delete="1" data-mr-folder-delete="1" data-folder-id="\${subfolderId}" data-is-subfolder="1" onclick="if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('\${subfolderId}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('\${subfolderId}', true); }" style="position:static !important; z-index:10; pointer-events:auto; background:#fef2f2; color:#dc2626; border:1.5px solid #fecaca; font-weight:800; padding:0.45rem 0.95rem; border-radius:9px; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 1px 4px rgba(220,38,38,0.08); width:auto !important; height:auto !important; min-width:auto !important; min-height:auto !important;">
-                <span>🗑</span> Excluir
+              <button type="button" class="btn btn-sm" onclick="startSubfolderStudy('${subfolderId}')" style="background:#059669 !important; color:#fff !important; font-weight:700 !important; font-size:0.82rem !important; height:36px !important; padding:0 0.85rem !important; border-radius:8px !important; border:none !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.4rem !important; box-sizing:border-box !important;">
+                <span>⚡</span> Revisar (${cards.length})
               </button>
-            </div>
-          </div>
+              <button type="button" class="btn btn-sm mr-folder-card-top-delete" title="Excluir subpasta" data-mr-sub-delete="1" data-mr-folder-delete="1" data-folder-id="${subfolderId}" data-is-subfolder="1" onclick="if (typeof window.openSubfolderDeleteModal === 'function') { window.openSubfolderDeleteModal('${subfolderId}'); } else if (typeof window.openFolderDeleteModal === 'function') { window.openFolderDeleteModal('${subfolderId}', true); }" style="position:static !important; z-index:10 !important; pointer-events:auto !important; background:#fef2f2 !important; color:#dc2626 !important; border:1.5px solid #fecaca !important; font-weight:700 !important; font-size:0.82rem !important; height:36px !important; padding:0 0.85rem !important; border-radius:8px !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.4rem !important; box-sizing:border-box !important; box-shadow:0 1px 4px rgba(220,38,38,0.08) !important; width:auto !important; min-width:auto !important; min-height:auto !important;">
+                <span>🗑</span> Excluir Subpasta
+              </button>
+            </div>          </div>
         </div>
 
         <!-- Seção de Subpastas Aninhadas -->
@@ -4011,7 +3993,7 @@ function injectHierarchySupport(html: string): string {
             <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.45rem;">
               <span>📁</span> Subpastas (\${subfolders.length})
             </h3>
-            <button type="button" onclick="openSubfolderCreateModal('\${subfolderId}')" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.35rem 0.8rem; font-size:0.83rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;">
+            <button type="button" onclick="openSubfolderCreateModal('\${subfolderId}')" style="background:#f0fdf4 !important; color:#166534 !important; border:1px solid #86efac !important; border-radius:8px !important; height:36px !important; padding:0 0.85rem !important; font-size:0.82rem !important; font-weight:700 !important; cursor:pointer !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:0.4rem !important; box-sizing:border-box !important;">
               ➕ Nova Subpasta
             </button>
           </div>    \`;
@@ -4299,7 +4281,7 @@ function injectHierarchySupport(html: string): string {
             editBtnSub.setAttribute('data-folder-id', subId);
             const subTitleTxt = (sCard.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '').trim();
             if (subTitleTxt) editBtnSub.setAttribute('data-folder-title', subTitleTxt);
-            editBtnSub.style.cssText = 'position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);';
+            editBtnSub.style.cssText = 'position:absolute; top:14px; right:54px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);';
             editBtnSub.textContent = '✏️';
             editBtnSub.onclick = function(e) {
               e.stopPropagation();
@@ -4332,7 +4314,7 @@ function injectHierarchySupport(html: string): string {
             delBtn.setAttribute('data-mr-decorated', '1');
             delBtn.setAttribute('data-folder-id', subId);
             delBtn.setAttribute('data-is-subfolder', '1');
-            delBtn.style.cssText = 'position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
+            delBtn.style.cssText = 'position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
             delBtn.innerHTML = '🗑';
             delBtn.onclick = function(e) {
               e.stopPropagation();
@@ -4828,10 +4810,11 @@ function injectHierarchySupport(html: string): string {
           card.setAttribute('data-mr-folder-card-footer', '1');
         }
 
-        // Anexar header, footer e delBtn como filhos diretos do root do cartão e expurgar irmãos nativos indesejados
+        // Anexar header, footer, delBtn e renameBtn como filhos diretos do root do cartão e expurgar irmãos nativos indesejados
         const directHeader = card.querySelector('.mr-folder-card-header');
         const directFooter = card.querySelector('.mr-folder-card-footer');
         const directDel = card.querySelector('.mr-folder-card-top-delete');
+        const directRename = card.querySelector('.mr-folder-card-top-rename, [data-mr-folder-rename]');
         if (directHeader && directHeader.parentElement !== card) {
           card.insertBefore(directHeader, card.firstChild);
         }
@@ -4841,11 +4824,15 @@ function injectHierarchySupport(html: string): string {
         if (directDel && directDel.parentElement !== card) {
           card.appendChild(directDel);
         }
+        if (directRename && directRename.parentElement !== card) {
+          card.appendChild(directRename);
+        }
         Array.from(card.children).forEach(child => {
           if (
             child !== directHeader &&
             child !== directFooter &&
             child !== directDel &&
+            child !== directRename &&
             child.getAttribute('data-mr-decorated') !== '1'
           ) {
             child.remove();
@@ -5051,8 +5038,8 @@ function injectHierarchySupport(html: string): string {
           const cCount = subCards.length || (Array.isArray(sf.cards) ? sf.cards.length : 0);
           sfHtml += \`
             <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${sf.id}')" data-subfolder-id="\${sf.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
-              <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${sf.id}" data-folder-title="\${escapeHtml(sf.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${sf.id}', '\${escapeHtml(sf.name)}', true);" style="position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
-              <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" data-mr-sub-delete="1" data-mr-folder-delete="1" data-is-subfolder="1" data-folder-id="\${sf.id}" data-folder-title="\${escapeHtml(sf.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${sf.id}', true);" style="position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
+              <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${sf.id}" data-folder-title="\${escapeHtml(sf.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${sf.id}', '\${escapeHtml(sf.name)}', true);" style="position:absolute; top:14px; right:54px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
+              <button type="button" class="mr-folder-card-top-delete" title="Excluir subpasta" data-mr-sub-delete="1" data-mr-folder-delete="1" data-is-subfolder="1" data-folder-id="\${sf.id}" data-folder-title="\${escapeHtml(sf.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${sf.id}', true);" style="position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
               <div class="mr-folder-card-header mr-tutoria-header">
                 <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
                 <div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">
@@ -5065,7 +5052,7 @@ function injectHierarchySupport(html: string): string {
                   <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
                 </div>
                 <div class="mr-folder-card-actions">
-                  <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${sf.id}')">Abrir ➜</button>
+                  <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${sf.id}')" style="flex:0 0 auto !important; margin-left:auto !important; padding:0 0.85rem !important;">Abrir ➜</button>
                 </div>
               </div>
             </div>
@@ -5190,6 +5177,8 @@ function injectHierarchySupport(html: string): string {
                   !child.classList.contains('mr-folder-card-header') &&
                   !child.classList.contains('mr-folder-card-footer') &&
                   !child.classList.contains('mr-folder-card-top-delete') &&
+                  !child.classList.contains('mr-folder-card-top-rename') &&
+                  !child.hasAttribute('data-mr-folder-rename') &&
                   child.getAttribute('data-mr-decorated') !== '1'
                 ) {
                   child.remove();
