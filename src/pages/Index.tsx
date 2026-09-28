@@ -380,6 +380,8 @@ function injectHierarchySupport(html: string): string {
         const isSub = card.classList.contains('mr-subfolder-card');
         if (typeof window.openFolderRenameModal === 'function') {
           window.openFolderRenameModal(effId, effTitle, isSub);
+        } else if (typeof openFolderRenameModal === 'function') {
+          openFolderRenameModal(effId, effTitle, isSub);
         }
       };
       card.appendChild(editBtn);
@@ -408,6 +410,8 @@ function injectHierarchySupport(html: string): string {
         const effTitle = cleanTitle || titleText || '';
         if (typeof window.openFolderDeleteModal === 'function') {
           window.openFolderDeleteModal(effId, effTitle);
+        } else if (typeof openFolderDeleteModal === 'function') {
+          openFolderDeleteModal(effId, effTitle);
         }
       };
       card.appendChild(delBtn);
@@ -1400,26 +1404,30 @@ function injectHierarchySupport(html: string): string {
   // Funções de controle do modal de exclusão de pasta
   window.__pendingDeleteFolderId = null;
 
-  window.openFolderDeleteModal = function(folderId, isExplicitSubfolder) {
+  function openFolderDeleteModal(folderId, isExplicitSubfolder) {
     if (!folderId) return;
-    const sfStore = getSubfolderStore();
+    const sfStore = typeof getSubfolderStore === 'function' ? getSubfolderStore() : {};
     const isSub = isExplicitSubfolder || !!(sfStore && sfStore[folderId]);
     if (isSub) {
       if (typeof window.openSubfolderDeleteModal === 'function') {
         window.openSubfolderDeleteModal(folderId);
+      } else if (typeof openSubfolderDeleteModal === 'function') {
+        openSubfolderDeleteModal(folderId);
       }
       return;
     }
     window.__pendingDeleteFolderId = folderId;
     const modal = document.getElementById('mr-folder-delete-modal');
     if (modal) modal.style.display = 'flex';
-  };
+  }
+  window.openFolderDeleteModal = openFolderDeleteModal;
 
-  window.closeFolderDeleteModal = function() {
+  function closeFolderDeleteModal() {
     window.__pendingDeleteFolderId = null;
     const modal = document.getElementById('mr-folder-delete-modal');
     if (modal) modal.style.display = 'none';
-  };
+  }
+  window.closeFolderDeleteModal = closeFolderDeleteModal;
 
   // Injeta Modal de Renomear Pasta / Subpasta
   const modalFolderRenameHtml = \`
@@ -1451,10 +1459,10 @@ function injectHierarchySupport(html: string): string {
   window.__pendingRenameFolderId = null;
   window.__pendingRenameIsSubfolder = false;
 
-  window.openFolderRenameModal = function(folderId, currentTitle, isSubfolder) {
+  function openFolderRenameModal(folderId, currentTitle, isSubfolder) {
     if (!folderId) return;
     window.__pendingRenameFolderId = folderId;
-    const sfStore = getSubfolderStore();
+    const sfStore = typeof getSubfolderStore === 'function' ? getSubfolderStore() : {};
     const isSub = typeof isSubfolder === 'boolean' ? isSubfolder : !!(sfStore && sfStore[folderId]);
     window.__pendingRenameIsSubfolder = isSub;
 
@@ -1484,21 +1492,24 @@ function injectHierarchySupport(html: string): string {
         }
       }, 30);
     }
-  };
+  }
+  window.openFolderRenameModal = openFolderRenameModal;
 
-  window.closeFolderRenameModal = function() {
+  function closeFolderRenameModal() {
     window.__pendingRenameFolderId = null;
     window.__pendingRenameIsSubfolder = false;
     const modal = document.getElementById('mr-folder-rename-modal');
     if (modal) modal.style.display = 'none';
-  };
+  }
+  window.closeFolderRenameModal = closeFolderRenameModal;
 
-  window.handleFolderRenameSubmit = function(e) {
+  function handleFolderRenameSubmit(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     executeFolderRename();
-  };
+  }
+  window.handleFolderRenameSubmit = handleFolderRenameSubmit;
 
-  window.executeFolderRename = function() {
+  function executeFolderRename() {
     const folderId = window.__pendingRenameFolderId;
     if (!folderId) {
       closeFolderRenameModal();
@@ -1598,7 +1609,8 @@ function injectHierarchySupport(html: string): string {
     setTimeout(() => {
       enhanceViews();
     }, 300);
-  };
+  }
+  window.executeFolderRename = executeFolderRename;
   // Injeta Modal de Confirmação de Exclusão de SUBPASTA (Exclusão em cascata restrita)
   const modalSubfolderDeleteHtml = \`
   <div id="mr-subfolder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderDeleteModal()">
@@ -1632,130 +1644,202 @@ function injectHierarchySupport(html: string): string {
     }
   });
 
-  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão e renomear (com guards para não registrar mais de uma vez)
-  if (!window.__mrDeleteListenerAttached && !window.__mrClickListenerRegistered && !window.__mrRenameListenerAttached) {
+  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão e renomear (idempotente e incondicional no boot)
+  function attachPermanentCardActionsListener() {
+    if (window.__mrCardActionsHandler) {
+      try {
+        document.removeEventListener('click', window.__mrCardActionsHandler, true);
+      } catch { /* intentionally ignored */ }
+    }
+
+    const handler = function(e) {
+      const target = e.target;
+      if (!target || !(target instanceof Element)) return;
+
+      // 1. Trigger de renomear pasta / subpasta
+      try {
+        const folderRenameTrigger = target.closest('[data-mr-folder-rename], .mr-folder-card-top-rename');
+        if (folderRenameTrigger) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: renomear pasta/subpasta', folderRenameTrigger);
+          const card = folderRenameTrigger.closest('.mr-tutoria-card, .mr-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id]');
+          const fId = folderRenameTrigger.getAttribute('data-folder-id') ||
+                      (card ? (card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || card.getAttribute('data-subfolder-id')) : null);
+          const isSub = folderRenameTrigger.getAttribute('data-is-subfolder') === '1' ||
+                        (card ? card.classList.contains('mr-subfolder-card') : false);
+          const fTitle = folderRenameTrigger.getAttribute('data-folder-title') ||
+                         (card ? (card.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '') : '');
+          if (typeof window.openFolderRenameModal === 'function') {
+            window.openFolderRenameModal(fId, fTitle, isSub);
+          } else if (typeof openFolderRenameModal === 'function') {
+            openFolderRenameModal(fId, fTitle, isSub);
+          }
+          return;
+        }
+      } catch (errRename) {
+        console.error('[MedReview] Erro ao abrir modal de renomear:', errRename);
+      }
+
+      // 2. Botões do modal de renomear
+      try {
+        const renameConfirm = target.closest('[data-mr-rename-confirm]');
+        if (renameConfirm) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: confirmar renomear');
+          if (typeof window.executeFolderRename === 'function') {
+            window.executeFolderRename();
+          } else if (typeof executeFolderRename === 'function') {
+            executeFolderRename();
+          }
+          return;
+        }
+
+        const renameCancel = target.closest('[data-mr-rename-cancel]');
+        if (renameCancel) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: cancelar renomear');
+          if (typeof window.closeFolderRenameModal === 'function') {
+            window.closeFolderRenameModal();
+          } else if (typeof closeFolderRenameModal === 'function') {
+            closeFolderRenameModal();
+          }
+          return;
+        }
+      } catch (errRenameModal) {
+        console.error('[MedReview] Erro nos controles do modal de renomear:', errRenameModal);
+      }
+
+      // 3. Trigger de excluir pasta ou subpasta
+      try {
+        const folderDeleteTrigger = target.closest('[data-mr-folder-delete], .mr-folder-card-top-delete');
+        if (folderDeleteTrigger) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: excluir pasta/subpasta', folderDeleteTrigger);
+          const card = folderDeleteTrigger.closest('.mr-tutoria-card, .mr-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id]');
+          const fId = folderDeleteTrigger.getAttribute('data-folder-id') ||
+                      (card ? (card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || card.getAttribute('data-subfolder-id')) : null);
+          const isSub = folderDeleteTrigger.getAttribute('data-is-subfolder') === '1' ||
+                        (card ? card.classList.contains('mr-subfolder-card') : false);
+          const fTitle = folderDeleteTrigger.getAttribute('data-folder-title') ||
+                         (card ? (card.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '') : '');
+
+          if (isSub) {
+            if (typeof window.openSubfolderDeleteModal === 'function') {
+              window.openSubfolderDeleteModal(fId);
+            } else if (typeof openSubfolderDeleteModal === 'function') {
+              openSubfolderDeleteModal(fId);
+            } else if (typeof window.openFolderDeleteModal === 'function') {
+              window.openFolderDeleteModal(fId, isSub);
+            } else if (typeof openFolderDeleteModal === 'function') {
+              openFolderDeleteModal(fId, isSub);
+            }
+          } else {
+            if (typeof window.openFolderDeleteModal === 'function') {
+              window.openFolderDeleteModal(fId, fTitle);
+            } else if (typeof openFolderDeleteModal === 'function') {
+              openFolderDeleteModal(fId, fTitle);
+            }
+          }
+          return;
+        }
+      } catch (errDelTrigger) {
+        console.error('[MedReview] Erro ao disparar exclusão de pasta:', errDelTrigger);
+      }
+
+      // 4. Botões do modal de exclusão de subpasta
+      try {
+        const subConfirm = target.closest('[data-mr-sub-delete-confirm]');
+        if (subConfirm) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: confirmar exclusão de subpasta');
+          if (typeof window.executeSubfolderDelete === 'function') {
+            window.executeSubfolderDelete();
+          } else if (typeof executeSubfolderDelete === 'function') {
+            executeSubfolderDelete();
+          }
+          return;
+        }
+
+        const subCancel = target.closest('[data-mr-sub-delete-cancel]');
+        if (subCancel) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: cancelar exclusão de subpasta');
+          if (typeof window.closeSubfolderDeleteModal === 'function') {
+            window.closeSubfolderDeleteModal();
+          } else if (typeof closeSubfolderDeleteModal === 'function') {
+            closeSubfolderDeleteModal();
+          }
+          return;
+        }
+      } catch (errSubModal) {
+        console.error('[MedReview] Erro nos botões do modal de exclusão de subpasta:', errSubModal);
+      }
+
+      // 5. Botões do modal de exclusão de pasta
+      try {
+        const folderConfirm = target.closest('[data-mr-folder-delete-confirm]');
+        if (folderConfirm) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: confirmar exclusão de pasta');
+          if (typeof window.executeFolderDelete === 'function') {
+            window.executeFolderDelete();
+          } else if (typeof executeFolderDelete === 'function') {
+            executeFolderDelete();
+          }
+          return;
+        }
+
+        const folderCancel = target.closest('[data-mr-folder-delete-cancel]');
+        if (folderCancel) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[MedReview] Clique capturado: cancelar exclusão de pasta');
+          if (typeof window.closeFolderDeleteModal === 'function') {
+            window.closeFolderDeleteModal();
+          } else if (typeof closeFolderDeleteModal === 'function') {
+            closeFolderDeleteModal();
+          }
+          return;
+        }
+      } catch (errFolderModal) {
+        console.error('[MedReview] Erro nos botões do modal de exclusão de pasta:', errFolderModal);
+      }
+    };
+
+    document.addEventListener('click', handler, true);
+    window.__mrCardActionsHandler = handler;
     window.__mrDeleteListenerAttached = true;
     window.__mrClickListenerRegistered = true;
     window.__mrRenameListenerAttached = true;
-    document.addEventListener('click', function(e) {
-    const target = e.target;
-    if (!target || !(target instanceof Element)) return;
-
-    // Trigger de renomear pasta / subpasta
-    const folderRenameTrigger = target.closest('[data-mr-folder-rename], .mr-folder-card-top-rename');
-    if (folderRenameTrigger) {
-      e.preventDefault();
-      e.stopPropagation();
-      const card = folderRenameTrigger.closest('.mr-tutoria-card, .mr-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id]');
-      const fId = folderRenameTrigger.getAttribute('data-folder-id') ||
-                  (card ? (card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || card.getAttribute('data-subfolder-id')) : null);
-      const isSub = folderRenameTrigger.getAttribute('data-is-subfolder') === '1' ||
-                    (card ? card.classList.contains('mr-subfolder-card') : false);
-      const fTitle = folderRenameTrigger.getAttribute('data-folder-title') ||
-                     (card ? (card.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '') : '');
-      if (fId && typeof window.openFolderRenameModal === 'function') {
-        window.openFolderRenameModal(fId, fTitle, isSub);
-        return;
-      }
-    }
-
-    // Botões do modal de renomear
-    const renameConfirm = target.closest('[data-mr-rename-confirm]');
-    if (renameConfirm) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.executeFolderRename === 'function') {
-        window.executeFolderRename();
-      }
-      return;
-    }
-
-    const renameCancel = target.closest('[data-mr-rename-cancel]');
-    if (renameCancel) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.closeFolderRenameModal === 'function') {
-        window.closeFolderRenameModal();
-      }
-      return;
-    }
-
-    const folderDeleteTrigger = target.closest('[data-mr-folder-delete], .mr-folder-card-top-delete');
-    if (folderDeleteTrigger) {
-      const card = folderDeleteTrigger.closest('.mr-tutoria-card, .mr-folder-card, [data-folder-id], [data-deck-id]');
-      // Se for subpasta explicitada, não intercepta aqui pois tem handler próprio
-      if (!card || !card.classList.contains('mr-subfolder-card')) {
-        e.preventDefault();
-        e.stopPropagation();
-        const fId = folderDeleteTrigger.getAttribute('data-folder-id') ||
-                    (card ? (card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id')) : null);
-        const fTitle = folderDeleteTrigger.getAttribute('data-folder-title') ||
-                       (card ? (card.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '') : '');
-        if (fId && typeof window.openFolderDeleteModal === 'function') {
-          window.openFolderDeleteModal(fId, fTitle);
-          return;
-        }
-      }
-    }
-
-    const subConfirm = target.closest('[data-mr-sub-delete-confirm]');
-    if (subConfirm) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.executeSubfolderDelete === 'function') {
-        window.executeSubfolderDelete();
-      }
-      return;
-    }
-
-    const subCancel = target.closest('[data-mr-sub-delete-cancel]');
-    if (subCancel) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.closeSubfolderDeleteModal === 'function') {
-        window.closeSubfolderDeleteModal();
-      }
-      return;
-    }
-
-    const folderConfirm = target.closest('[data-mr-folder-delete-confirm]');
-    if (folderConfirm) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.executeFolderDelete === 'function') {
-        window.executeFolderDelete();
-      }
-      return;
-    }
-
-    const folderCancel = target.closest('[data-mr-folder-delete-cancel]');
-    if (folderCancel) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.closeFolderDeleteModal === 'function') {
-        window.closeFolderDeleteModal();
-      }
-      return;
-    }
-  }, true);
   }
+
+  attachPermanentCardActionsListener();
 
   window.__pendingDeleteSubfolderId = null;
 
-  window.openSubfolderDeleteModal = function(subfolderId) {
+  function openSubfolderDeleteModal(subfolderId) {
     if (!subfolderId) return;
     window.__pendingDeleteSubfolderId = subfolderId;
     const modal = document.getElementById('mr-subfolder-delete-modal');
     if (modal) modal.style.display = 'flex';
-  };
+  }
+  window.openSubfolderDeleteModal = openSubfolderDeleteModal;
 
-  window.closeSubfolderDeleteModal = function() {
+  function closeSubfolderDeleteModal() {
     window.__pendingDeleteSubfolderId = null;
     const modal = document.getElementById('mr-subfolder-delete-modal');
     if (modal) modal.style.display = 'none';
-  };
+  }
+  window.closeSubfolderDeleteModal = closeSubfolderDeleteModal;
 
-  window.executeSubfolderDelete = function() {
+  function executeSubfolderDelete() {
     const subfolderId = window.__pendingDeleteSubfolderId;
     if (!subfolderId) {
       closeSubfolderDeleteModal();
@@ -1888,9 +1972,10 @@ function injectHierarchySupport(html: string): string {
     requestAnimationFrame(() => {
       enhanceViews();
     });
-  };
+  }
+  window.executeSubfolderDelete = executeSubfolderDelete;
 
-  window.executeFolderDelete = function() {
+  function executeFolderDelete() {
     const folderId = window.__pendingDeleteFolderId;
     if (!folderId) {
       closeFolderDeleteModal();
@@ -4196,6 +4281,11 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
+  window.executeFolderDelete = executeFolderDelete;
+
+  // Reinicia / reforça o listener permanente no enhanceViews caso o document tenha sido reescrito ou limpo
+  attachPermanentCardActionsListener();
+
   function _executeEnhanceViews() {
     suppressNativeStatsModal();
     // Garante que cartões de subpasta (.mr-subfolder-card) tenham clique funcional e desimpedido para abrir a subpasta
@@ -4241,6 +4331,8 @@ function injectHierarchySupport(html: string): string {
               const curTitle = (sCard.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '').trim();
               if (typeof window.openFolderRenameModal === 'function') {
                 window.openFolderRenameModal(subId, curTitle, true);
+              } else if (typeof openFolderRenameModal === 'function') {
+                openFolderRenameModal(subId, curTitle, true);
               }
             };
             sCard.appendChild(editBtnSub);
@@ -4262,8 +4354,12 @@ function injectHierarchySupport(html: string): string {
               e.stopPropagation();
               if (typeof window.openSubfolderDeleteModal === 'function') {
                 window.openSubfolderDeleteModal(subId);
+              } else if (typeof openSubfolderDeleteModal === 'function') {
+                openSubfolderDeleteModal(subId);
               } else if (typeof window.openFolderDeleteModal === 'function') {
                 window.openFolderDeleteModal(subId, true);
+              } else if (typeof openFolderDeleteModal === 'function') {
+                openFolderDeleteModal(subId, true);
               }
             };
             sCard.appendChild(delBtn);
@@ -4324,6 +4420,8 @@ function injectHierarchySupport(html: string): string {
             const isSub = card.classList.contains('mr-subfolder-card');
             if (typeof window.openFolderRenameModal === 'function') {
               window.openFolderRenameModal(effId, effTitle, isSub);
+            } else if (typeof openFolderRenameModal === 'function') {
+              openFolderRenameModal(effId, effTitle, isSub);
             }
           };
           card.appendChild(editBtnCard);
@@ -4358,6 +4456,8 @@ function injectHierarchySupport(html: string): string {
             const effTitle = titleCardTxt || card.getAttribute('data-folder-name') || '';
             if (typeof window.openFolderDeleteModal === 'function') {
               window.openFolderDeleteModal(effId, effTitle);
+            } else if (typeof openFolderDeleteModal === 'function') {
+              openFolderDeleteModal(effId, effTitle);
             }
           };
           card.appendChild(delBtn);
