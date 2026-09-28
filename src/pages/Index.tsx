@@ -317,15 +317,14 @@ function injectHierarchySupport(html: string): string {
       footerEl.className = 'mr-folder-card-footer';
       footerEl.innerHTML =
         '<div class="mr-folder-card-footer-left">' +
-          '<span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
+          '<span class="mr-folder-card-count-chip">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
         '</div>' +
-        '<div class="mr-folder-card-actions" style="gap:0.25rem;">' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.26rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;" title="Resetar progresso das cartas">🔄 Resetar</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.26rem 0.6rem; font-weight:800; font-size:0.76rem; box-shadow:0 1px 3px rgba(22,163,74,0.2); white-space:nowrap;" title="Adicionar carta nesta pasta">+ Carta</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.6rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta" style="color:#dc2626; border-color:#fca5a5; background:#fef2f2;">🗑</button>' +
+        '<div class="mr-folder-card-actions">' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta">🗑</button>' +
         '</div>';
-
       const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
       if (resetBtn) {
         resetBtn.onclick = function(e) {
@@ -550,27 +549,29 @@ function injectHierarchySupport(html: string): string {
     }
     .mr-folder-card-footer {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 0.6rem;
       margin-top: auto;
       padding-top: 0.75rem;
       border-top: 1px dashed #e2e8f0;
       font-size: 0.8rem;
-      flex-wrap: wrap;
       color: #64748b;
+      width: 100%;
+      box-sizing: border-box;
     }
-    .mr-folder-card-footer-left { display:flex; align-items:center; gap:0.6rem; min-width:0; }
-    .mr-folder-card-count-chip { display:inline-flex; align-items:center; gap:0.25rem; padding:0.2rem 0.55rem; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; border-radius:6px; font-size:0.75rem; font-weight:700; }
+    .mr-folder-card-footer-left { display:flex; align-items:center; justify-content:flex-start; width:100%; min-width:0; }
+    .mr-folder-card-count-chip { display:inline-flex; align-items:center; justify-content:center; gap:0.35rem; min-height:28px; height:28px; padding:0 0.75rem; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; font-size:0.76rem; font-weight:700; box-sizing:border-box; }
     .mr-folder-card-progress-box { display:flex; flex-direction:column; gap:0.2rem; min-width:85px; }
     .mr-folder-card-progress-label { font-size:0.72rem; font-weight:700; color:#166534; }
     .mr-folder-card-progress-track { width:100%; height:4px; background:#e2e8f0; border-radius:9999px; overflow:hidden; }
     .mr-folder-card-progress-bar { height:100%; background:#16a34a; border-radius:9999px; transition:width 0.3s ease; }
-    .mr-folder-card-actions { display:flex; align-items:center; gap:0.35rem; }
-    .mr-folder-card-btn-action { border:none; background:transparent; padding:0.3rem 0.55rem; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.25rem; transition:background 0.15s ease, color 0.15s ease; }
-    .mr-folder-card-btn-reset { color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; } .mr-folder-card-btn-reset:hover { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
-    .mr-folder-card-btn-add { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; } .mr-folder-card-btn-add:hover { background:#dcfce7; color:#14532d; }
-    .mr-folder-card-btn-subfolder { color:#166534; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; font-weight:700; } .mr-folder-card-btn-subfolder:hover { background:#dcfce7; border-color:#22c55e; color:#14532d; }
+    .mr-folder-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:0.5rem; width:100%; flex-wrap:wrap; box-sizing:border-box; }
+    .mr-folder-card-btn-action { border:none; background:transparent; height:34px; min-height:34px; padding:0 0.75rem; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:0.35rem; flex:1 1 auto; box-sizing:border-box; line-height:1; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
+    .mr-folder-card-btn-reset { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; } .mr-folder-card-btn-reset:hover { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
+    .mr-folder-card-btn-add { color:#ffffff; background:#16a34a; border:1px solid #16a34a; border-radius:8px; font-weight:800; box-shadow:0 1px 3px rgba(22,163,74,0.2); } .mr-folder-card-btn-add:hover { background:#15803d; border-color:#15803d; }
+    .mr-folder-card-btn-subfolder { color:#166534; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; font-weight:700; box-shadow:0 1px 2px rgba(22,163,74,0.06); } .mr-folder-card-btn-subfolder:hover { background:#dcfce7; border-color:#22c55e; color:#14532d; }
 
     /* Toast Flutuante MedReview */
     .mr-toast-container {
@@ -653,9 +654,9 @@ function injectHierarchySupport(html: string): string {
 
     .mr-subfolder-card { align-items: stretch !important; display: flex !important; flex-direction: column !important; width: 100% !important; box-sizing: border-box !important; }
     .mr-subfolder-card .mr-folder-card-header { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; }
-    .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 0.45rem !important; flex-wrap: nowrap !important; margin-top: auto !important; padding-top: 0.75rem !important; border-top: 1px dashed #e2e8f0 !important; }
-    .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; flex-shrink: 0 !important; min-width: 0 !important; }
-    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; gap: 0.25rem !important; flex-shrink: 0 !important; margin-left: auto !important; }
+    .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.75rem !important; border-top: 1px dashed #e2e8f0 !important; }
+    .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; min-width: 0 !important; }
+    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 0.5rem !important; width: 100% !important; flex-wrap: wrap !important; margin-left: 0 !important; box-sizing: border-box !important; }
     .mr-subfolder-card:hover {
       border-color: #16a34a;
       transform: translateY(-2px);
@@ -733,7 +734,7 @@ function injectHierarchySupport(html: string): string {
     .mr-tutoria-card .mr-folder-card-title-wrap, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap { width: 100% !important; }
     .mr-folder-card-title { font-size: 1.15rem !important; font-weight: 800 !important; color: #14532d !important; line-height: 1.3 !important; letter-spacing: -0.01em !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
     .mr-folder-card-badge { display: inline-flex !important; align-items: center !important; gap: 0.35rem !important; padding: 0.25rem 0.65rem !important; border-radius: 9999px !important; background: #f0fdf4 !important; color: #15803d !important; border: 1px solid #bbf7d0 !important; font-size: 0.75rem !important; font-weight: 700 !important; white-space: nowrap !important; flex-shrink: 0 !important; }
-    .mr-folder-card-footer { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; flex-wrap: wrap !important; color: #64748b !important; }
+    .mr-folder-card-footer { display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.75rem !important; border-top: 1px dashed #e2e8f0 !important; font-size: 0.8rem !important; color: #64748b !important; width: 100% !important; box-sizing: border-box !important; }
 
     /* Slot do botão 🗑 no canto superior direito de qualquer cartão de pasta */
     .mr-tutoria-card .mr-folder-card-top-delete,
@@ -762,14 +763,84 @@ function injectHierarchySupport(html: string): string {
       border-color: #f87171 !important;
     }
 
-    /* Layout em linha única para rodapé padronizado de cartões: chip à esquerda, divisor pontilhado, ações à direita */
-    .mr-tutoria-card .mr-folder-card-footer { display:flex !important; flex-direction:row !important; align-items:center !important; justify-content:space-between !important; gap:0.45rem !important; flex-wrap:nowrap !important; margin-top:auto !important; padding-top:0.75rem !important; border-top:1px dashed #e2e8f0 !important; }
-    .mr-tutoria-card .mr-folder-card-footer-left { display:flex !important; align-items:center !important; flex-shrink:0 !important; min-width:0 !important; }
-    .mr-tutoria-card .mr-folder-card-count-chip { white-space:nowrap !important; flex-shrink:0 !important; font-size:0.76rem !important; padding:0.22rem 0.55rem !important; }
-    .mr-tutoria-card .mr-folder-card-actions { display:flex !important; align-items:center !important; gap:0.25rem !important; flex-shrink:0 !important; margin-left:auto !important; }
-    .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action { white-space:nowrap !important; font-size:0.76rem !important; padding:0.26rem 0.55rem !important; }
-    @media (max-width: 420px) {
-      .mr-tutoria-card .mr-folder-card-footer { flex-wrap: wrap !important; }
+    /* Rodapé padronizado em 2 linhas equilibradas para cartões de pasta */
+    .mr-tutoria-card .mr-folder-card-footer,
+    .mr-folder-card .mr-folder-card-footer,
+    .mr-subfolder-card .mr-folder-card-footer {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      justify-content: flex-start !important;
+      gap: 0.6rem !important;
+      margin-top: auto !important;
+      padding-top: 0.75rem !important;
+      border-top: 1px dashed #e2e8f0 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .mr-tutoria-card .mr-folder-card-footer-left,
+    .mr-folder-card .mr-folder-card-footer-left,
+    .mr-subfolder-card .mr-folder-card-footer-left {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+    .mr-tutoria-card .mr-folder-card-count-chip,
+    .mr-folder-card .mr-folder-card-count-chip,
+    .mr-subfolder-card .mr-folder-card-count-chip {
+      white-space: nowrap !important;
+      flex-shrink: 0 !important;
+      font-size: 0.76rem !important;
+      min-height: 28px !important;
+      height: 28px !important;
+      padding: 0 0.75rem !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 9999px !important;
+      font-weight: 700 !important;
+      box-sizing: border-box !important;
+    }
+    .mr-tutoria-card .mr-folder-card-actions,
+    .mr-folder-card .mr-folder-card-actions,
+    .mr-subfolder-card .mr-folder-card-actions {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      gap: 0.5rem !important;
+      width: 100% !important;
+      flex-wrap: wrap !important;
+      margin-left: 0 !important;
+      box-sizing: border-box !important;
+    }
+    .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action,
+    .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
+    .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-action {
+      white-space: nowrap !important;
+      font-size: 0.78rem !important;
+      font-weight: 700 !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0.35rem !important;
+      height: 34px !important;
+      min-height: 34px !important;
+      padding: 0 0.75rem !important;
+      border-radius: 8px !important;
+      flex: 1 1 auto !important;
+      box-sizing: border-box !important;
+      line-height: 1 !important;
+    }
+    .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+    .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+    .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete {
+      flex: 0 0 34px !important;
+      width: 34px !important;
+      min-width: 34px !important;
+      padding: 0 !important;
     }
   \`;
   document.head.appendChild(styleEl);
@@ -3196,12 +3267,12 @@ function injectHierarchySupport(html: string): string {
                 <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(s.name)}</span>
               </div>
             </div>
-            <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
-              <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
-                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+            <div class="mr-folder-card-footer">
+              <div class="mr-folder-card-footer-left">
+                <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
-              <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
-                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+              <div class="mr-folder-card-actions">
+                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
               </div>
             </div>
           </div>
@@ -3369,12 +3440,12 @@ function injectHierarchySupport(html: string): string {
                 <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(s.name)}</span>
               </div>
             </div>
-            <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
-              <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
-                <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+            <div class="mr-folder-card-footer">
+              <div class="mr-folder-card-footer-left">
+                <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
-              <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
-                <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+              <div class="mr-folder-card-actions">
+                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
               </div>
             </div>
           </div>
@@ -3930,37 +4001,18 @@ function injectHierarchySupport(html: string): string {
 
           const footerEl = document.createElement('div');
           footerEl.className = 'mr-folder-card-footer';
-          const leftContent = shouldUseStandardCard
-            ? '<span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>'
-            : '<span class="mr-folder-card-count-chip">📄 ' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
-              '<div class="mr-folder-card-progress-box">' +
-                '<span class="mr-folder-card-progress-label">' + pct + '% dominado</span>' +
-                '<div class="mr-folder-card-progress-track">' +
-                  '<div class="mr-folder-card-progress-bar" style="width:' + pct + '%"></div>' +
-                '</div>' +
-              '</div>';
-
-          const resetBtnStyle = shouldUseStandardCard
-            ? 'style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.26rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;"'
-            : 'style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.26rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;"';
-          const addBtnStyle = shouldUseStandardCard
-            ? 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.26rem 0.6rem; font-weight:800; font-size:0.76rem; box-shadow:0 1px 3px rgba(22,163,74,0.2); white-space:nowrap;"'
-            : 'style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.26rem 0.6rem; font-weight:800; font-size:0.76rem; box-shadow:0 1px 3px rgba(22,163,74,0.2); white-space:nowrap;"';
-          const subfolderBtnStyle = shouldUseStandardCard
-            ? 'style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.6rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;"'
-            : 'style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.6rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;"';
+          const leftContent = '<span class="mr-folder-card-count-chip">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>';
 
           footerEl.innerHTML =
             '<div class="mr-folder-card-footer-left">' +
               leftContent +
             '</div>' +
-            '<div class="mr-folder-card-actions" style="gap:0.25rem;">' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" ' + resetBtnStyle + ' title="Resetar progresso das cartas">🔄 Resetar</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" ' + addBtnStyle + ' title="Adicionar carta nesta pasta">+ Carta</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" ' + subfolderBtnStyle + ' title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta" style="color:#dc2626; border-color:#fca5a5; background:#fef2f2;">🗑</button>' +
+            '<div class="mr-folder-card-actions">' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta">🗑</button>' +
             '</div>';
-
           const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
           if (resetBtn) {
             resetBtn.onclick = function(e) {
@@ -4294,12 +4346,12 @@ function injectHierarchySupport(html: string): string {
                   <span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">\${escapeHtml(sf.name)}</span>
                 </div>
               </div>
-              <div class="mr-folder-card-footer" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:0.45rem; flex-wrap:nowrap; margin-top:auto; padding-top:0.75rem; border-top:1px dashed #e2e8f0;">
-                <div class="mr-folder-card-footer-left" style="display:flex; align-items:center; flex-shrink:0; min-width:0;">
-                  <span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
+              <div class="mr-folder-card-footer">
+                <div class="mr-folder-card-footer-left">
+                  <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
                 </div>
-                <div class="mr-folder-card-actions" style="display:flex; align-items:center; gap:0.25rem; flex-shrink:0; margin-left:auto;">
-                  <button type="button" class="mr-folder-card-btn-action" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.65rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" onclick="event.stopPropagation(); navigateTo('\${sf.id}')">Abrir ➜</button>
+                <div class="mr-folder-card-actions">
+                  <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${sf.id}')">Abrir ➜</button>
                 </div>
               </div>
             </div>
