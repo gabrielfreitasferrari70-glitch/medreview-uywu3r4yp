@@ -181,6 +181,61 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
+  function getEffectiveFolderDisplayName(effectiveFolderId, domTitle, rawText) {
+    const hasState = typeof state !== 'undefined' && state;
+    if (typeof window.resolveFolderInfo === 'function' && effectiveFolderId) {
+      const info = window.resolveFolderInfo(effectiveFolderId);
+      if (info && info.name && info.name.trim() && info.name.trim().toLowerCase() !== 'pasta') {
+        return info.name.trim();
+      }
+    }
+    if (hasState && effectiveFolderId) {
+      if (effectiveFolderId === 'tutoria') return 'Tutoria';
+      if (effectiveFolderId === 'provas') return 'Prova de Módulo';
+      if (state.tutorias_numbered && state.tutorias_numbered[effectiveFolderId]) {
+        const obj = state.tutorias_numbered[effectiveFolderId];
+        const nm = (obj.title || obj.name || effectiveFolderId.replace('_', ' ').toUpperCase()).trim();
+        if (nm) return nm;
+      }
+      if (state.provas && state.provas[effectiveFolderId]) {
+        const obj = state.provas[effectiveFolderId];
+        const nm = (obj.title || obj.name || effectiveFolderId).trim();
+        if (nm) return nm;
+      }
+      if (state.custom_tutoria_folders && state.custom_tutoria_folders[effectiveFolderId]) {
+        const obj = state.custom_tutoria_folders[effectiveFolderId];
+        const nm = (obj.name || obj.title || '').trim();
+        if (nm && nm.toLowerCase() !== 'pasta') return nm;
+      }
+      if (state.custom_prova_folders && state.custom_prova_folders[effectiveFolderId]) {
+        const obj = state.custom_prova_folders[effectiveFolderId];
+        const nm = (obj.name || obj.title || '').trim();
+        if (nm && nm.toLowerCase() !== 'pasta') return nm;
+      }
+      if (state.custom_root_folders && state.custom_root_folders[effectiveFolderId]) {
+        const obj = state.custom_root_folders[effectiveFolderId];
+        const nm = (obj.name || obj.title || '').trim();
+        if (nm && nm.toLowerCase() !== 'pasta') return nm;
+      }
+      if (typeof getSubfolderStore === 'function') {
+        const sf = getSubfolderStore()[effectiveFolderId];
+        if (sf && (sf.name || sf.title)) {
+          const nm = (sf.name || sf.title).trim();
+          if (nm && nm.toLowerCase() !== 'pasta' && nm.toLowerCase() !== 'subpasta') return nm;
+        }
+      }
+    }
+    if (effectiveFolderId) {
+      const tutoriaMatch = effectiveFolderId.match(/tutoria_?(d+)/i);
+      if (tutoriaMatch) return 'Tutoria ' + tutoriaMatch[1];
+    }
+    const candidate = (domTitle || rawText || '').trim();
+    if (candidate && candidate.toLowerCase() !== 'pasta' && candidate.toLowerCase() !== 'subpasta') {
+      return candidate;
+    }
+    return 'Pasta';
+  }
+
   function _executeDecorateCardElementImmediately(card) {
     // Remoção incondicional e agressiva de tags de imagem e mídias nativas quebradas do snapshot
     card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
@@ -191,8 +246,8 @@ function injectHierarchySupport(html: string): string {
     const onclickAttr = card.getAttribute('onclick') || '';
     const navMatch = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/)?.[1] ||
                      onclickAttr.match(/studyDeck(['"]([^'"]+)['"])/)?.[1] ||
-                     onclickAttr.match(/tutoria_\\d+/i)?.[0];
-    const titleTutoriaMatch = titleText.match(/tutoria\\s*(\\d+)/i);
+                     onclickAttr.match(/tutoria_d+/i)?.[0];
+    const titleTutoriaMatch = titleText.match(/tutorias*(d+)/i);
     const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
 
     const effectiveFolderId = card.getAttribute('data-folder-id') ||
@@ -242,6 +297,11 @@ function injectHierarchySupport(html: string): string {
       cleanTitle = cleanTitle.replace(icon, '').trim();
     }
 
+    const resolvedName = getEffectiveFolderDisplayName(effectiveFolderId, cleanTitle, titleText);
+    if (resolvedName && resolvedName.toLowerCase() !== 'pasta') {
+      cleanTitle = resolvedName;
+    }
+
     // Aplica classes imediatamente sem esperar timers
     card.classList.add('mr-folder-card');
     card.setAttribute('data-mr-folder-card', '1');
@@ -252,7 +312,7 @@ function injectHierarchySupport(html: string): string {
     // Captura da contagem de cartas existente no cartão ANTES da limpeza (para não perder o número nativo)
     let nativeCardCount = null;
     const findCardCountInText = (str) => {
-      const m = (str || '').match(/(\\d+)\\s*cartas?/i);
+      const m = (str || '').match(/(d+)s*cartas?/i);
       return m ? parseInt(m[1], 10) : null;
     };
     card.querySelectorAll('p, div, span, small, b, strong, em').forEach(el => {
@@ -313,7 +373,7 @@ function injectHierarchySupport(html: string): string {
         '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
           '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
           '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
-            (escapeHtml(cleanTitle) || 'Pasta') +
+            escapeHtml(cleanTitle) +
           '</span>' +
         '</div>';
 
@@ -326,8 +386,7 @@ function injectHierarchySupport(html: string): string {
       if (headerEl.parentElement !== card) {
         card.insertBefore(headerEl, card.firstChild);
       }
-    }
-    card.setAttribute('data-mr-folder-card-header', '1');
+    }    card.setAttribute('data-mr-folder-card-header', '1');
 
     // Rodapé padronizado como filho DIRETO no fundo (último filho)
     let footerEl = card.querySelector('.mr-folder-card-footer');
@@ -4031,6 +4090,11 @@ function injectHierarchySupport(html: string): string {
         if (!alreadyHasHeader) {
           let headerEl = card.querySelector('.mr-folder-card-header');
           if (!headerEl) {
+            const resolvedName = getEffectiveFolderDisplayName(effectiveFolderId, cleanTitle, titleText);
+            if (resolvedName && resolvedName.toLowerCase() !== 'pasta') {
+              cleanTitle = resolvedName;
+            }
+
             headerEl = document.createElement('div');
             headerEl.setAttribute('data-mr-decorated', '1');
             if (shouldUseStandardCard) {
@@ -4040,7 +4104,7 @@ function injectHierarchySupport(html: string): string {
                 '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
                   '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
                   '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
-                    (escapeHtml(cleanTitle) || 'Pasta') +
+                    escapeHtml(cleanTitle) +
                   '</span>' +
                 '</div>';
             } else {
@@ -4049,7 +4113,7 @@ function injectHierarchySupport(html: string): string {
                 '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
                   '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
                   '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
-                    (escapeHtml(cleanTitle) || 'Pasta') +
+                    escapeHtml(cleanTitle) +
                   '</span>' +
                 '</div>' +
                 '<span class="mr-folder-card-badge" data-mr-decorated="1">' + escapeHtml(categoryBadge) + '</span>';
