@@ -159,11 +159,246 @@ function injectHierarchySupport(html: string): string {
 // MedReview — Motor de Hierarquia de Pastas & Subpastas (FSRS-5)
 // ========================================================
 (function() {
+  // PASSO 3: Função síncrona padronizadora de qualquer elemento de cartão de pasta recém-renderizado
+  function decorateCardElementImmediately(card) {
+    if (!card || !(card instanceof HTMLElement)) return;
+    if (card.classList.contains('mr-subfolder-card')) return;
+
+    // Se já estiver completamente decorado e nada tiver mudado, pula
+    if (card.getAttribute('data-mr-folder-card-header') === '1' &&
+        card.getAttribute('data-mr-folder-card-footer') === '1' &&
+        card.getAttribute('data-mr-folder-top-delete') === '1' &&
+        card.classList.contains('mr-tutoria-card')) {
+      return;
+    }
+
+    const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
+    const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
+
+    const onclickAttr = card.getAttribute('onclick') || '';
+    const navMatch = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/)?.[1] ||
+                     onclickAttr.match(/studyDeck(['"]([^'"]+)['"])/)?.[1] ||
+                     onclickAttr.match(/tutoria_d+/i)?.[0];
+    const titleTutoriaMatch = titleText.match(/tutorias*(d+)/i);
+    const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
+
+    const effectiveFolderId = card.getAttribute('data-folder-id') ||
+                              card.getAttribute('data-deck-id') ||
+                              navMatch ||
+                              titleTutoriaId ||
+                              null;
+
+    const lowerTitle = titleText.toLowerCase();
+    const lowerId = (effectiveFolderId || '').toLowerCase();
+
+    const isCustomRoot = !!(typeof state !== 'undefined' && state && state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
+    const isCustomProva = !!(typeof state !== 'undefined' && state && state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
+    const isCustomTutoria = !!(typeof state !== 'undefined' && state && state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
+
+    const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
+    const isProvaCard = !isTutoriaCard && (
+      isCustomProva ||
+      lowerTitle.includes('prova') ||
+      lowerId.includes('prova') ||
+      lowerTitle.includes('cardio') ||
+      lowerTitle.includes('módulo') ||
+      lowerTitle.includes('modulo') ||
+      card.classList.contains('deck-card')
+    );
+    const isCustomFolder = !isTutoriaCard && !isProvaCard && (isCustomRoot || isCustomTutoria);
+
+    // Todo cartão novo de pasta ou módulo recebe a classe .mr-tutoria-card
+    const shouldUseStandardCard = isTutoriaCard || isProvaCard || isCustomFolder || true;
+
+    let categoryBadge = '📁 Pasta';
+    let icon = '📁';
+    if (isTutoriaCard) {
+      categoryBadge = 'PBL/Tutoria';
+    } else if (isProvaCard) {
+      categoryBadge = '📝 Provas';
+      icon = '📝';
+    } else if (isCustomFolder || isCustomRoot || isCustomTutoria) {
+      categoryBadge = '📁 Pasta';
+      icon = '📁';
+    }
+
+    const iconMatch = titleText.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF])/u);
+    let cleanTitle = titleText;
+    if (iconMatch) {
+      icon = iconMatch[0];
+      cleanTitle = cleanTitle.replace(icon, '').trim();
+    }
+
+    // Aplica classes imediatamente sem esperar timers
+    card.classList.add('mr-folder-card');
+    card.setAttribute('data-mr-folder-card', '1');
+    if (shouldUseStandardCard) {
+      card.classList.add('mr-tutoria-card');
+    }
+
+    // Garante position relative para o botão 🗑
+    const currentPos = window.getComputedStyle(card).position;
+    if (!currentPos || currentPos === 'static') {
+      card.style.position = 'relative';
+    }
+
+    // Injeta botão 🗑 no canto superior direito
+    if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'mr-folder-card-top-delete';
+      delBtn.title = 'Excluir pasta';
+      delBtn.style.cssText = 'position:absolute; top:0.85rem; right:0.85rem; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.25rem 0.5rem; font-size:0.95rem; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
+      delBtn.innerHTML = '🗑';
+      delBtn.onclick = function(e) {
+        e.stopPropagation();
+        const effId = effectiveFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+        if (typeof window.openFolderDeleteModal === 'function') {
+          window.openFolderDeleteModal(effId);
+        }
+      };
+      card.appendChild(delBtn);
+      card.setAttribute('data-mr-folder-top-delete', '1');
+    }
+
+    // Cabeçalho padronizado
+    if (card.getAttribute('data-mr-folder-card-header') !== '1') {
+      let headerEl = card.querySelector('.mr-folder-card-header');
+      if (!headerEl) {
+        headerEl = document.createElement('div');
+        headerEl.className = 'mr-folder-card-header mr-tutoria-header';
+        headerEl.innerHTML =
+          '<span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
+          '<div class="mr-folder-card-title-wrap" style="display:flex; align-items:center; gap:0.5rem; min-width:0; width:100%;">' +
+            '<span class="mr-folder-card-icon" style="font-size:1.35rem; line-height:1; flex-shrink:0;">' + icon + '</span>' +
+            '<span class="mr-folder-card-title" style="white-space:normal; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.3;">' +
+              (escapeHtml(cleanTitle) || 'Pasta') +
+            '</span>' +
+          '</div>';
+
+        if (rawTitleEl && rawTitleEl.parentNode) {
+          rawTitleEl.remove();
+        }
+        card.insertBefore(headerEl, card.firstChild);
+      }
+      card.setAttribute('data-mr-folder-card-header', '1');
+    }
+
+    // Limpeza de ícones e textos duplicados
+    card.querySelectorAll('.deck-icon, .folder-icon, img, svg, i').forEach(el => {
+      if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
+        el.remove();
+      }
+    });
+    card.querySelectorAll('p, div, span, small').forEach(el => {
+      if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
+        const txt = (el.textContent || '').trim();
+        if (txt.match(/^\\d+\\s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta') {
+          el.remove();
+        }
+      }
+    });
+
+    // Rodapé padronizado
+    if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
+      const allFolderCards = effectiveFolderId && typeof getFolderAllCards === 'function' ? getFolderAllCards(effectiveFolderId) : [];
+      const totalCards = allFolderCards ? allFolderCards.length : 0;
+      let masteredCards = 0;
+      allFolderCards.forEach(c => {
+        const ivl = typeof c.interval === 'number' ? c.interval : (typeof c.fsrsS === 'number' ? c.fsrsS : 0);
+        if (ivl >= 21) masteredCards++;
+      });
+      const pct = totalCards > 0 ? Math.round((masteredCards / totalCards) * 100) : 0;
+
+      const oldFooters = card.querySelectorAll('.mr-folder-card-footer, .deck-footer, .folder-footer');
+      oldFooters.forEach(f => f.remove());
+
+      const footerEl = document.createElement('div');
+      footerEl.className = 'mr-folder-card-footer';
+      footerEl.innerHTML =
+        '<div class="mr-folder-card-footer-left">' +
+          '<span class="mr-folder-card-count-chip" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.22rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
+        '</div>' +
+        '<div class="mr-folder-card-actions" style="gap:0.25rem;">' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:9999px; padding:0.26rem 0.55rem; font-weight:700; font-size:0.76rem; white-space:nowrap;" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" style="background:#16a34a; color:#ffffff; border:none; border-radius:8px; padding:0.26rem 0.6rem; font-weight:800; font-size:0.76rem; box-shadow:0 1px 3px rgba(22,163,74,0.2); white-space:nowrap;" title="Adicionar carta nesta pasta">+ Carta</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; border-radius:8px; padding:0.26rem 0.6rem; font-weight:700; font-size:0.76rem; box-shadow:0 1px 2px rgba(22,163,74,0.06); white-space:nowrap;" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta" style="color:#dc2626; border-color:#fca5a5; background:#fef2f2;">🗑</button>' +
+        '</div>';
+
+      const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
+      if (resetBtn) {
+        resetBtn.onclick = function(e) {
+          e.stopPropagation();
+          if (totalCards === 0) {
+            if (typeof showToast === 'function') showToast('Esta pasta não possui cartas para resetar.');
+            return;
+          }
+          if (!window.confirm('Deseja resetar o progresso FSRS-5 de ' + totalCards + ' carta(s) desta pasta?')) return;
+          if (effectiveFolderId && typeof resetFolderCardsFsrs === 'function') {
+            resetFolderCardsFsrs(effectiveFolderId);
+          }
+        };
+      }
+
+      const addBtn = footerEl.querySelector('.mr-folder-card-btn-add');
+      if (addBtn) {
+        addBtn.onclick = function(e) {
+          e.stopPropagation();
+          const targetId = effectiveFolderId || 'tutoria';
+          if (typeof openCreateChoice === 'function') {
+            openCreateChoice(targetId);
+          } else if (typeof openNewCardModal === 'function') {
+            openNewCardModal(targetId);
+          }
+        };
+      }
+
+      const sfBtn = footerEl.querySelector('.mr-folder-card-btn-subfolder');
+      if (sfBtn) {
+        sfBtn.onclick = function(e) {
+          e.stopPropagation();
+          const targetId = effectiveFolderId || 'tutoria';
+          const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
+          if (subs.length === 1) {
+            navigateTo(subs[0].id);
+          } else if (subs.length > 1) {
+            if (typeof renderSubfoldersPicker === 'function') {
+              renderSubfoldersPicker(targetId);
+            } else {
+              navigateTo(targetId);
+            }
+          } else {
+            if (typeof openSubfolderCreateModal === 'function') {
+              openSubfolderCreateModal(targetId);
+            } else {
+              navigateTo(targetId);
+            }
+          }
+        };
+      }
+
+      const delBtnFooter = footerEl.querySelector('.mr-folder-card-btn-delete');
+      if (delBtnFooter) {
+        delBtnFooter.onclick = function(e) {
+          e.stopPropagation();
+          const effId = effectiveFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+          if (typeof window.openFolderDeleteModal === 'function') {
+            window.openFolderDeleteModal(effId);
+          }
+        };
+      }
+
+      card.appendChild(footerEl);
+      card.setAttribute('data-mr-folder-card-footer', '1');
+    }
+  }
+  window.__decorateCardElementImmediately = decorateCardElementImmediately;
+
   // 1. Estilos visuais adicionais
   const styleEl = document.createElement('style');
   styleEl.textContent = \`
-    /* Regras globais para ocultar painéis de estatísticas fora do modal global */
-    body > *:not(#global-stats-modal) .deck-stats,
+    /* Regras globais para ocultar painéis de estatísticas fora do modal global */    body > *:not(#global-stats-modal) .deck-stats,
     body > *:not(#global-stats-modal) .stats-overview,
     body > *:not(#global-stats-modal) .folder-stats,
     body > *:not(#global-stats-modal) .deck-performance,
@@ -780,8 +1015,8 @@ function injectHierarchySupport(html: string): string {
           Excluir pasta? As subpastas serão removidas e os cartões serão preservados, migrando para o nível superior — o progresso FSRS-5 de cada carta é mantido.
         </p>
         <div style="display:flex; justify-content:flex-end; gap:0.6rem;">
-          <button type="button" onclick="closeFolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
-          <button type="button" id="mr-folder-delete-confirm-btn" onclick="executeFolderDelete()" style="background:#dc2626; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">Confirmar</button>
+          <button type="button" data-mr-folder-delete-cancel="1" onclick="closeFolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
+          <button type="button" id="mr-folder-delete-confirm-btn" data-mr-folder-delete-confirm="1" onclick="executeFolderDelete()" style="background:#dc2626; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">Confirmar</button>
         </div>
       </div>
     </div>
@@ -837,8 +1072,8 @@ function injectHierarchySupport(html: string): string {
           Excluir subpasta? TODAS as cartas desta subpasta (incluindo as de suas subpastas) serão excluídas permanentemente, junto com seu progresso FSRS-5. As cartas das outras pastas e subpastas NÃO são afetadas.
         </p>
         <div style="display:flex; justify-content:flex-end; gap:0.6rem;">
-          <button type="button" onclick="closeSubfolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
-          <button type="button" id="mr-subfolder-delete-confirm-btn" onclick="executeSubfolderDelete()" style="background:#dc2626; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">Confirmar</button>
+          <button type="button" data-mr-sub-delete-cancel="1" onclick="closeSubfolderDeleteModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
+          <button type="button" id="mr-subfolder-delete-confirm-btn" data-mr-sub-delete-confirm="1" onclick="executeSubfolderDelete()" style="background:#dc2626; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">Confirmar</button>
         </div>
       </div>
     </div>
@@ -854,6 +1089,52 @@ function injectHierarchySupport(html: string): string {
       }
     }
   });
+
+  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão
+  document.addEventListener('click', function(e) {
+    const target = e.target;
+    if (!target || !(target instanceof Element)) return;
+
+    const subConfirm = target.closest('[data-mr-sub-delete-confirm]');
+    if (subConfirm) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.executeSubfolderDelete === 'function') {
+        window.executeSubfolderDelete();
+      }
+      return;
+    }
+
+    const subCancel = target.closest('[data-mr-sub-delete-cancel]');
+    if (subCancel) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.closeSubfolderDeleteModal === 'function') {
+        window.closeSubfolderDeleteModal();
+      }
+      return;
+    }
+
+    const folderConfirm = target.closest('[data-mr-folder-delete-confirm]');
+    if (folderConfirm) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.executeFolderDelete === 'function') {
+        window.executeFolderDelete();
+      }
+      return;
+    }
+
+    const folderCancel = target.closest('[data-mr-folder-delete-cancel]');
+    if (folderCancel) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.closeFolderDeleteModal === 'function') {
+        window.closeFolderDeleteModal();
+      }
+      return;
+    }
+  }, true);
 
   window.__pendingDeleteSubfolderId = null;
 
@@ -877,23 +1158,15 @@ function injectHierarchySupport(html: string): string {
       return;
     }
 
+    // 1. Resolve parentFolderId ANTES de mutar
     const sfStore = getSubfolderStore();
-    const targetSf = sfStore[subfolderId];
-    const parentFolderId = targetSf ? (targetSf.parentId || targetSf.parent || null) : null;
+    const targetSf = sfStore ? sfStore[subfolderId] : null;
+    const parentFolderId = (targetSf && (targetSf.parentId || targetSf.parent)) || window.__mrActivePickerParentId || null;
 
-    // 1. Resolver todas as cartas que pertencem a esta subpasta e suas descendentes
-    // usando o resolvedor unificado de cartas getFolderAllCards
-    const cardsToDelete = typeof getFolderAllCards === 'function' ? getFolderAllCards(subfolderId) : [];
-    if (cardsToDelete.length === 0 && targetSf && Array.isArray(targetSf.cards) && targetSf.cards.length > 0) {
-      targetSf.cards.forEach(c => { if (c && c.id) cardsToDelete.push(c); });
-    }
-    const deletedCount = cardsToDelete.length;
-    const cardIdsToDelete = new Set(cardsToDelete.map(c => c && c.id).filter(Boolean));
-
-    // 2. Coletar esta subpasta e todas as sub-subpastas recursivamente
+    // 2. Coletar esta subpasta e todas as descendentes recursivamente
     const subsToRemove = new Set();
     function collectDescendants(pId) {
-      Object.values(sfStore).forEach(s => {
+      Object.values(sfStore || {}).forEach(s => {
         if (s && (s.parentId === pId || s.parent === pId)) {
           if (!subsToRemove.has(s.id)) {
             subsToRemove.add(s.id);
@@ -905,27 +1178,60 @@ function injectHierarchySupport(html: string): string {
     subsToRemove.add(subfolderId);
     collectDescendants(subfolderId);
 
-    // 3. Remover permanentemente as cartas e as subpastas do store de subpastas
+    // 3. Coleta cartas em cascata (subpasta + descendentes recursivos)
+    const cardsToDelete = [];
+    const seenCardIds = new Set();
+
     subsToRemove.forEach(sid => {
-      if (sfStore[sid]) {
-        // Limpa referências a cartas
+      const sCards = typeof getFolderAllCards === 'function' ? getFolderAllCards(sid) : [];
+      sCards.forEach(c => {
+        if (c && c.id && !seenCardIds.has(c.id)) {
+          seenCardIds.add(c.id);
+          cardsToDelete.push(c);
+        }
+      });
+      if (sfStore && sfStore[sid] && Array.isArray(sfStore[sid].cards)) {
+        sfStore[sid].cards.forEach(c => {
+          if (c && c.id && !seenCardIds.has(c.id)) {
+            seenCardIds.add(c.id);
+            cardsToDelete.push(c);
+          }
+        });
+      }
+    });
+
+    const deletedCount = cardsToDelete.length;
+    const cardIdsToDelete = seenCardIds;
+
+    // 4. Remover permanentemente as subpastas e suas cartas de localStorage via persistSubfolders()
+    subsToRemove.forEach(sid => {
+      if (sfStore && sfStore[sid]) {
         if (Array.isArray(sfStore[sid].cards)) {
           sfStore[sid].cards = [];
         }
         delete sfStore[sid];
       }
-    });
-
-    // Garante que nenhuma subpasta remanescente retenha acidentalmente cartas apagadas
-    Object.values(sfStore).forEach(s => {
-      if (s && Array.isArray(s.cards)) {
-        s.cards = s.cards.filter(c => c && !cardIdsToDelete.has(c.id));
+      if (state && state.subfolders && state.subfolders[sid]) {
+        delete state.subfolders[sid];
       }
     });
 
+    // Garante que nenhuma subpasta remanescente retenha cartas apagadas
+    if (sfStore) {
+      Object.values(sfStore).forEach(s => {
+        if (s && Array.isArray(s.cards)) {
+          s.cards = s.cards.filter(c => c && !cardIdsToDelete.has(c.id));
+        }
+      });
+    }
+
+    try {
+      localStorage.setItem('medreview_subfolders', JSON.stringify(sfStore || {}));
+    } catch { /* intentionally ignored */ }
+
     persistSubfolders();
 
-    // Remove do histórico de avaliações do FSRS-5 apenas as cartas deletadas
+    // 5. Limpa histórico de avaliações do FSRS-5 das cartas excluídas
     if (cardIdsToDelete.size > 0) {
       try {
         const rawHistory = localStorage.getItem('medreview_eval_history');
@@ -943,10 +1249,10 @@ function injectHierarchySupport(html: string): string {
       saveState();
     }
 
-    // Fechar modal
+    // 6. Fechar modal
     closeSubfolderDeleteModal();
 
-    // Toast após exclusão: "Subpasta excluída. N cartas removidas permanentemente."
+    // 7. Toast: "Subpasta excluída. N cartas removidas permanentemente."
     const toastMsg = 'Subpasta excluída. ' + deletedCount + ' cartas removidas permanentemente.';
     if (typeof showMedReviewToast === 'function') {
       showMedReviewToast(toastMsg, '', '🗑');
@@ -956,39 +1262,25 @@ function injectHierarchySupport(html: string): string {
       alert(toastMsg);
     }
 
-    // Se a subpasta excluída for a que está aberta na tela (ou descendente), volta para o seletor da pasta pai (renderSubfoldersPicker)
+    // 8. Chamar renderSubfoldersPicker(parentFolderId) IMEDIATAMENTE (síncrono, sem depender de timer)
     const currentSubWrapper = document.getElementById('mr-subfolder-wrapper');
-    const isCurrentlyOpen = (typeof studyState !== 'undefined' && subsToRemove.has(studyState.deckId)) ||
-      (typeof currentRoute !== 'undefined' && subsToRemove.has(currentRoute)) ||
-      (window.__activeFolderContext && subsToRemove.has(window.__activeFolderContext)) ||
-      (currentSubWrapper && currentSubWrapper.style.display !== 'none' && (
-        (window.__mrActiveSubfolderId && subsToRemove.has(window.__mrActiveSubfolderId)) ||
-        (currentSubWrapper.getAttribute('data-active-subfolder') && subsToRemove.has(currentSubWrapper.getAttribute('data-active-subfolder')))
-      ));
+    const targetParent = parentFolderId || window.__mrActivePickerParentId || (currentSubWrapper ? currentSubWrapper.getAttribute('data-active-picker-parent') : null);
 
-    if (isCurrentlyOpen && parentFolderId) {
+    if (targetParent) {
       if (typeof renderSubfoldersPicker === 'function') {
-        renderSubfoldersPicker(parentFolderId);
+        renderSubfoldersPicker(targetParent);
       } else if (typeof window.renderSubfoldersPicker === 'function') {
-        window.renderSubfoldersPicker(parentFolderId);
+        window.renderSubfoldersPicker(targetParent);
       } else if (typeof window.navigateTo === 'function') {
-        window.navigateTo(parentFolderId);
+        window.navigateTo(targetParent);
       } else if (typeof navigateTo === 'function') {
-        navigateTo(parentFolderId);
-      }
-    } else if (currentSubWrapper && currentSubWrapper.style.display !== 'none') {
-      // Re-renderiza a visualização atual (seja picker ou subfolder view)
-      if (typeof currentRoute !== 'undefined' && sfStore[currentRoute] && typeof renderSubfolderView === 'function') {
-        renderSubfolderView(currentRoute);
-      } else if (parentFolderId && typeof renderSubfoldersPicker === 'function') {
-        renderSubfoldersPicker(parentFolderId);
-      } else if (typeof renderRoute === 'function') {
-        renderRoute();
+        navigateTo(targetParent);
       }
     } else if (typeof renderRoute === 'function') {
       renderRoute();
     }
 
+    // Rede de segurança com rAF + 120ms + 300ms de enhanceViews
     requestAnimationFrame(() => {
       enhanceViews();
       setTimeout(enhanceViews, 120);
@@ -1137,6 +1429,9 @@ function injectHierarchySupport(html: string): string {
       if (sfStore[sid]) {
         delete sfStore[sid];
       }
+      if (state && state.subfolders && state.subfolders[sid]) {
+        delete state.subfolders[sid];
+      }
     });
     persistSubfolders();
 
@@ -1233,20 +1528,13 @@ function injectHierarchySupport(html: string): string {
 
     if (!state.subfolders) {
       state.subfolders = (localData && typeof localData === 'object' && !Array.isArray(localData)) ? localData : {};
-    } else if (localData && typeof localData === 'object' && !Array.isArray(localData)) {
-      // Mescla com localStorage para garantir que nada foi perdido
-      Object.keys(localData).forEach(k => {
-        if (!state.subfolders[k]) {
-          state.subfolders[k] = localData[k];
-        }
-      });
     }
     return state.subfolders;
   }
 
   function persistSubfolders() {
     try {
-      const sf = getSubfolderStore();
+      const sf = (state && state.subfolders) ? state.subfolders : getSubfolderStore();
       localStorage.setItem('medreview_subfolders', JSON.stringify(sf));
     } catch { /* intentionally ignored */ }
   }
@@ -2398,6 +2686,8 @@ function injectHierarchySupport(html: string): string {
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
       subWrapper.style.display = 'none';
+      window.__mrActivePickerParentId = null;
+      window.__mrActiveSubfolderId = null;
       if (typeof window.__mrRestoreHiddenElements === 'function') {
         window.__mrRestoreHiddenElements();
       } else {
@@ -2840,6 +3130,7 @@ function injectHierarchySupport(html: string): string {
   function renderSubfoldersPicker(parentId) {
     const parentInfo = resolveFolderInfo(parentId) || { name: 'Pasta' };
     const subfolders = getSubfoldersOf(parentId);
+    window.__mrActivePickerParentId = parentId;
 
     const chain = getBreadcrumbChain(parentId);
 
@@ -2949,7 +3240,9 @@ function injectHierarchySupport(html: string): string {
 
       subWrapper.style.display = 'block';
       subWrapper.removeAttribute('data-active-subfolder');
+      subWrapper.setAttribute('data-active-picker-parent', parentId);
       window.__mrActiveSubfolderId = null;
+      window.__mrActivePickerParentId = parentId;
       subWrapper.innerHTML = contentHtml;
     } else {
       const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
@@ -3166,7 +3459,9 @@ function injectHierarchySupport(html: string): string {
 
       subWrapper.style.display = 'block';
       subWrapper.setAttribute('data-active-subfolder', subfolderId);
+      subWrapper.removeAttribute('data-active-picker-parent');
       window.__mrActiveSubfolderId = subfolderId;
+      window.__mrActivePickerParentId = null;
       subWrapper.innerHTML = contentHtml;
     } else {
       const viewContainer = document.querySelector('.main-content-area') || document.querySelector('.container') || document.querySelector('main') || document.body;
@@ -4043,6 +4338,8 @@ function injectHierarchySupport(html: string): string {
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
       subWrapper.style.display = 'none';
+      window.__mrActivePickerParentId = null;
+      window.__mrActiveSubfolderId = null;
       if (typeof window.__mrRestoreHiddenElements === 'function') {
         window.__mrRestoreHiddenElements();
       } else {
