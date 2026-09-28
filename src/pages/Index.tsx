@@ -167,11 +167,10 @@ function injectHierarchySupport(html: string): string {
     // Se já estiver completamente decorado e nada tiver mudado, pula
     if (card.getAttribute('data-mr-folder-card-header') === '1' &&
         card.getAttribute('data-mr-folder-card-footer') === '1' &&
-        card.querySelector('.mr-folder-card-top-delete') &&
+        card.getAttribute('data-mr-folder-top-delete') === '1' &&
         card.classList.contains('mr-tutoria-card')) {
       return;
     }
-
     const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
     const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
 
@@ -243,9 +242,8 @@ function injectHierarchySupport(html: string): string {
     }
 
     // Injeta botão 🗑 no canto superior direito
-    if (!card.querySelector('.mr-folder-card-top-delete')) {
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
+    if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
+      const delBtn = document.createElement('button');      delBtn.type = 'button';
       delBtn.className = 'mr-folder-card-top-delete';
       delBtn.title = 'Excluir pasta';
       delBtn.setAttribute('data-mr-folder-delete', '1');
@@ -1193,8 +1191,10 @@ function injectHierarchySupport(html: string): string {
     }
   });
 
-  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão
-  document.addEventListener('click', function(e) {
+  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão (com guard para não registrar mais de uma vez)
+  if (!window.__mrClickListenerRegistered) {
+    window.__mrClickListenerRegistered = true;
+    document.addEventListener('click', function(e) {
     const target = e.target;
     if (!target || !(target instanceof Element)) return;
 
@@ -1256,6 +1256,7 @@ function injectHierarchySupport(html: string): string {
       return;
     }
   }, true);
+  }
 
   window.__pendingDeleteSubfolderId = null;
 
@@ -3698,7 +3699,18 @@ function injectHierarchySupport(html: string): string {
   window.suppressNativeStatsModal = suppressNativeStatsModal;
 
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
+  let mrEnhanceRunning = false;
   function enhanceViews() {
+    if (mrEnhanceRunning) return;
+    mrEnhanceRunning = true;
+    try {
+      _executeEnhanceViews();
+    } finally {
+      mrEnhanceRunning = false;
+    }
+  }
+
+  function _executeEnhanceViews() {
     suppressNativeStatsModal();
     // Garante que cartões de subpasta (.mr-subfolder-card) tenham clique funcional e desimpedido para abrir a subpasta
     try {
@@ -3758,7 +3770,7 @@ function injectHierarchySupport(html: string): string {
         if (card.classList.contains('mr-subfolder-card')) return;
 
         // Injeção do botão 🗑 no canto superior direito de todo .mr-folder-card (com guard de duplicidade)
-        if (!card.querySelector('.mr-folder-card-top-delete')) {
+        if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
           // Garante position:relative inline no cartão
           const currentPos = window.getComputedStyle(card).position;
           if (!currentPos || currentPos === 'static') {
@@ -3879,7 +3891,7 @@ function injectHierarchySupport(html: string): string {
         // 3. LIMPEZA DO TOPO NATIVO: captura handlers antigos de reset e lixeira
         let nativeDeleteHandler = null;
         let nativeDeleteOnclick = '';
-        const nativeDeleteBtn = card.querySelector('button[title*="Excluir"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), button[title*="excluir"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), button[title*="Apagar"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), button[title*="apagar"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), button[onclick*="delete"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), button[onclick*="remove"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), .btn-delete:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), .deck-delete-btn:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete), .delete-btn:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete)');
+        const nativeDeleteBtn = card.querySelector('button[title*="Excluir"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), button[title*="excluir"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), button[title*="Apagar"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), button[title*="apagar"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), button[onclick*="delete"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), button[onclick*="remove"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), .btn-delete:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), .deck-delete-btn:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete]), .delete-btn:not(.mr-folder-card-top-delete):not(.mr-folder-card-btn-delete):not([data-mr-folder-delete])');
         if (nativeDeleteBtn) {
           nativeDeleteOnclick = nativeDeleteBtn.getAttribute('onclick') || '';
           if (typeof nativeDeleteBtn.onclick === 'function') {
@@ -3889,7 +3901,7 @@ function injectHierarchySupport(html: string): string {
         } else {
           // Também busca botões com ícone de lixeira 🗑 no topo do cartão
           card.querySelectorAll('button, a, span.btn, .action-btn').forEach(btn => {
-            if (btn.classList.contains('mr-folder-card-top-delete') || btn.closest('.mr-folder-card-footer')) return;
+            if (btn.classList.contains('mr-folder-card-top-delete') || btn.hasAttribute('data-mr-folder-delete') || btn.closest('.mr-folder-card-footer')) return;
             const txt = (btn.textContent || '').trim();
             const title = (btn.getAttribute('title') || '').toLowerCase();
             const clk = btn.getAttribute('onclick') || '';
@@ -4427,6 +4439,7 @@ function injectHierarchySupport(html: string): string {
     ensureGlobalStatsButton();
     removePastasNavButton();
   }
+  window.enhanceViews = enhanceViews;
 
   // Remove o botão redundante "📁 Pastas" da topbar verde
   function removePastasNavButton() {
@@ -4477,7 +4490,11 @@ function injectHierarchySupport(html: string): string {
     setTimeout(enhanceViews, 20);
   };
 
-  // Observador de mutações para garantir injeção contínua ao trocar de tela
+  // Observador de mutações com debounce e desconexão de instância anterior
+  if (window.__mrMutationObserver) {
+    try { window.__mrMutationObserver.disconnect(); } catch { /* intentionally ignored */ }
+  }
+  let mrMutationTimer = null;
   const observer = new MutationObserver((mutations) => {
     suppressNativeStatsModal();
     // Higienização incondicional de nós adicionados pelo snapshot externo
@@ -4486,6 +4503,15 @@ function injectHierarchySupport(html: string): string {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node;
+            // Ignora mutações geradas por nossos próprios componentes para quebrar loops
+            if (el.classList && (
+              el.classList.contains('mr-folder-card-top-delete') ||
+              el.classList.contains('mr-folder-card-header') ||
+              el.classList.contains('mr-folder-card-footer') ||
+              el.classList.contains('mr-breadcrumb-bar')
+            )) {
+              return;
+            }
             // Remove painéis e estatísticas antigas soltas injetadas pelo snapshot
             if (el.matches && el.matches('.deck-stats, .stats-overview, .folder-stats, .deck-performance, .deck-performance-panel, .deck-stats-panel, [data-stats-panel]')) {
               if (!el.closest('#global-stats-modal') && !el.closest('.med-topbar')) el.remove();
@@ -4495,7 +4521,7 @@ function injectHierarchySupport(html: string): string {
               });
             }
 
-            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot, limpa as flags para forçar re-higienização (exceto .mr-subfolder-card)
+            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot nativo (sem nossas flags), limpa flags se necessário
             const recycledCards = [];
             if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]'))) {
               if (!el.classList.contains('mr-subfolder-card')) recycledCards.push(el);
@@ -4506,10 +4532,12 @@ function injectHierarchySupport(html: string): string {
               });
             }
             recycledCards.forEach(card => {
-              // Limpa flags para re-executar sanitização completa e reaplicar .mr-tutoria-card / .mr-folder-card
-              card.removeAttribute('data-mr-folder-card-header');
-              card.removeAttribute('data-mr-folder-card-footer');
-              card.removeAttribute('data-mr-folder-top-delete');
+              // Só limpa se o card foi substituído de fato e não contém nossos elementos
+              if (!card.querySelector('.mr-folder-card-header') || !card.querySelector('.mr-folder-card-footer')) {
+                card.removeAttribute('data-mr-folder-card-header');
+                card.removeAttribute('data-mr-folder-card-footer');
+                card.removeAttribute('data-mr-folder-top-delete');
+              }
             });
           }
         });
@@ -4518,9 +4546,15 @@ function injectHierarchySupport(html: string): string {
       console.warn('Erro ao higienizar mutações:', e);
     }
 
-    enhanceViews();
-    removePastasNavButton();
+    if (!mrMutationTimer) {
+      mrMutationTimer = setTimeout(() => {
+        mrMutationTimer = null;
+        enhanceViews();
+        removePastasNavButton();
+      }, 50);
+    }
   });
+  window.__mrMutationObserver = observer;
   observer.observe(document.body, { childList: true, subtree: true });
 
   (function removeLegacyFloatingCsvButton(){
