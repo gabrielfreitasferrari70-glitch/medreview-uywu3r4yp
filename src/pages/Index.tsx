@@ -1361,7 +1361,7 @@ function injectHierarchySupport(html: string): string {
   document.body.insertAdjacentHTML('beforeend', modalSubfolderHtml);
 
   // Injeta Modal de Confirmação de Exclusão de Pasta
-  const modalFolderDeleteHtml = `
+  const modalFolderDeleteHtml = \`
   <div id="mr-folder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderDeleteModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #fecaca; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #fee2e2; background:#fef2f2;">
@@ -1380,7 +1380,7 @@ function injectHierarchySupport(html: string): string {
         </div>
       </div>
     </div>
-  </div>`;
+  </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalFolderDeleteHtml);
 
   // Esc fecha modal de exclusão e modal de renomear
@@ -1422,7 +1422,7 @@ function injectHierarchySupport(html: string): string {
   };
 
   // Injeta Modal de Renomear Pasta / Subpasta
-  const modalFolderRenameHtml = `
+  const modalFolderRenameHtml = \`
   <div id="mr-folder-rename-modal" style="display:none; position:fixed; inset:0; z-index:215; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderRenameModal()">
     <div class="mr-rename-card" style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #bfdbfe; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div class="mr-rename-header" style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #dbeafe; background:#eff6ff;">
@@ -1444,7 +1444,7 @@ function injectHierarchySupport(html: string): string {
         </div>
       </form>
     </div>
-  </div>`;
+  </div>\`;
   document.body.insertAdjacentHTML('beforeend', modalFolderRenameHtml);
 
   // Controle do modal de renomear pasta
@@ -4948,6 +4948,7 @@ function injectHierarchySupport(html: string): string {
           const cCount = subCards.length || (Array.isArray(sf.cards) ? sf.cards.length : 0);
           sfHtml += \`
             <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${sf.id}')" data-subfolder-id="\${sf.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
+              <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${sf.id}" data-folder-title="\${escapeHtml(sf.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${sf.id}', '\${escapeHtml(sf.name)}', true);" style="position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
               <button type="button" class="mr-folder-card-top-delete" title="Excluir pasta" data-mr-folder-delete="1" data-folder-id="\${sf.id}" data-folder-title="\${escapeHtml(sf.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${sf.id}', '\${escapeHtml(sf.name)}');" style="position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
               <div class="mr-folder-card-header mr-tutoria-header">
                 <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
