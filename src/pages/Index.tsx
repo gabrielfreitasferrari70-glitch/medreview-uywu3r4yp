@@ -181,7 +181,35 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
+  function getFolderNameOverrides() {
+    try {
+      const raw = localStorage.getItem('medreview_folder_name_overrides');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      }
+    } catch { /* intentionally ignored */ }
+    return {};
+  }
+  window.getFolderNameOverrides = getFolderNameOverrides;
+
+  function saveFolderNameOverride(folderId, newName) {
+    if (!folderId || !newName) return;
+    try {
+      const overrides = getFolderNameOverrides();
+      overrides[folderId] = String(newName).trim();
+      localStorage.setItem('medreview_folder_name_overrides', JSON.stringify(overrides));
+    } catch { /* intentionally ignored */ }
+  }
+  window.saveFolderNameOverride = saveFolderNameOverride;
+
   function getEffectiveFolderDisplayName(effectiveFolderId, domTitle, rawText) {
+    if (effectiveFolderId) {
+      const overrides = getFolderNameOverrides();
+      if (overrides && overrides[effectiveFolderId] && overrides[effectiveFolderId].trim()) {
+        return overrides[effectiveFolderId].trim();
+      }
+    }
     const hasState = typeof state !== 'undefined' && state;
     if (typeof window.resolveFolderInfo === 'function' && effectiveFolderId) {
       const info = window.resolveFolderInfo(effectiveFolderId);
@@ -333,6 +361,35 @@ function injectHierarchySupport(html: string): string {
       el.remove();
     });
 
+    // Injeta botão ✏️ (editar nome) ao lado da lixeira
+    let editBtn = card.querySelector('.mr-folder-card-top-rename');
+    if (!editBtn) {
+      editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'mr-folder-card-top-rename';
+      editBtn.title = 'Editar nome';
+      editBtn.setAttribute('data-mr-folder-rename', '1');
+      editBtn.setAttribute('data-mr-decorated', '1');
+      if (effectiveFolderId) editBtn.setAttribute('data-folder-id', effectiveFolderId);
+      if (cleanTitle) editBtn.setAttribute('data-folder-title', cleanTitle);
+      editBtn.textContent = '✏️';
+      editBtn.onclick = function(e) {
+        e.stopPropagation();
+        const effId = effectiveFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+        const effTitle = cleanTitle || titleText || '';
+        const isSub = card.classList.contains('mr-subfolder-card');
+        if (typeof window.openFolderRenameModal === 'function') {
+          window.openFolderRenameModal(effId, effTitle, isSub);
+        }
+      };
+      card.appendChild(editBtn);
+    } else {
+      editBtn.setAttribute('data-mr-decorated', '1');
+      if (editBtn.parentElement !== card) {
+        card.appendChild(editBtn);
+      }
+    }
+
     // Injeta botão 🗑 no canto superior direito como filho direto do cartão
     let delBtn = card.querySelector('.mr-folder-card-top-delete');
     if (!delBtn) {
@@ -476,6 +533,7 @@ function injectHierarchySupport(html: string): string {
         child !== headerEl &&
         child !== footerEl &&
         child !== delBtn &&
+        child !== editBtn &&
         child.getAttribute('data-mr-decorated') !== '1'
       ) {
         child.remove();
@@ -879,15 +937,15 @@ function injectHierarchySupport(html: string): string {
     }
     .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card, .mr-subfolder-card { position: relative !important; background: #ffffff !important; border-radius: 16px !important; border: 1.5px solid #d1fae5 !important; box-shadow: 0 3px 12px rgba(15,23,42,0.04) !important; cursor: pointer !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; width: 100% !important; height: 100% !important; min-height: 200px !important; box-sizing: border-box !important; padding: 1.15rem 1rem !important; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
     /* Neutralização total de qualquer posicionamento absoluto de conteúdo legado dentro dos cartões */
-    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
-    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
-    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
-    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
+    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
+    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
+    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
+    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
       display: none !important;
     }
     .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
     .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover, .mr-subfolder-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(22,163,74,0.14) !important; border-color: #86efac !important; }
-    .mr-folder-card-header, .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header, .mr-folder-card .mr-folder-card-header, .deck-card .mr-folder-card-header, .folder-card .mr-folder-card-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 42px !important; box-sizing: border-box !important; }
+    .mr-folder-card-header, .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header, .mr-folder-card .mr-folder-card-header, .deck-card .mr-folder-card-header, .folder-card .mr-folder-card-header, .mr-subfolder-card .mr-folder-card-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 88px !important; box-sizing: border-box !important; }
     .mr-tutoria-card .mr-folder-card-badge, .mr-folder-card .mr-folder-card-badge, .deck-card .mr-folder-card-badge, .folder-card .mr-folder-card-badge, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge { align-self: flex-start !important; margin-bottom: 0.15rem !important; }
     .mr-tutoria-card .mr-folder-card-title-wrap, .mr-folder-card .mr-folder-card-title-wrap, .deck-card .mr-folder-card-title-wrap, .folder-card .mr-folder-card-title-wrap, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap { width: 100% !important; display: block !important; }
     .mr-folder-card-icon { font-size: 1.2rem !important; line-height: 1 !important; display: inline-block !important; vertical-align: -0.1em !important; margin-right: 0.45rem !important; }
@@ -897,7 +955,8 @@ function injectHierarchySupport(html: string): string {
 
     /* Slot do botão 🗑 no canto superior direito de qualquer cartão de pasta */
     .mr-tutoria-card .mr-folder-card-top-delete,
-    .mr-folder-card .mr-folder-card-top-delete {
+    .mr-folder-card .mr-folder-card-top-delete,
+    .mr-subfolder-card .mr-folder-card-top-delete {
       position: absolute !important;
       top: 12px !important;
       right: 12px !important;
@@ -922,9 +981,46 @@ function injectHierarchySupport(html: string): string {
       transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease !important;
     }
     .mr-tutoria-card .mr-folder-card-top-delete:hover,
-    .mr-folder-card .mr-folder-card-top-delete:hover {
+    .mr-folder-card .mr-folder-card-top-delete:hover,
+    .mr-subfolder-card .mr-folder-card-top-delete:hover {
       background: #fee2e2 !important;
       border-color: #f87171 !important;
+    }
+
+    /* Slot do botão ✏️ ao lado do botão 🗑 no canto superior direito */
+    .mr-tutoria-card .mr-folder-card-top-rename,
+    .mr-folder-card .mr-folder-card-top-rename,
+    .mr-subfolder-card .mr-folder-card-top-rename {
+      position: absolute !important;
+      top: 12px !important;
+      right: 52px !important;
+      width: 34px !important;
+      height: 34px !important;
+      min-width: 34px !important;
+      min-height: 34px !important;
+      box-sizing: border-box !important;
+      z-index: 10 !important;
+      color: #2563eb !important;
+      background: #eff6ff !important;
+      border: 1px solid #bfdbfe !important;
+      border-radius: 8px !important;
+      padding: 0 !important;
+      font-size: 15px !important;
+      cursor: pointer !important;
+      line-height: 1 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-shadow: 0 1px 3px rgba(37,99,235,0.12) !important;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease !important;
+    }
+    .mr-tutoria-card .mr-folder-card-top-rename:hover,
+    .mr-folder-card .mr-folder-card-top-rename:hover,
+    .mr-subfolder-card .mr-folder-card-top-rename:hover {
+      background: #dbeafe !important;
+      border-color: #93c5fd !important;
+      color: #1d4ed8 !important;
+      transform: translateY(-1px) !important;
     }
 
     /* Rodapé padronizado em 2 linhas equilibradas para cartões de pasta */
@@ -1265,7 +1361,7 @@ function injectHierarchySupport(html: string): string {
   document.body.insertAdjacentHTML('beforeend', modalSubfolderHtml);
 
   // Injeta Modal de Confirmação de Exclusão de Pasta
-  const modalFolderDeleteHtml = \`
+  const modalFolderDeleteHtml = `
   <div id="mr-folder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderDeleteModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #fecaca; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #fee2e2; background:#fef2f2;">
@@ -1284,15 +1380,19 @@ function injectHierarchySupport(html: string): string {
         </div>
       </div>
     </div>
-  </div>\`;
+  </div>`;
   document.body.insertAdjacentHTML('beforeend', modalFolderDeleteHtml);
 
-  // Esc fecha modal de exclusão
+  // Esc fecha modal de exclusão e modal de renomear
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       const delModal = document.getElementById('mr-folder-delete-modal');
       if (delModal && delModal.style.display !== 'none' && delModal.style.display !== '') {
         closeFolderDeleteModal();
+      }
+      const renameModal = document.getElementById('mr-folder-rename-modal');
+      if (renameModal && renameModal.style.display !== 'none' && renameModal.style.display !== '') {
+        closeFolderRenameModal();
       }
     }
   });
@@ -1321,6 +1421,184 @@ function injectHierarchySupport(html: string): string {
     if (modal) modal.style.display = 'none';
   };
 
+  // Injeta Modal de Renomear Pasta / Subpasta
+  const modalFolderRenameHtml = `
+  <div id="mr-folder-rename-modal" style="display:none; position:fixed; inset:0; z-index:215; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeFolderRenameModal()">
+    <div class="mr-rename-card" style="background:#ffffff; border-radius:18px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.28); border:1.5px solid #bfdbfe; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
+      <div class="mr-rename-header" style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #dbeafe; background:#eff6ff;">
+        <h3 id="mr-folder-rename-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#1e40af; display:flex; align-items:center; gap:0.45rem;">
+          <span>✏️</span> Renomear Pasta
+        </h3>
+        <button type="button" onclick="closeFolderRenameModal()" style="background:none; border:none; font-size:1.45rem; cursor:pointer; color:#1e40af; line-height:1;" title="Fechar">&times;</button>
+      </div>
+      <form onsubmit="handleFolderRenameSubmit(event)" style="padding:1.35rem; margin:0;">
+        <div style="margin-bottom:1.3rem;">
+          <label for="mr-folder-rename-input" style="display:block; font-size:0.85rem; font-weight:700; color:#1e3a8a; margin-bottom:0.45rem;">
+            Novo nome da pasta:
+          </label>
+          <input type="text" id="mr-folder-rename-input" required placeholder="Digite o novo nome..." style="width:100%; box-sizing:border-box; padding:0.65rem 0.85rem; border:1.5px solid #bfdbfe; border-radius:9px; font-size:0.95rem; outline:none; transition:border-color 0.15s ease;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#bfdbfe'">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem;">
+          <button type="button" data-mr-rename-cancel="1" onclick="closeFolderRenameModal()" style="background:#f1f5f9; color:#475569; border:none; padding:0.55rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer;">Cancelar</button>
+          <button type="submit" data-mr-rename-confirm="1" style="background:#2563eb; color:#ffffff; border:none; padding:0.55rem 1.35rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; box-shadow:0 2px 6px rgba(37,99,235,0.25);">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', modalFolderRenameHtml);
+
+  // Controle do modal de renomear pasta
+  window.__pendingRenameFolderId = null;
+  window.__pendingRenameIsSubfolder = false;
+
+  window.openFolderRenameModal = function(folderId, currentTitle, isSubfolder) {
+    if (!folderId) return;
+    window.__pendingRenameFolderId = folderId;
+    const sfStore = getSubfolderStore();
+    const isSub = typeof isSubfolder === 'boolean' ? isSubfolder : !!(sfStore && sfStore[folderId]);
+    window.__pendingRenameIsSubfolder = isSub;
+
+    const titleEl = document.getElementById('mr-folder-rename-title');
+    if (titleEl) {
+      titleEl.innerHTML = isSub ? '<span>✏️</span> Renomear Subpasta' : '<span>✏️</span> Renomear Pasta';
+    }
+
+    let resolvedTitle = currentTitle || '';
+    if (!resolvedTitle) {
+      const info = typeof window.resolveFolderInfo === 'function' ? window.resolveFolderInfo(folderId) : null;
+      if (info && info.name) resolvedTitle = info.name;
+    }
+
+    const input = document.getElementById('mr-folder-rename-input');
+    if (input) {
+      input.value = (resolvedTitle || '').trim();
+    }
+
+    const modal = document.getElementById('mr-folder-rename-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 30);
+    }
+  };
+
+  window.closeFolderRenameModal = function() {
+    window.__pendingRenameFolderId = null;
+    window.__pendingRenameIsSubfolder = false;
+    const modal = document.getElementById('mr-folder-rename-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  window.handleFolderRenameSubmit = function(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    executeFolderRename();
+  };
+
+  window.executeFolderRename = function() {
+    const folderId = window.__pendingRenameFolderId;
+    if (!folderId) {
+      closeFolderRenameModal();
+      return;
+    }
+    const input = document.getElementById('mr-folder-rename-input');
+    const newName = (input && input.value ? input.value : '').trim();
+    if (!newName) return;
+
+    // 1. Sempre grava o override global
+    saveFolderNameOverride(folderId, newName);
+
+    // 2. Se for subpasta: getSubfolderStore()[id].name + persistSubfolders()
+    const sfStore = getSubfolderStore();
+    if (sfStore && sfStore[folderId]) {
+      sfStore[folderId].name = newName;
+      if (typeof state !== 'undefined' && state && state.subfolders && state.subfolders[folderId]) {
+        state.subfolders[folderId].name = newName;
+      }
+      persistSubfolders();
+    }
+
+    // 3. Pastas customizadas
+    if (typeof state !== 'undefined' && state) {
+      let stateMutated = false;
+      if (state.custom_root_folders && state.custom_root_folders[folderId]) {
+        state.custom_root_folders[folderId].name = newName;
+        stateMutated = true;
+      }
+      if (state.custom_tutoria_folders && state.custom_tutoria_folders[folderId]) {
+        state.custom_tutoria_folders[folderId].name = newName;
+        stateMutated = true;
+      }
+      if (state.custom_prova_folders && state.custom_prova_folders[folderId]) {
+        state.custom_prova_folders[folderId].name = newName;
+        stateMutated = true;
+      }
+
+      // 4. Pastas nativas (Tutoria numerada / Prova): atualiza in-memory mantendo ids intactos
+      if (state.tutorias_numbered && state.tutorias_numbered[folderId]) {
+        state.tutorias_numbered[folderId].title = newName;
+        state.tutorias_numbered[folderId].name = newName;
+        stateMutated = true;
+      }
+      if (state.provas && state.provas[folderId]) {
+        state.provas[folderId].title = newName;
+        state.provas[folderId].name = newName;
+        stateMutated = true;
+      }
+
+      if (stateMutated && typeof saveState === 'function') {
+        saveState();
+      }
+    }
+
+    // 5. Atualiza .mr-folder-card-title do cartão imediatamente no DOM
+    const allMatchingCards = document.querySelectorAll(
+      '[data-folder-id="' + folderId + '"], [data-deck-id="' + folderId + '"], [data-subfolder-id="' + folderId + '"]'
+    );
+    allMatchingCards.forEach(c => {
+      const t = c.querySelector('.mr-folder-card-title, .title, strong');
+      if (t) {
+        // Preserva o ícone caso exista span/svg
+        const iconSpan = t.querySelector('span');
+        if (iconSpan) {
+          const iconText = iconSpan.textContent || '';
+          t.innerHTML = '';
+          const newSpan = document.createElement('span');
+          newSpan.textContent = iconText;
+          t.appendChild(newSpan);
+          t.appendChild(document.createTextNode(' ' + newName));
+        } else {
+          t.textContent = newName;
+        }
+      }
+    });
+
+    // 6. Fechar modal
+    closeFolderRenameModal();
+
+    // 7. Toast: "Pasta renomeada."
+    if (typeof showMedReviewToast === 'function') {
+      showMedReviewToast('Pasta renomeada.', '', '✏️');
+    } else if (typeof showToast === 'function') {
+      showToast('Pasta renomeada.');
+    } else {
+      alert('Pasta renomeada.');
+    }
+
+    // 8. enhanceViews em rAF + 120ms + 300ms
+    requestAnimationFrame(() => {
+      enhanceViews();
+    });
+    setTimeout(() => {
+      enhanceViews();
+    }, 120);
+    setTimeout(() => {
+      enhanceViews();
+    }, 300);
+  };
   // Injeta Modal de Confirmação de Exclusão de SUBPASTA (Exclusão em cascata restrita)
   const modalSubfolderDeleteHtml = \`
   <div id="mr-subfolder-delete-modal" style="display:none; position:fixed; inset:0; z-index:210; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeSubfolderDeleteModal()">
@@ -1354,13 +1632,53 @@ function injectHierarchySupport(html: string): string {
     }
   });
 
-  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão (com guard para não registrar mais de uma vez)
-  if (!window.__mrDeleteListenerAttached && !window.__mrClickListenerRegistered) {
+  // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão e renomear (com guards para não registrar mais de uma vez)
+  if (!window.__mrDeleteListenerAttached && !window.__mrClickListenerRegistered && !window.__mrRenameListenerAttached) {
     window.__mrDeleteListenerAttached = true;
     window.__mrClickListenerRegistered = true;
+    window.__mrRenameListenerAttached = true;
     document.addEventListener('click', function(e) {
     const target = e.target;
     if (!target || !(target instanceof Element)) return;
+
+    // Trigger de renomear pasta / subpasta
+    const folderRenameTrigger = target.closest('[data-mr-folder-rename], .mr-folder-card-top-rename');
+    if (folderRenameTrigger) {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = folderRenameTrigger.closest('.mr-tutoria-card, .mr-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id]');
+      const fId = folderRenameTrigger.getAttribute('data-folder-id') ||
+                  (card ? (card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || card.getAttribute('data-subfolder-id')) : null);
+      const isSub = folderRenameTrigger.getAttribute('data-is-subfolder') === '1' ||
+                    (card ? card.classList.contains('mr-subfolder-card') : false);
+      const fTitle = folderRenameTrigger.getAttribute('data-folder-title') ||
+                     (card ? (card.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '') : '');
+      if (fId && typeof window.openFolderRenameModal === 'function') {
+        window.openFolderRenameModal(fId, fTitle, isSub);
+        return;
+      }
+    }
+
+    // Botões do modal de renomear
+    const renameConfirm = target.closest('[data-mr-rename-confirm]');
+    if (renameConfirm) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.executeFolderRename === 'function') {
+        window.executeFolderRename();
+      }
+      return;
+    }
+
+    const renameCancel = target.closest('[data-mr-rename-cancel]');
+    if (renameCancel) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.closeFolderRenameModal === 'function') {
+        window.closeFolderRenameModal();
+      }
+      return;
+    }
 
     const folderDeleteTrigger = target.closest('[data-mr-folder-delete], .mr-folder-card-top-delete');
     if (folderDeleteTrigger) {
@@ -1827,13 +2145,16 @@ function injectHierarchySupport(html: string): string {
   // 4. Resolvedor centralizado de informações de pasta
   window.resolveFolderInfo = function(targetId) {
     if (!targetId) return null;
+    const overrides = typeof getFolderNameOverrides === 'function' ? getFolderNameOverrides() : (window.getFolderNameOverrides ? window.getFolderNameOverrides() : {});
+    const overrideName = (overrides && overrides[targetId] && overrides[targetId].trim()) ? overrides[targetId].trim() : null;
+
     const hasState = typeof state !== 'undefined' && state;
 
     // Tutoria raiz
     if (targetId === 'tutoria') {
       return {
         id: 'tutoria',
-        name: 'Tutoria',
+        name: overrideName || 'Tutoria',
         parent: null,
         cards: (hasState && state.tutoria_highlight && state.tutoria_highlight.cards) || [],
         isRoot: true,
@@ -1844,7 +2165,7 @@ function injectHierarchySupport(html: string): string {
     if (targetId === 'provas') {
       return {
         id: 'provas',
-        name: 'Prova de Módulo',
+        name: overrideName || 'Prova de Módulo',
         parent: null,
         cards: [],
         isRoot: true,
@@ -1856,7 +2177,7 @@ function injectHierarchySupport(html: string): string {
       const obj = state.tutorias_numbered[targetId];
       return {
         id: targetId,
-        name: obj.title || obj.name || targetId.replace('_', ' ').toUpperCase(),
+        name: overrideName || obj.title || obj.name || targetId.replace('_', ' ').toUpperCase(),
         parent: 'tutoria',
         cards: obj.cards || [],
         raw: obj,
@@ -1868,7 +2189,7 @@ function injectHierarchySupport(html: string): string {
       const obj = state.provas[targetId];
       return {
         id: targetId,
-        name: obj.title || obj.name || targetId,
+        name: overrideName || obj.title || obj.name || targetId,
         parent: 'provas',
         cards: obj.cards || [],
         raw: obj,
@@ -1880,7 +2201,7 @@ function injectHierarchySupport(html: string): string {
       const obj = state.custom_tutoria_folders[targetId];
       return {
         id: targetId,
-        name: obj.name || obj.title || 'Pasta',
+        name: overrideName || obj.name || obj.title || 'Pasta',
         parent: obj.parent || 'tutoria',
         cards: obj.cards || [],
         raw: obj,
@@ -1892,7 +2213,7 @@ function injectHierarchySupport(html: string): string {
       const obj = state.custom_prova_folders[targetId];
       return {
         id: targetId,
-        name: obj.name || obj.title || 'Pasta',
+        name: overrideName || obj.name || obj.title || 'Pasta',
         parent: obj.parent || 'provas',
         cards: obj.cards || [],
         raw: obj,
@@ -1904,7 +2225,7 @@ function injectHierarchySupport(html: string): string {
       const obj = state.custom_root_folders[targetId];
       return {
         id: targetId,
-        name: obj.name || obj.title || 'Pasta',
+        name: overrideName || obj.name || obj.title || 'Pasta',
         parent: null,
         cards: obj.cards || [],
         raw: obj,
@@ -1917,11 +2238,21 @@ function injectHierarchySupport(html: string): string {
       const obj = sfStore[targetId];
       return {
         id: targetId,
-        name: obj.name || obj.title || 'Subpasta',
+        name: overrideName || obj.name || obj.title || 'Subpasta',
         parent: obj.parentId || obj.parent || null,
         cards: obj.cards || [],
         raw: obj,
         type: 'subfolder'
+      };
+    }
+
+    if (overrideName) {
+      return {
+        id: targetId,
+        name: overrideName,
+        parent: null,
+        cards: [],
+        type: 'custom'
       };
     }
 
@@ -3471,6 +3802,7 @@ function injectHierarchySupport(html: string): string {
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
+            <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${s.id}', '\${escapeHtml(s.name)}', true);" style="position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
             <button type="button" class="mr-folder-card-top-delete" title="Excluir pasta" data-mr-folder-delete="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${s.id}', '\${escapeHtml(s.name)}');" style="position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
               <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
@@ -3639,6 +3971,7 @@ function injectHierarchySupport(html: string): string {
         const cCount = subCards.length || (Array.isArray(s.cards) ? s.cards.length : 0);
         contentHtml += \`
           <div class="mr-folder-card mr-tutoria-card mr-subfolder-card" onclick="navigateTo('\${s.id}')" data-subfolder-id="\${s.id}" data-mr-folder-card="1" data-mr-folder-card-header="1" data-mr-folder-card-footer="1" data-mr-folder-top-delete="1" style="position:relative;">
+            <button type="button" class="mr-folder-card-top-rename" title="Editar nome" data-mr-folder-rename="1" data-is-subfolder="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderRenameModal('\${s.id}', '\${escapeHtml(s.name)}', true);" style="position:absolute; top:12px; right:52px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(37,99,235,0.12);">✏️</button>
             <button type="button" class="mr-folder-card-top-delete" title="Excluir pasta" data-mr-folder-delete="1" data-folder-id="\${s.id}" data-folder-title="\${escapeHtml(s.name)}" onclick="event.stopPropagation(); window.openFolderDeleteModal('\${s.id}', '\${escapeHtml(s.name)}');" style="position:absolute; top:12px; right:12px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);">🗑</button>
             <div class="mr-folder-card-header mr-tutoria-header">
               <span class="mr-folder-card-badge" style="align-self:flex-start; margin-bottom:0.15rem;">Subpasta</span>
@@ -3885,7 +4218,34 @@ function injectHierarchySupport(html: string): string {
             }
           };
 
-          // Injeção do botão 🗑 no canto superior direito do cartão de subpasta
+          // Injeção dos botões ✏️ e 🗑 no canto superior direito do cartão de subpasta
+          let editBtnSub = sCard.querySelector('.mr-folder-card-top-rename');
+          if (!editBtnSub) {
+            const currentPos = window.getComputedStyle(sCard).position;
+            if (!currentPos || currentPos === 'static') {
+              sCard.style.position = 'relative';
+            }
+            editBtnSub = document.createElement('button');
+            editBtnSub.type = 'button';
+            editBtnSub.className = 'mr-folder-card-top-rename';
+            editBtnSub.title = 'Editar nome';
+            editBtnSub.setAttribute('data-mr-folder-rename', '1');
+            editBtnSub.setAttribute('data-is-subfolder', '1');
+            editBtnSub.setAttribute('data-mr-decorated', '1');
+            editBtnSub.setAttribute('data-folder-id', subId);
+            const subTitleTxt = (sCard.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '').trim();
+            if (subTitleTxt) editBtnSub.setAttribute('data-folder-title', subTitleTxt);
+            editBtnSub.textContent = '✏️';
+            editBtnSub.onclick = function(e) {
+              e.stopPropagation();
+              const curTitle = (sCard.querySelector('.mr-folder-card-title, .title, strong')?.textContent || '').trim();
+              if (typeof window.openFolderRenameModal === 'function') {
+                window.openFolderRenameModal(subId, curTitle, true);
+              }
+            };
+            sCard.appendChild(editBtnSub);
+          }
+
           if (sCard.getAttribute('data-mr-folder-top-delete') !== '1' && !sCard.querySelector('.mr-folder-card-top-delete')) {
             const currentPos = window.getComputedStyle(sCard).position;
             if (!currentPos || currentPos === 'static') {
@@ -3925,6 +4285,55 @@ function injectHierarchySupport(html: string): string {
         // Remoção incondicional de tags de imagem e mídias nativas quebradas do snapshot
         card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
 
+        // Determina id da pasta para exclusão/renomeação
+        const rawOnclick = card.getAttribute('onclick') || '';
+        const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
+                        rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
+                        rawOnclick.match(/tutoria_d+/i);
+        const rawTitleCard = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
+        const titleCardTxt = (rawTitleCard?.textContent || card.getAttribute('data-folder-name') || '').trim();
+        const cardTutoriaMatch = titleCardTxt.match(/tutorias*(d+)/i);
+        const cardTutoriaId = cardTutoriaMatch ? ('tutoria_' + cardTutoriaMatch[1]) : null;
+
+        const cardFolderId = card.getAttribute('data-folder-id') ||
+                             card.getAttribute('data-deck-id') ||
+                             card.getAttribute('data-subfolder-id') ||
+                             (idMatch ? idMatch[1] || idMatch[0] : null) ||
+                             cardTutoriaId;
+
+        // Injeção do botão ✏️ (editar nome) ao lado da lixeira em todo .mr-folder-card
+        let editBtnCard = card.querySelector('.mr-folder-card-top-rename');
+        if (!editBtnCard) {
+          const currentPos = window.getComputedStyle(card).position;
+          if (!currentPos || currentPos === 'static') {
+            card.style.position = 'relative';
+          }
+          editBtnCard = document.createElement('button');
+          editBtnCard.type = 'button';
+          editBtnCard.className = 'mr-folder-card-top-rename';
+          editBtnCard.title = 'Editar nome';
+          editBtnCard.setAttribute('data-mr-folder-rename', '1');
+          editBtnCard.setAttribute('data-mr-decorated', '1');
+          if (cardFolderId) editBtnCard.setAttribute('data-folder-id', cardFolderId);
+          if (titleCardTxt) editBtnCard.setAttribute('data-folder-title', titleCardTxt);
+          editBtnCard.textContent = '✏️';
+          editBtnCard.onclick = function(e) {
+            e.stopPropagation();
+            const effId = cardFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+            const effTitle = titleCardTxt || card.getAttribute('data-folder-name') || '';
+            const isSub = card.classList.contains('mr-subfolder-card');
+            if (typeof window.openFolderRenameModal === 'function') {
+              window.openFolderRenameModal(effId, effTitle, isSub);
+            }
+          };
+          card.appendChild(editBtnCard);
+        } else {
+          editBtnCard.setAttribute('data-mr-decorated', '1');
+          if (editBtnCard.parentElement !== card) {
+            card.appendChild(editBtnCard);
+          }
+        }
+
         // Injeção do botão 🗑 no canto superior direito de todo .mr-folder-card (com guard de duplicidade)
         if (card.getAttribute('data-mr-folder-top-delete') !== '1' && !card.querySelector('.mr-folder-card-top-delete')) {
           // Garante position:relative inline no cartão
@@ -3932,22 +4341,6 @@ function injectHierarchySupport(html: string): string {
           if (!currentPos || currentPos === 'static') {
             card.style.position = 'relative';
           }
-
-          // Determina id da pasta para exclusão
-          const rawOnclick = card.getAttribute('onclick') || '';
-          const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
-                          rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
-                          rawOnclick.match(/tutoria_d+/i);
-          const rawTitleCard = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
-          const titleCardTxt = (rawTitleCard?.textContent || card.getAttribute('data-folder-name') || '').trim();
-          const cardTutoriaMatch = titleCardTxt.match(/tutorias*(d+)/i);
-          const cardTutoriaId = cardTutoriaMatch ? ('tutoria_' + cardTutoriaMatch[1]) : null;
-
-          const cardFolderId = card.getAttribute('data-folder-id') ||
-                               card.getAttribute('data-deck-id') ||
-                               card.getAttribute('data-subfolder-id') ||
-                               (idMatch ? idMatch[1] || idMatch[0] : null) ||
-                               cardTutoriaId;
 
           const delBtn = document.createElement('button');
           delBtn.type = 'button';

@@ -345,20 +345,20 @@
 /* Ocultação estrita e completa de elementos e wrappers nativos do snapshot */
 .mr-tutoria-card
   > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
-    [data-mr-decorated]
-  ),
+    .mr-folder-card-top-rename
+  ):not([data-mr-decorated]),
 .mr-folder-card
   > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
-    [data-mr-decorated]
-  ),
+    .mr-folder-card-top-rename
+  ):not([data-mr-decorated]),
 .deck-card
   > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
-    [data-mr-decorated]
-  ),
+    .mr-folder-card-top-rename
+  ):not([data-mr-decorated]),
 .folder-card
   > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
-    [data-mr-decorated]
-  ) {
+    .mr-folder-card-top-rename
+  ):not([data-mr-decorated]) {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;
@@ -373,21 +373,21 @@
 
 /* Neutralização total de posicionamentos absolutos ou wrappers aninhados no cartão */
 .mr-tutoria-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(
-    .mr-folder-card-footer *
-  ):not(.mr-folder-card-header *)[style*='position: absolute'],
+  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
+    .mr-folder-card-footer
+  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
 .mr-tutoria-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(
-    .mr-folder-card-footer *
-  ):not(.mr-folder-card-header *)[style*='position:absolute'],
+  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
+    .mr-folder-card-footer
+  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'],
 .mr-folder-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(
-    .mr-folder-card-footer *
-  ):not(.mr-folder-card-header *)[style*='position: absolute'],
+  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
+    .mr-folder-card-footer
+  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
 .mr-folder-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(
-    .mr-folder-card-footer *
-  ):not(.mr-folder-card-header *)[style*='position:absolute'] {
+  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
+    .mr-folder-card-footer
+  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'] {
   display: none !important;
 }
 
@@ -426,10 +426,11 @@
   pointer-events: none !important;
 }
 
-/* Cabeçalho do Cartão: chip/badge acima, título com ícone abaixo em linha de largura total */
+/* Cabeçalho do Cartão: chip/badge acima, título com ícone abaixo em linha de largura total (88px de padding-right para os botões ✏️ e 🗑) */
 .mr-tutoria-card .mr-folder-card-header,
 .mr-folder-card-header.mr-tutoria-header,
-.mr-folder-card .mr-folder-card-header {
+.mr-folder-card .mr-folder-card-header,
+.mr-subfolder-card .mr-folder-card-header {
   display: flex !important;
   flex-direction: column !important;
   align-items: flex-start !important;
@@ -438,7 +439,7 @@
   margin-bottom: 0.85rem !important;
   width: 100% !important;
   min-width: 0 !important;
-  padding-right: 42px !important;
+  padding-right: 88px !important;
   box-sizing: border-box !important;
 }
 
@@ -533,10 +534,85 @@
 }
 
 .mr-tutoria-card .mr-folder-card-top-delete:hover,
-.mr-folder-card .mr-folder-card-top-delete:hover {
+.mr-folder-card .mr-folder-card-top-delete:hover,
+.mr-subfolder-card .mr-folder-card-top-delete:hover {
   background: #fee2e2 !important;
   border-color: #f87171 !important;
   transform: translateY(-1px) !important;
+}
+
+/* Slot do botão ✏️ (editar nome) ao lado do botão 🗑 no canto superior direito */
+.mr-tutoria-card .mr-folder-card-top-rename,
+.mr-folder-card .mr-folder-card-top-rename,
+.mr-subfolder-card .mr-folder-card-top-rename {
+  position: absolute !important;
+  top: 12px !important;
+  right: 52px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  box-sizing: border-box !important;
+  z-index: 10 !important;
+  color: #2563eb !important;
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  font-size: 15px !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12) !important;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease !important;
+}
+
+.mr-tutoria-card .mr-folder-card-top-rename:hover,
+.mr-folder-card .mr-folder-card-top-rename:hover,
+.mr-subfolder-card .mr-folder-card-top-rename:hover {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Modal de renomear pasta/subpasta */
+#mr-folder-rename-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 215;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+#mr-folder-rename-modal .mr-rename-card {
+  background: #ffffff;
+  border-radius: 18px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  border: 1.5px solid #bfdbfe;
+  overflow: hidden;
+  animation: mr-fade-up 0.2s ease-out;
+}
+
+#mr-folder-rename-modal .mr-rename-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem 1.35rem;
+  border-bottom: 1px solid #dbeafe;
+  background: #eff6ff;
 }
 
 /* Divisor pontilhado e rodapé de cartões de pasta (.mr-tutoria-card e .mr-folder-card) */
