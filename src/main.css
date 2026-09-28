@@ -505,7 +505,10 @@
 
 /* Slot do botão 🗑 no canto superior direito */
 .mr-tutoria-card .mr-folder-card-top-delete,
-.mr-folder-card .mr-folder-card-top-delete {
+.mr-folder-card .mr-folder-card-top-delete,
+.mr-subfolder-card .mr-folder-card-top-delete,
+[data-mr-folder-delete],
+[data-mr-sub-delete] {
   position: absolute !important;
   top: 12px !important;
   right: 12px !important;
@@ -515,6 +518,7 @@
   min-height: 34px !important;
   box-sizing: border-box !important;
   z-index: 10 !important;
+  pointer-events: auto !important;
   color: #dc2626 !important;
   background: #fef2f2 !important;
   border: 1px solid #fecaca !important;
@@ -535,7 +539,9 @@
 
 .mr-tutoria-card .mr-folder-card-top-delete:hover,
 .mr-folder-card .mr-folder-card-top-delete:hover,
-.mr-subfolder-card .mr-folder-card-top-delete:hover {
+.mr-subfolder-card .mr-folder-card-top-delete:hover,
+[data-mr-folder-delete]:hover,
+[data-mr-sub-delete]:hover {
   background: #fee2e2 !important;
   border-color: #f87171 !important;
   transform: translateY(-1px) !important;
@@ -544,7 +550,8 @@
 /* Slot do botão ✏️ (editar nome) ao lado do botão 🗑 no canto superior direito */
 .mr-tutoria-card .mr-folder-card-top-rename,
 .mr-folder-card .mr-folder-card-top-rename,
-.mr-subfolder-card .mr-folder-card-top-rename {
+.mr-subfolder-card .mr-folder-card-top-rename,
+[data-mr-folder-rename] {
   position: absolute !important;
   top: 12px !important;
   right: 52px !important;
@@ -554,6 +561,7 @@
   min-height: 34px !important;
   box-sizing: border-box !important;
   z-index: 10 !important;
+  pointer-events: auto !important;
   color: #2563eb !important;
   background: #eff6ff !important;
   border: 1px solid #bfdbfe !important;
@@ -575,7 +583,8 @@
 
 .mr-tutoria-card .mr-folder-card-top-rename:hover,
 .mr-folder-card .mr-folder-card-top-rename:hover,
-.mr-subfolder-card .mr-folder-card-top-rename:hover {
+.mr-subfolder-card .mr-folder-card-top-rename:hover,
+[data-mr-folder-rename]:hover {
   background: #dbeafe !important;
   border-color: #93c5fd !important;
   color: #1d4ed8 !important;
