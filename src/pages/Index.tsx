@@ -323,7 +323,7 @@ function injectHierarchySupport(html: string): string {
           '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
           '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
           '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta">🗑</button>' +
+          '<button type="button" class="mr-folder-card-btn-delete" title="Excluir pasta" data-mr-folder-delete="1" data-folder-id="' + (effectiveFolderId || '') + '" data-folder-title="' + (cleanTitle ? cleanTitle.replace(/"/g, '&quot;') : '') + '" style="flex: 0 0 34px; width: 34px; height: 34px; min-width: 34px; min-height: 34px; border-radius: 8px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; font-size: 15px;">🗑</button>' +
         '</div>';
       const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
       if (resetBtn) {
@@ -382,8 +382,9 @@ function injectHierarchySupport(html: string): string {
         delBtnFooter.onclick = function(e) {
           e.stopPropagation();
           const effId = effectiveFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+          const effTitle = cleanTitle || titleText || '';
           if (typeof window.openFolderDeleteModal === 'function') {
-            window.openFolderDeleteModal(effId);
+            window.openFolderDeleteModal(effId, effTitle);
           }
         };
       }
@@ -836,11 +837,33 @@ function injectHierarchySupport(html: string): string {
     }
     .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete,
     .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
-    .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete {
+    .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+    .mr-folder-card-btn-delete {
       flex: 0 0 34px !important;
       width: 34px !important;
+      height: 34px !important;
       min-width: 34px !important;
+      min-height: 34px !important;
+      border-radius: 8px !important;
       padding: 0 !important;
+      background: #fef2f2 !important;
+      color: #dc2626 !important;
+      border: 1px solid #fecaca !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      font-size: 15px !important;
+      line-height: 1 !important;
+      box-sizing: border-box !important;
+    }
+    .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
+    .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
+    .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
+    .mr-folder-card-btn-delete:hover {
+      background: #fee2e2 !important;
+      border-color: #f87171 !important;
+      color: #b91c1c !important;
     }
   \`;
   document.head.appendChild(styleEl);
@@ -4011,7 +4034,7 @@ function injectHierarchySupport(html: string): string {
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" title="Resetar progresso das cartas">🔄 Resetar</button>' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" title="Adicionar carta nesta pasta">+ Carta</button>' +
               '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-delete" title="Excluir pasta">🗑</button>' +
+              '<button type="button" class="mr-folder-card-btn-delete" title="Excluir pasta" data-mr-folder-delete="1" data-folder-id="' + (effectiveFolderId || '') + '" data-folder-title="' + (cleanTitle ? cleanTitle.replace(/"/g, '&quot;') : '') + '" style="flex: 0 0 34px; width: 34px; height: 34px; min-width: 34px; min-height: 34px; border-radius: 8px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; font-size: 15px;">🗑</button>' +
             '</div>';
           const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
           if (resetBtn) {
@@ -4099,7 +4122,11 @@ function injectHierarchySupport(html: string): string {
           if (deleteBtn) {
             deleteBtn.onclick = function(e) {
               e.stopPropagation();
-              if (nativeDeleteHandler) {
+              const effId = effectiveFolderId || card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id');
+              const effTitle = cleanTitle || titleText || '';
+              if (typeof window.openFolderDeleteModal === 'function') {
+                window.openFolderDeleteModal(effId, effTitle);
+              } else if (nativeDeleteHandler) {
                 nativeDeleteHandler.call(deleteBtn, e);
               } else if (nativeDeleteOnclick) {
                 try {
@@ -4108,23 +4135,23 @@ function injectHierarchySupport(html: string): string {
                 } catch (err) {
                   console.warn('Erro ao disparar exclusão nativa da pasta:', err);
                 }
-              } else if (typeof window.deleteDeck === 'function' && effectiveFolderId) {
-                window.deleteDeck(effectiveFolderId);
-              } else if (typeof window.deleteFolder === 'function' && effectiveFolderId) {
-                window.deleteFolder(effectiveFolderId);
+              } else if (typeof window.deleteDeck === 'function' && effId) {
+                window.deleteDeck(effId);
+              } else if (typeof window.deleteFolder === 'function' && effId) {
+                window.deleteFolder(effId);
               } else {
                 const conf = window.confirm('Deseja realmente excluir esta pasta e suas cartas?');
                 if (!conf) return;
                 const sfStore = getSubfolderStore();
-                if (effectiveFolderId && sfStore[effectiveFolderId]) {
-                  delete sfStore[effectiveFolderId];
+                if (effId && sfStore[effId]) {
+                  delete sfStore[effId];
                   persistSubfolders();
                   if (typeof saveSubfolderStore === 'function') saveSubfolderStore(sfStore);
                   if (typeof saveState === 'function') saveState();
                   if (typeof showToast === 'function') showToast('Pasta excluída com sucesso!');
                   if (typeof renderRoute === 'function') renderRoute();
-                } else if (effectiveFolderId && state.custom_tutoria_folders && state.custom_tutoria_folders[effectiveFolderId]) {
-                  delete state.custom_tutoria_folders[effectiveFolderId];
+                } else if (effId && state.custom_tutoria_folders && state.custom_tutoria_folders[effId]) {
+                  delete state.custom_tutoria_folders[effId];
                   if (typeof saveState === 'function') saveState();
                   if (typeof showToast === 'function') showToast('Pasta excluída com sucesso!');
                   if (typeof renderRoute === 'function') renderRoute();

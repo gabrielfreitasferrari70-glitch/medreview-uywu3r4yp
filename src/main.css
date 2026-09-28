@@ -575,19 +575,32 @@
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
-.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete {
+.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+.mr-folder-card-btn-delete {
   flex: 0 0 34px !important;
   width: 34px !important;
+  height: 34px !important;
   min-width: 34px !important;
+  min-height: 34px !important;
+  border-radius: 8px !important;
   padding: 0 !important;
   background: #fef2f2 !important;
   color: #dc2626 !important;
   border: 1px solid #fecaca !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
-.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover {
+.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete:hover,
+.mr-folder-card-btn-delete:hover {
   background: #fee2e2 !important;
   border-color: #f87171 !important;
+  color: #b91c1c !important;
 }
