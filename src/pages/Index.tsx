@@ -167,11 +167,21 @@ function injectHierarchySupport(html: string): string {
     // Se já estiver completamente decorado e nada tiver mudado, pula
     if (card.getAttribute('data-mr-folder-card-header') === '1' &&
         card.getAttribute('data-mr-folder-card-footer') === '1' &&
-        card.getAttribute('data-mr-folder-top-delete') === '1' &&
+        card.querySelector('.mr-folder-card-top-delete') &&
         card.classList.contains('mr-tutoria-card')) {
       return;
     }
-    const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
+
+    const prevFlag = window.__mrInjectingDelete;
+    window.__mrInjectingDelete = true;
+    try {
+      _executeDecorateCardElementImmediately(card);
+    } finally {
+      window.__mrInjectingDelete = prevFlag;
+    }
+  }
+
+  function _executeDecorateCardElementImmediately(card) {    const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
     const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
 
     const onclickAttr = card.getAttribute('onclick') || '';
@@ -1192,7 +1202,8 @@ function injectHierarchySupport(html: string): string {
   });
 
   // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão (com guard para não registrar mais de uma vez)
-  if (!window.__mrClickListenerRegistered) {
+  if (!window.__mrDeleteListenerAttached && !window.__mrClickListenerRegistered) {
+    window.__mrDeleteListenerAttached = true;
     window.__mrClickListenerRegistered = true;
     document.addEventListener('click', function(e) {
     const target = e.target;
@@ -1402,11 +1413,9 @@ function injectHierarchySupport(html: string): string {
       renderRoute();
     }
 
-    // Rede de segurança com rAF + 120ms + 300ms de enhanceViews
+    // Passe único delimitado de enhanceViews
     requestAnimationFrame(() => {
       enhanceViews();
-      setTimeout(enhanceViews, 120);
-      setTimeout(enhanceViews, 300);
     });
   };
 
@@ -1592,7 +1601,7 @@ function injectHierarchySupport(html: string): string {
       alert(toastMsg);
     }
 
-    // 8. Re-render seguro: requestAnimationFrame + setTimeout(enhanceViews,120) + setTimeout(enhanceViews,300)
+    // 8. Re-render seguro: requestAnimationFrame com passe único
     const currentSubWrapper = document.getElementById('mr-subfolder-wrapper');
     if (currentSubWrapper && currentSubWrapper.style.display !== 'none') {
       if (typeof window.navigateTo === 'function') {
@@ -1606,8 +1615,6 @@ function injectHierarchySupport(html: string): string {
 
     requestAnimationFrame(() => {
       enhanceViews();
-      setTimeout(enhanceViews, 120);
-      setTimeout(enhanceViews, 300);
     });
   };
 
@@ -2795,8 +2802,6 @@ function injectHierarchySupport(html: string): string {
     navigateTo(subfolderId);
     requestAnimationFrame(() => {
       enhanceViews();
-      setTimeout(enhanceViews, 120);
-      setTimeout(enhanceViews, 300);
     });
   };
 
@@ -2838,8 +2843,6 @@ function injectHierarchySupport(html: string): string {
       origNavigateTo(target);
       requestAnimationFrame(() => {
         enhanceViews();
-        setTimeout(enhanceViews, 120);
-        setTimeout(enhanceViews, 300);
       });
     }
   };
@@ -3379,12 +3382,7 @@ function injectHierarchySupport(html: string): string {
       enhanceViews();
       setTimeout(() => {
         if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
-        enhanceViews();
       }, 120);
-      setTimeout(() => {
-        if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
-        enhanceViews();
-      }, 300);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -3597,12 +3595,7 @@ function injectHierarchySupport(html: string): string {
       enhanceViews();
       setTimeout(() => {
         if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
-        enhanceViews();
       }, 120);
-      setTimeout(() => {
-        if (sw && sw.style.display !== 'none') hideNativeContentForSubfolder(sw);
-        enhanceViews();
-      }, 300);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -3701,12 +3694,14 @@ function injectHierarchySupport(html: string): string {
   // 13. Decorador de telas padrão (Tutoria, Provas, Módulos, etc.)
   let mrEnhanceRunning = false;
   function enhanceViews() {
-    if (mrEnhanceRunning) return;
+    if (mrEnhanceRunning || window.__mrInjectingDelete) return;
     mrEnhanceRunning = true;
+    window.__mrInjectingDelete = true;
     try {
       _executeEnhanceViews();
     } finally {
       mrEnhanceRunning = false;
+      window.__mrInjectingDelete = false;
     }
   }
 
@@ -4487,29 +4482,37 @@ function injectHierarchySupport(html: string): string {
     if (typeof origRoute === 'function') {
       origRoute();
     }
-    setTimeout(enhanceViews, 20);
+    requestAnimationFrame(() => {
+      enhanceViews();
+    });
   };
 
-  // Observador de mutações com debounce e desconexão de instância anterior
+  // Observador de mutações com debounce, desconexão prévia e flag de reentrância
+  if (window.__mrObserver) {
+    try { window.__mrObserver.disconnect(); } catch { /* intentionally ignored */ }
+  }
   if (window.__mrMutationObserver) {
     try { window.__mrMutationObserver.disconnect(); } catch { /* intentionally ignored */ }
   }
   let mrMutationTimer = null;
   const observer = new MutationObserver((mutations) => {
-    suppressNativeStatsModal();
+    // Ignora se estivermos no meio de injeção/decoração para quebrar reentrância
+    if (window.__mrInjectingDelete) return;
+
     // Higienização incondicional de nós adicionados pelo snapshot externo
+    let hasRelevantMutation = false;
     try {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node;
-            // Ignora mutações geradas por nossos próprios componentes para quebrar loops
-            if (el.classList && (
-              el.classList.contains('mr-folder-card-top-delete') ||
-              el.classList.contains('mr-folder-card-header') ||
-              el.classList.contains('mr-folder-card-footer') ||
-              el.classList.contains('mr-breadcrumb-bar')
+            // Ignora mutações geradas por nossos próprios componentes ou que contenham .mr-folder-card-top-delete
+            if (el.matches && (
+              el.matches('.mr-folder-card-top-delete, [data-mr-folder-delete], .mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, #mr-subfolder-delete-modal, #mr-folder-delete-modal')
             )) {
+              return;
+            }
+            if (el.querySelector && el.querySelector('.mr-folder-card-top-delete, [data-mr-folder-delete]')) {
               return;
             }
             // Remove painéis e estatísticas antigas soltas injetadas pelo snapshot
@@ -4532,11 +4535,12 @@ function injectHierarchySupport(html: string): string {
               });
             }
             recycledCards.forEach(card => {
-              // Só limpa se o card foi substituído de fato e não contém nossos elementos
-              if (!card.querySelector('.mr-folder-card-header') || !card.querySelector('.mr-folder-card-footer')) {
+              // Só limpa se o card foi substituído de fato pelo snapshot nativo e perdeu nossos elementos
+              if (!card.querySelector('.mr-folder-card-header') || !card.querySelector('.mr-folder-card-footer') || !card.querySelector('.mr-folder-card-top-delete')) {
                 card.removeAttribute('data-mr-folder-card-header');
                 card.removeAttribute('data-mr-folder-card-footer');
                 card.removeAttribute('data-mr-folder-top-delete');
+                hasRelevantMutation = true;
               }
             });
           }
@@ -4546,14 +4550,21 @@ function injectHierarchySupport(html: string): string {
       console.warn('Erro ao higienizar mutações:', e);
     }
 
+    if (!hasRelevantMutation && document.querySelector('.mr-folder-card-top-delete')) {
+      return;
+    }
+
     if (!mrMutationTimer) {
       mrMutationTimer = setTimeout(() => {
         mrMutationTimer = null;
-        enhanceViews();
-        removePastasNavButton();
+        if (!window.__mrInjectingDelete) {
+          enhanceViews();
+          removePastasNavButton();
+        }
       }, 50);
     }
   });
+  window.__mrObserver = observer;
   window.__mrMutationObserver = observer;
   observer.observe(document.body, { childList: true, subtree: true });
 
