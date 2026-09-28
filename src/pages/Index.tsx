@@ -1675,8 +1675,6 @@ function injectHierarchySupport(html: string): string {
 
   // Listener permanente em document com capture:true para delegação robusta dos modais de exclusão e renomear (idempotente e incondicional no boot)
   function attachPermanentCardActionsListener() {
-    if (window.__mrTopActionsBound) return;
-    window.__mrTopActionsBound = true;
 
     const handler = function(e) {
       console.log('[mr] click captured', e.target);
@@ -5965,6 +5963,45 @@ function injectHierarchySupport(html: string): string {
   // Vigia/captura global de cliques ou renderizações para garantir que o botão Pastas não reapareça
   document.addEventListener('DOMContentLoaded', removePastasNavButton);
   window.addEventListener('load', removePastasNavButton);
+
+  if (!window.__mrTopActionsBound) {
+    window.__mrTopActionsBound = true;
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target : null;
+      if (!t) return;
+      var el, fn;
+      if ((el = e.target.closest('[data-mr-folder-delete],[data-mr-sub-delete]'))) {
+        e.preventDefault(); e.stopPropagation();
+        try { fn = window.openFolderDeleteModal; if (fn) fn(el); else console.error('[mr] openFolderDeleteModal ausente'); } catch (err) { console.error('[mr] delete open', err); }
+        return;
+      }
+      if ((el = e.target.closest('[data-mr-folder-rename]'))) {
+        e.preventDefault(); e.stopPropagation();
+        try { fn = window.openFolderRenameModal; if (fn) fn(el); else console.error('[mr] openFolderRenameModal ausente'); } catch (err) { console.error('[mr] rename open', err); }
+        return;
+      }
+      if ((el = e.target.closest('[data-mr-delete-confirm],[data-mr-sub-delete-confirm]'))) {
+        e.preventDefault(); e.stopPropagation();
+        try { fn = el.closest('#mr-subfolder-delete-modal') ? window.executeSubfolderDelete : window.executeFolderDelete; if (fn) fn(); else console.error('[mr] execute delete ausente'); } catch (err) { console.error('[mr] delete confirm', err); }
+        return;
+      }
+      if ((el = e.target.closest('[data-mr-delete-cancel],[data-mr-sub-delete-cancel]'))) {
+        e.preventDefault(); e.stopPropagation();
+        try { fn = el.closest('#mr-subfolder-delete-modal') ? window.closeSubfolderDeleteModal : window.closeFolderDeleteModal; if (fn) fn(); } catch (err) { console.error('[mr] delete cancel', err); }
+        return;
+      }
+      if ((el = e.target.closest('[data-mr-rename-confirm]'))) {
+        e.preventDefault(); e.stopPropagation();
+        try { fn = window.executeFolderRename; if (fn) fn(); else console.error('[mr] executeFolderRename ausente'); } catch (err) { console.error('[mr] rename confirm', err); }
+        return;
+      }
+      if ((el = e.target.closest('[data-mr-rename-cancel]'))) {
+        e.preventDefault(); e.stopPropagation();
+        try { fn = window.closeFolderRenameModal; if (fn) fn(); } catch (err) { console.error('[mr] rename cancel', err); }
+        return;
+      }
+    }, true);
+  }
 
 })();
 </script>
