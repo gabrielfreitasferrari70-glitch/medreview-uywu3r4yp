@@ -390,6 +390,25 @@ body .folder-stats:not(#global-stats-modal *) {
   pointer-events: none !important;
 }
 
+/* Supressão profunda de qualquer botão/link nativo não autorizado dentro de .mr-subfolder-card */
+.mr-subfolder-card
+  button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(
+    .mr-folder-card-btn-action
+  ):not(.mr-folder-card-btn-subfolder),
+.mr-subfolder-card
+  a:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(
+    .mr-folder-card-btn-action
+  ):not(.mr-folder-card-btn-subfolder),
+.mr-subfolder-card
+  [role='button']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(
+    .mr-folder-card-btn-action
+  ):not(.mr-folder-card-btn-subfolder) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Neutralização total de posicionamentos absolutos ou wrappers aninhados no cartão */
 .mr-tutoria-card
   *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
@@ -404,6 +423,14 @@ body .folder-stats:not(#global-stats-modal *) {
     .mr-folder-card-footer
   ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
 .mr-folder-card
+  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
+    .mr-folder-card-footer
+  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'],
+.mr-subfolder-card
+  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
+    .mr-folder-card-footer
+  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
+.mr-subfolder-card
   *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
     .mr-folder-card-footer
   ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'] {
@@ -799,9 +826,11 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-subfolder-card .mr-folder-card-btn-subfolder {
   flex: 0 0 auto !important;
   margin-left: auto !important;
-  padding: 0 0.85rem !important;
-  box-sizing: border-box !important;
+  margin-right: 0 !important;
+  padding: 0 0.65rem !important;
   max-width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-subfolder:hover,

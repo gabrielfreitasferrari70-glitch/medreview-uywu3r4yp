@@ -839,7 +839,7 @@ function injectHierarchySupport(html: string): string {
     .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1.5px dashed #cbd5e1 !important; }
     .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; min-width: 0 !important; }
     .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; width: 100% !important; flex-wrap: wrap !important; margin-left: 0 !important; box-sizing: border-box !important; }
-    .mr-subfolder-card .mr-folder-card-btn-subfolder { flex: 0 0 auto !important; margin-left: auto !important; padding: 0 0.85rem !important; }
+    .mr-subfolder-card .mr-folder-card-btn-subfolder { flex: 0 0 auto !important; margin-left: auto !important; margin-right: 0 !important; padding: 0 0.65rem !important; max-width: 100% !important; box-sizing: border-box !important; white-space: nowrap !important; }
     .mr-subfolder-card:hover {
       border-color: #16a34a;
       transform: translateY(-2px);
@@ -896,6 +896,16 @@ function injectHierarchySupport(html: string): string {
       text-align: left;
       transition: all 0.16s ease;
       width: 100%;
+    }
+
+    /* Supressão profunda de qualquer botão/link nativo não autorizado dentro de .mr-subfolder-card */
+    .mr-subfolder-card button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-btn-action):not(.mr-folder-card-btn-subfolder),
+    .mr-subfolder-card a:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-btn-action):not(.mr-folder-card-btn-subfolder),
+    .mr-subfolder-card [role="button"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-btn-action):not(.mr-folder-card-btn-subfolder) {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
 
     /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
@@ -957,7 +967,9 @@ function injectHierarchySupport(html: string): string {
     .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
     .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
     .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
-    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
+    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
+    .mr-subfolder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
+    .mr-subfolder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
       display: none !important;
     }
     .mr-folder-card::before, .mr-tutoria-card::before, .mr-subfolder-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
@@ -5160,12 +5172,12 @@ function injectHierarchySupport(html: string): string {
 
             // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot nativo (sem nossas flags), limpa flags se necessário
             const recycledCards = [];
-            if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]'))) {
-              if (!el.classList.contains('mr-subfolder-card')) recycledCards.push(el);
+            if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]'))) {
+              recycledCards.push(el);
             }
             if (el.querySelectorAll) {
-              el.querySelectorAll('.deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]').forEach(c => {
-                if (!c.classList.contains('mr-subfolder-card')) recycledCards.push(c);
+              el.querySelectorAll('.deck-card, .folder-card, .mr-tutoria-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]').forEach(c => {
+                recycledCards.push(c);
               });
             }
             recycledCards.forEach(card => {
@@ -5180,6 +5192,8 @@ function injectHierarchySupport(html: string): string {
                   !child.classList.contains('mr-folder-card-top-delete') &&
                   !child.classList.contains('mr-folder-card-top-rename') &&
                   !child.hasAttribute('data-mr-folder-rename') &&
+                  !child.hasAttribute('data-mr-sub-delete') &&
+                  !child.hasAttribute('data-mr-folder-delete') &&
                   child.getAttribute('data-mr-decorated') !== '1'
                 ) {
                   child.remove();
