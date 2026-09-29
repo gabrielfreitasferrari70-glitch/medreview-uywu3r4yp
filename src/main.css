@@ -885,3 +885,27 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-folder-card-btn-delete {
   display: none !important;
 }
+
+/* [mr-ghost-purge-134] supressão final de fantasmas nos cartões de subpasta */
+.mr-subfolder-card
+  > :not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-rename):not(
+    .mr-folder-card-top-delete
+  ) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.mr-subfolder-card
+  button:not(.mr-folder-card-top-rename):not(.mr-folder-card-top-delete):not(
+    .mr-folder-card-btn-subfolder
+  ) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.mr-subfolder-card [class*='chip']:not(.mr-folder-card-count-chip),
+.mr-subfolder-card [class*='badge']:not(.mr-folder-card-badge) {
+  display: none !important;
+  visibility: hidden !important;
+}

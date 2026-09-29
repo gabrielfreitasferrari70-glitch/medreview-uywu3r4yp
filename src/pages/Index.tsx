@@ -167,7 +167,7 @@ function injectHierarchySupport(html: string): string {
     const prevFlag = window.__mrInjectingDelete;
     window.__mrInjectingDelete = true;
     try {
-      // 1. Remove apenas filhos diretos nativos indesejados
+      // 1. Remove qualquer filho fora de header/footer/top-rename/top-delete mesmo se marcado com data-mr-decorated
       Array.from(card.children).forEach(child => {
         if (
           !child.classList.contains('mr-folder-card-header') &&
@@ -176,15 +176,28 @@ function injectHierarchySupport(html: string): string {
           !child.classList.contains('mr-folder-card-top-rename') &&
           !child.hasAttribute('data-mr-folder-rename') &&
           !child.hasAttribute('data-mr-sub-delete') &&
-          !child.hasAttribute('data-mr-folder-delete') &&
-          child.getAttribute('data-mr-decorated') !== '1'
+          !child.hasAttribute('data-mr-folder-delete')
         ) {
           child.remove();
         }
       });
 
+      // 1b. Remove TODO button/a/[role="button"] dentro de .mr-subfolder-card fora de header/footer e que não seja top-rename/top-delete/btn-subfolder
+      card.querySelectorAll('button, a, [role="button"]').forEach(btn => {
+        if (
+          !btn.closest('.mr-folder-card-footer') &&
+          !btn.closest('.mr-folder-card-header') &&
+          !btn.classList.contains('mr-folder-card-top-rename') &&
+          !btn.classList.contains('mr-folder-card-top-delete') &&
+          !btn.classList.contains('mr-folder-card-btn-subfolder')
+        ) {
+          btn.remove();
+        }
+      });
+
       // 2. Remove nós residuais candidatos (badges/chips/botões fantasmas nativos) fora de header/footer/top-actions
       const candidates = card.querySelectorAll('[class*="count"], [class*="badge"], [class*="reset"], button, a, [role="button"], span.btn');
+      const blacklist = ['subpasta', 'nova', 'abrir', 'carta', 'cartas', 'reset', '0 ca', 'rs', 'dominado', '🔄', '🔁'];
       candidates.forEach(el => {
         if (
           el.closest('.mr-folder-card-footer') ||
@@ -193,21 +206,12 @@ function injectHierarchySupport(html: string): string {
           el.classList.contains('mr-folder-card-top-rename') ||
           el.hasAttribute('data-mr-folder-rename') ||
           el.hasAttribute('data-mr-sub-delete') ||
-          el.hasAttribute('data-mr-folder-delete') ||
-          el.getAttribute('data-mr-decorated') === '1'
+          el.hasAttribute('data-mr-folder-delete')
         ) {
           return;
         }
-        const txt = (el.textContent || '').trim();
-        if (
-          txt.includes('cartas') ||
-          txt.includes('Reset') ||
-          txt === '🔄' ||
-          txt === '🔁' ||
-          txt.includes('0 ca') ||
-          txt === 'Rs' ||
-          txt.includes('dominado')
-        ) {
+        const txt = (el.textContent || '').trim().toLowerCase();
+        if (blacklist.some(item => txt.includes(item))) {
           el.remove();
         }
       });
@@ -215,15 +219,8 @@ function injectHierarchySupport(html: string): string {
       // 3. Remove nós de texto soltos filhos diretos do cartão
       Array.from(card.childNodes).forEach(node => {
         if (node.nodeType === Node.TEXT_NODE) {
-          const val = (node.nodeValue || '').trim();
-          if (
-            val.includes('cartas') ||
-            val.includes('Reset') ||
-            val === '🔄' ||
-            val === '🔁' ||
-            val.includes('0 ca') ||
-            val === 'Rs'
-          ) {
+          const val = (node.nodeValue || '').trim().toLowerCase();
+          if (blacklist.some(item => val.includes(item))) {
             node.remove();
           }
         }
@@ -4486,7 +4483,7 @@ function injectHierarchySupport(html: string): string {
         if (card.classList.contains('mr-subfolder-card')) {
           if (card.dataset && card.dataset.mrPurged === '1') return;
           try {
-            // 1. Remove qualquer descendente que não pertença a header, footer, ✏️ ou 🗑
+            // 1. Remove qualquer descendente que não pertença a header, footer, ✏️ ou 🗑 mesmo se tiver data-mr-decorated="1"
             Array.from(card.children).forEach(child => {
               if (
                 !child.classList.contains('mr-folder-card-header') &&
@@ -4495,27 +4492,39 @@ function injectHierarchySupport(html: string): string {
                 !child.classList.contains('mr-folder-card-top-rename') &&
                 !child.hasAttribute('data-mr-folder-rename') &&
                 !child.hasAttribute('data-mr-sub-delete') &&
-                !child.hasAttribute('data-mr-folder-delete') &&
-                child.getAttribute('data-mr-decorated') !== '1'
+                !child.hasAttribute('data-mr-folder-delete')
               ) {
                 child.remove();
               }
             });
 
-            // 2. Remove candidatos a chips fantasmas fora de header/footer
+            // 1b. Remove TODO button/a/[role="button"] dentro de .mr-subfolder-card fora de header/footer e que não seja top-rename/top-delete/btn-subfolder
+            card.querySelectorAll('button, a, [role="button"]').forEach(btn => {
+              if (
+                !btn.closest('.mr-folder-card-footer') &&
+                !btn.closest('.mr-folder-card-header') &&
+                !btn.classList.contains('mr-folder-card-top-rename') &&
+                !btn.classList.contains('mr-folder-card-top-delete') &&
+                !btn.classList.contains('mr-folder-card-btn-subfolder')
+              ) {
+                btn.remove();
+              }
+            });
+
+            // 2. Remove candidatos a chips fantasmas fora de header/footer com blacklist expandida
             const candidates = card.querySelectorAll('[class*="count"], [class*="badge"], [class*="reset"], button, a, [role="button"], span.btn');
+            const subBlacklist = ['subpasta', 'nova', 'abrir', 'carta', 'cartas', 'reset', '0 ca', 'rs', 'dominado', '🔄', '🔁'];
             candidates.forEach(el => {
               if (
                 el.closest('.mr-folder-card-footer') ||
                 el.closest('.mr-folder-card-header') ||
                 el.classList.contains('mr-folder-card-top-delete') ||
-                el.classList.contains('mr-folder-card-top-rename') ||
-                el.getAttribute('data-mr-decorated') === '1'
+                el.classList.contains('mr-folder-card-top-rename')
               ) {
                 return;
               }
-              const txt = (el.textContent || '').trim();
-              if (txt.includes('cartas') || txt.includes('Reset') || txt === '🔄' || txt === '🔁' || txt.includes('0 ca') || txt === 'Rs' || txt.includes('dominado')) {
+              const txt = (el.textContent || '').trim().toLowerCase();
+              if (subBlacklist.some(item => txt.includes(item))) {
                 el.remove();
               }
             });
@@ -4523,8 +4532,8 @@ function injectHierarchySupport(html: string): string {
             // 3. Remove nós de texto soltos filhos diretos do cartão
             Array.from(card.childNodes).forEach(node => {
               if (node.nodeType === Node.TEXT_NODE) {
-                const val = (node.nodeValue || '').trim();
-                if (val.includes('cartas') || val.includes('Reset') || val === '🔄' || val === '🔁' || val.includes('0 ca') || val === 'Rs') {
+                const val = (node.nodeValue || '').trim().toLowerCase();
+                if (subBlacklist.some(item => val.includes(item))) {
                   node.remove();
                 }
               }
