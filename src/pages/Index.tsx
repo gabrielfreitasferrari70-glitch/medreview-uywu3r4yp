@@ -640,6 +640,9 @@ function injectHierarchySupport(html: string): string {
       padding-bottom: 0 !important;
       display: block;
       width: 100%;
+      max-width: 100vw !important;
+      box-sizing: border-box !important;
+      overflow-x: hidden !important;
       background: transparent !important;
       min-height: auto !important;
       box-shadow: none !important;
@@ -654,6 +657,8 @@ function injectHierarchySupport(html: string): string {
       margin-bottom: 0 !important;
       background: transparent !important;
       min-height: auto !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
     }
     #mr-subfolder-wrapper .mr-breadcrumb-bar {
       margin-top: 0 !important;
@@ -663,6 +668,13 @@ function injectHierarchySupport(html: string): string {
     #mr-subfolder-wrapper .mr-subfolder-hero-card {
       margin-top: 0 !important;
       margin-bottom: 1.35rem !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    #mr-subfolder-wrapper .mr-subfolder-hero-card button {
+      flex-shrink: 0 !important;
+      white-space: nowrap !important;
     }
     #mr-subfolder-wrapper .mr-subfolder-section-block {
       margin-top: 0 !important;
@@ -874,8 +886,8 @@ function injectHierarchySupport(html: string): string {
     .mr-subfolder-card .mr-folder-card-header { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; padding-right: 92px !important; box-sizing: border-box !important; }
     .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1.5px dashed #cbd5e1 !important; }
     .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; min-width: 0 !important; }
-    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 0.5rem !important; width: 100% !important; flex-wrap: wrap !important; margin-left: 0 !important; box-sizing: border-box !important; }
-    .mr-subfolder-card .mr-folder-card-btn-subfolder { flex: 0 0 auto !important; margin-left: auto !important; margin-right: 0 !important; padding: 0 0.65rem !important; max-width: 100% !important; box-sizing: border-box !important; white-space: nowrap !important; }
+    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; justify-content: flex-end !important; padding-right: 4px !important; box-sizing: border-box !important; }
+    .mr-subfolder-card .mr-folder-card-btn-subfolder { margin-right: 4px !important; padding: 0 0.75rem !important; max-width: calc(100% - 8px) !important; box-sizing: border-box !important; white-space: nowrap !important; display: inline-flex !important; align-items: center !important; }
     .mr-subfolder-card:hover {
       border-color: #16a34a;
       transform: translateY(-2px);
@@ -3919,7 +3931,7 @@ function injectHierarchySupport(html: string): string {
                 <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
               <div class="mr-folder-card-actions">
-                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')" style="flex:0 0 auto !important; margin-left:auto !important; padding:0 0.85rem !important;">Abrir ➜</button>
+                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')" style="flex:0 0 auto !important; margin-left:auto !important; margin-right:4px !important; padding:0 0.85rem !important;">Abrir ➜</button>
               </div>
             </div>
           </div>
