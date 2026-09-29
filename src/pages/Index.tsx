@@ -159,49 +159,95 @@ function injectHierarchySupport(html: string): string {
 // MedReview — Motor de Hierarquia de Pastas & Subpastas (FSRS-5)
 // ========================================================
 (function() {
+  // Higienização / purga direcionada e deduplicada para cartões de subpasta
+  function purgeSubfolderCard(card) {
+    if (!card || !(card instanceof HTMLElement)) return;
+    if (card.dataset && card.dataset.mrPurged === '1') return;
+
+    const prevFlag = window.__mrInjectingDelete;
+    window.__mrInjectingDelete = true;
+    try {
+      // 1. Remove apenas filhos diretos nativos indesejados
+      Array.from(card.children).forEach(child => {
+        if (
+          !child.classList.contains('mr-folder-card-header') &&
+          !child.classList.contains('mr-folder-card-footer') &&
+          !child.classList.contains('mr-folder-card-top-delete') &&
+          !child.classList.contains('mr-folder-card-top-rename') &&
+          !child.hasAttribute('data-mr-folder-rename') &&
+          !child.hasAttribute('data-mr-sub-delete') &&
+          !child.hasAttribute('data-mr-folder-delete') &&
+          child.getAttribute('data-mr-decorated') !== '1'
+        ) {
+          child.remove();
+        }
+      });
+
+      // 2. Remove nós residuais candidatos (badges/chips/botões fantasmas nativos) fora de header/footer/top-actions
+      const candidates = card.querySelectorAll('[class*="count"], [class*="badge"], [class*="reset"], button, a, [role="button"], span.btn');
+      candidates.forEach(el => {
+        if (
+          el.closest('.mr-folder-card-footer') ||
+          el.closest('.mr-folder-card-header') ||
+          el.classList.contains('mr-folder-card-top-delete') ||
+          el.classList.contains('mr-folder-card-top-rename') ||
+          el.hasAttribute('data-mr-folder-rename') ||
+          el.hasAttribute('data-mr-sub-delete') ||
+          el.hasAttribute('data-mr-folder-delete') ||
+          el.getAttribute('data-mr-decorated') === '1'
+        ) {
+          return;
+        }
+        const txt = (el.textContent || '').trim();
+        if (
+          txt.includes('cartas') ||
+          txt.includes('Reset') ||
+          txt === '🔄' ||
+          txt === '🔁' ||
+          txt.includes('0 ca') ||
+          txt === 'Rs' ||
+          txt.includes('dominado')
+        ) {
+          el.remove();
+        }
+      });
+
+      // 3. Remove nós de texto soltos filhos diretos do cartão
+      Array.from(card.childNodes).forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const val = (node.nodeValue || '').trim();
+          if (
+            val.includes('cartas') ||
+            val.includes('Reset') ||
+            val === '🔄' ||
+            val === '🔁' ||
+            val.includes('0 ca') ||
+            val === 'Rs'
+          ) {
+            node.remove();
+          }
+        }
+      });
+
+      card.dataset.mrPurged = '1';
+    } catch (err) {
+      console.warn('Erro ao purgar subpasta:', err);
+    } finally {
+      window.__mrInjectingDelete = prevFlag;
+    }
+  }
+
   // PASSO 3: Função síncrona padronizadora de qualquer elemento de cartão de pasta recém-renderizado
   function decorateCardElementImmediately(card) {
     if (!card || !(card instanceof HTMLElement)) return;
     if (card.classList.contains('mr-subfolder-card')) {
-      try {
-        Array.from(card.children).forEach(child => {
-          if (
-            !child.classList.contains('mr-folder-card-header') &&
-            !child.classList.contains('mr-folder-card-footer') &&
-            !child.classList.contains('mr-folder-card-top-delete') &&
-            !child.classList.contains('mr-folder-card-top-rename') &&
-            !child.hasAttribute('data-mr-folder-rename') &&
-            !child.hasAttribute('data-mr-sub-delete') &&
-            !child.hasAttribute('data-mr-folder-delete')
-          ) {
-            child.remove();
-          }
-        });
-        card.querySelectorAll('*').forEach(el => {
-          if (el.closest('.mr-folder-card-footer') || el.classList.contains('mr-folder-card-top-delete') || el.classList.contains('mr-folder-card-top-rename')) {
-            return;
-          }
-          const txt = (el.textContent || '').trim();
-          if (txt.includes('cartas') || txt.includes('Reset') || txt === '🔄' || txt === '🔁' || txt.includes('0 ca') || txt === 'Rs') {
-            el.remove();
-          }
-        });
-        Array.from(card.childNodes).forEach(node => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            const val = (node.nodeValue || '').trim();
-            if (val.includes('cartas') || val.includes('Reset') || val === '🔄' || val === '🔁' || val.includes('0 ca') || val === 'Rs') {
-              node.remove();
-            }
-          }
-        });
-      } catch (err) {
-        console.warn('Erro ao purgar subpasta em decorateCardElementImmediately:', err);
-      }
+      purgeSubfolderCard(card);
       return;
     }
 
     // Se já estiver completamente decorado e nada tiver mudado, pula
-    if (card.getAttribute('data-mr-folder-card-header') === '1' &&
+    if (card.dataset && card.dataset.mrDecorated === '1' &&
+        card.getAttribute('data-mr-folder-card-header') === '1' &&
         card.getAttribute('data-mr-folder-card-footer') === '1' &&
         card.querySelector('.mr-folder-card-top-delete') &&
         card.classList.contains('mr-tutoria-card')) {
@@ -956,19 +1002,23 @@ function injectHierarchySupport(html: string): string {
       pointer-events: none !important;
     }
 
-    /* Supressão universal agnóstica de tag em .mr-subfolder-card para eliminar chips-fantasma */
-    .mr-subfolder-card *:not(.mr-folder-card-header):not(.mr-folder-card-header *):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename) {
+    /* Supressão direcionada de elementos nativos residuais nos cartões de subpasta */
+    .mr-subfolder-card [class*="count"]:not(.mr-folder-card-count-chip),
+    .mr-subfolder-card [class*="badge"]:not(.mr-folder-card-badge),
+    .mr-subfolder-card [class*="reset"]:not(.mr-folder-card-btn-reset),
+    .mr-subfolder-card .deck-count,
+    .mr-subfolder-card .folder-count,
+    .mr-subfolder-card .card-count,
+    .mr-subfolder-card .badge,
+    .mr-subfolder-card .chip,
+    .mr-subfolder-card .reset-btn,
+    .mr-subfolder-card .btn-reset,
+    .mr-subfolder-card .deck-badge,
+    .mr-subfolder-card .folder-badge {
       display: none !important;
       visibility: hidden !important;
       opacity: 0 !important;
       pointer-events: none !important;
-    }
-
-    /* Caça adicional por classes nativas residuais nos cartões de subpasta */
-    .mr-subfolder-card [class*="count"]:not(.mr-folder-card-count-chip),
-    .mr-subfolder-card [class*="badge"]:not(.mr-folder-card-badge),
-    .mr-subfolder-card [class*="reset"]:not(.mr-folder-card-btn-reset) {
-      display: none !important;
     }
 
     /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
@@ -1026,13 +1076,13 @@ function injectHierarchySupport(html: string): string {
       .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid, div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .deck-card), div:has(> .folder-card) { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; }
     }
     .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card, .mr-subfolder-card { position: relative !important; background: #ffffff !important; border-radius: 16px !important; border: 1.5px solid #d1fae5 !important; box-shadow: 0 3px 12px rgba(15,23,42,0.04) !important; cursor: pointer !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; width: 100% !important; height: 100% !important; min-height: 200px !important; box-sizing: border-box !important; padding: 1.15rem 1rem !important; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
-    /* Neutralização total de qualquer posicionamento absoluto de conteúdo legado dentro dos cartões */
-    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
-    .mr-tutoria-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
-    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
-    .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"],
-    .mr-subfolder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position: absolute"],
-    .mr-subfolder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
+    /* Neutralização direta de posições absolutas residuais legadas */
+    .mr-tutoria-card > [style*="position: absolute"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .mr-tutoria-card > [style*="position:absolute"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .mr-folder-card > [style*="position: absolute"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .mr-folder-card > [style*="position:absolute"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .mr-subfolder-card > [style*="position: absolute"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .mr-subfolder-card > [style*="position:absolute"]:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename) {
       display: none !important;
     }
     .mr-folder-card::before, .mr-tutoria-card::before, .mr-subfolder-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
@@ -4324,6 +4374,11 @@ function injectHierarchySupport(html: string): string {
     try {
       const subfolderCards = document.querySelectorAll('.mr-subfolder-card');
       subfolderCards.forEach(sCard => {
+        // Se já purgado/configurado e nada mudou, pula
+        if (sCard.dataset && sCard.dataset.mrSubfolderReady === '1' && sCard.dataset.mrPurged === '1') {
+          return;
+        }
+
         const onclickAttr = sCard.getAttribute('onclick') || '';
         const match = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/) || onclickAttr.match(/renderSubfolderView(['"]([^'"]+)['"])/);
         const subId = match ? match[1] : sCard.getAttribute('data-subfolder-id');
@@ -4415,6 +4470,8 @@ function injectHierarchySupport(html: string): string {
               existingDel.style.zIndex = '10';
             }
           }
+
+          sCard.dataset.mrSubfolderReady = '1';
         }
       });
     } catch (e) {
@@ -4427,6 +4484,7 @@ function injectHierarchySupport(html: string): string {
       folderCards.forEach(card => {
         // Purga profunda em .mr-subfolder-card antes de retornar (preserva header/footer/✏️/🗑 e remove chips-fantasma como "0 cartas", "Resetar", "🔄")
         if (card.classList.contains('mr-subfolder-card')) {
+          if (card.dataset && card.dataset.mrPurged === '1') return;
           try {
             // 1. Remove qualquer descendente que não pertença a header, footer, ✏️ ou 🗑
             Array.from(card.children).forEach(child => {
@@ -4437,19 +4495,27 @@ function injectHierarchySupport(html: string): string {
                 !child.classList.contains('mr-folder-card-top-rename') &&
                 !child.hasAttribute('data-mr-folder-rename') &&
                 !child.hasAttribute('data-mr-sub-delete') &&
-                !child.hasAttribute('data-mr-folder-delete')
+                !child.hasAttribute('data-mr-folder-delete') &&
+                child.getAttribute('data-mr-decorated') !== '1'
               ) {
                 child.remove();
               }
             });
 
-            // 2. Remove explicitamente qualquer elemento cujo texto inclua "cartas", "Reset" ou seja "🔄" fora do footer
-            card.querySelectorAll('*').forEach(el => {
-              if (el.closest('.mr-folder-card-footer') || el.classList.contains('mr-folder-card-top-delete') || el.classList.contains('mr-folder-card-top-rename')) {
+            // 2. Remove candidatos a chips fantasmas fora de header/footer
+            const candidates = card.querySelectorAll('[class*="count"], [class*="badge"], [class*="reset"], button, a, [role="button"], span.btn');
+            candidates.forEach(el => {
+              if (
+                el.closest('.mr-folder-card-footer') ||
+                el.closest('.mr-folder-card-header') ||
+                el.classList.contains('mr-folder-card-top-delete') ||
+                el.classList.contains('mr-folder-card-top-rename') ||
+                el.getAttribute('data-mr-decorated') === '1'
+              ) {
                 return;
               }
               const txt = (el.textContent || '').trim();
-              if (txt.includes('cartas') || txt.includes('Reset') || txt === '🔄' || txt === '🔁' || txt.includes('0 ca') || txt === 'Rs') {
+              if (txt.includes('cartas') || txt.includes('Reset') || txt === '🔄' || txt === '🔁' || txt.includes('0 ca') || txt === 'Rs' || txt.includes('dominado')) {
                 el.remove();
               }
             });
@@ -4463,9 +4529,21 @@ function injectHierarchySupport(html: string): string {
                 }
               }
             });
+            card.dataset.mrPurged = '1';
           } catch (purgeErr) {
             console.warn('Erro ao purgar cartão de subpasta:', purgeErr);
           }
+          return;
+        }
+
+        // Guarda rápida se o cartão já foi completamente decorado
+        if (
+          card.dataset && card.dataset.mrDecorated === '1' &&
+          card.getAttribute('data-mr-folder-card-header') === '1' &&
+          card.getAttribute('data-mr-folder-card-footer') === '1' &&
+          card.querySelector('.mr-folder-card-top-delete') &&
+          card.querySelector('.mr-folder-card-top-rename')
+        ) {
           return;
         }
 
@@ -5237,7 +5315,7 @@ function injectHierarchySupport(html: string): string {
     });
   };
 
-  // Observador de mutações com debounce, desconexão prévia e flag de reentrância
+  // Observador de mutações com debounce, desconexão prévia e flag de reentrância estrita
   if (window.__mrObserver) {
     try { window.__mrObserver.disconnect(); } catch { /* intentionally ignored */ }
   }
@@ -5246,20 +5324,24 @@ function injectHierarchySupport(html: string): string {
   }
   let mrMutationTimer = null;
   const observer = new MutationObserver((mutations) => {
-    // Ignora se estivermos no meio de injeção/decoração para quebrar reentrância
+    // Ignora se estivermos no meio de injeção/decoração para quebrar auto-ignição e loop contínuo
     if (window.__mrInjectingDelete) return;
 
-    // Higienização incondicional de nós adicionados pelo snapshot externo
     let hasRelevantMutation = false;
+    const prevFlag = window.__mrInjectingDelete;
+    window.__mrInjectingDelete = true;
     try {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node;
-            // Ignora mutações geradas por nossos próprios componentes ou que contenham .mr-folder-card-top-delete
+            // Ignora mutações geradas por nossos próprios componentes ou modais
             if (el.matches && (
-              el.matches('.mr-folder-card-top-delete, [data-mr-folder-delete], .mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, #mr-subfolder-delete-modal, #mr-folder-delete-modal')
+              el.matches('.mr-folder-card-top-delete, .mr-folder-card-top-rename, [data-mr-folder-delete], [data-mr-folder-rename], .mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, #mr-subfolder-delete-modal, #mr-folder-delete-modal, #global-stats-modal, .mr-toast-container, .mr-toast')
             )) {
+              return;
+            }
+            if (el.getAttribute && el.getAttribute('data-mr-decorated') === '1') {
               return;
             }
             if (el.querySelector && el.querySelector('.mr-folder-card-top-delete, [data-mr-folder-delete]')) {
@@ -5274,7 +5356,7 @@ function injectHierarchySupport(html: string): string {
               });
             }
 
-            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot nativo (sem nossas flags), limpa flags se necessário
+            // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot nativo
             const recycledCards = [];
             if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]'))) {
               recycledCards.push(el);
@@ -5285,48 +5367,18 @@ function injectHierarchySupport(html: string): string {
               });
             }
             recycledCards.forEach(card => {
-              // Expurgar na raiz e internamente img, picture, object, embed, canvas, svg do snapshot
-              card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(imgEl => imgEl.remove());
-
-              // Expurgar nós filhos diretos nativos indesejados caso o snapshot reinjete
-              Array.from(card.children).forEach(child => {
-                if (
-                  !child.classList.contains('mr-folder-card-header') &&
-                  !child.classList.contains('mr-folder-card-footer') &&
-                  !child.classList.contains('mr-folder-card-top-delete') &&
-                  !child.classList.contains('mr-folder-card-top-rename') &&
-                  !child.hasAttribute('data-mr-folder-rename') &&
-                  !child.hasAttribute('data-mr-sub-delete') &&
-                  !child.hasAttribute('data-mr-folder-delete') &&
-                  child.getAttribute('data-mr-decorated') !== '1'
-                ) {
-                  child.remove();
-                }
-              });
-
-              // Purga ativa em cartões de subpasta para remover chips-fantasma residuais
               if (card.classList.contains('mr-subfolder-card')) {
-                card.querySelectorAll('*').forEach(el => {
-                  if (el.closest('.mr-folder-card-footer') || el.classList.contains('mr-folder-card-top-delete') || el.classList.contains('mr-folder-card-top-rename')) {
-                    return;
-                  }
-                  const txt = (el.textContent || '').trim();
-                  if (txt.includes('cartas') || txt.includes('Reset') || txt === '🔄' || txt === '🔁' || txt.includes('0 ca') || txt === 'Rs') {
-                    el.remove();
-                  }
-                });
-                Array.from(card.childNodes).forEach(node => {
-                  if (node.nodeType === Node.TEXT_NODE) {
-                    const val = (node.nodeValue || '').trim();
-                    if (val.includes('cartas') || val.includes('Reset') || val === '🔄' || val === '🔁' || val.includes('0 ca') || val === 'Rs') {
-                      node.remove();
-                    }
-                  }
-                });
+                if (typeof purgeSubfolderCard === 'function') {
+                  purgeSubfolderCard(card);
+                }
               }
 
-              // Só limpa se o card foi substituído de fato pelo snapshot nativo e perdeu nossos elementos
+              // Só marca para reprocessamento se o card perdeu nossos elementos decorativos estruturais
               if (!card.querySelector('.mr-folder-card-header') || !card.querySelector('.mr-folder-card-footer') || !card.querySelector('.mr-folder-card-top-delete')) {
+                if (card.dataset) {
+                  delete card.dataset.mrDecorated;
+                  delete card.dataset.mrPurged;
+                }
                 card.removeAttribute('data-mr-folder-card-header');
                 card.removeAttribute('data-mr-folder-card-footer');
                 card.removeAttribute('data-mr-folder-top-delete');
@@ -5338,6 +5390,8 @@ function injectHierarchySupport(html: string): string {
       });
     } catch (e) {
       console.warn('Erro ao higienizar mutações:', e);
+    } finally {
+      window.__mrInjectingDelete = prevFlag;
     }
 
     if (!hasRelevantMutation && document.querySelector('.mr-folder-card-top-delete')) {
@@ -5348,10 +5402,12 @@ function injectHierarchySupport(html: string): string {
       mrMutationTimer = setTimeout(() => {
         mrMutationTimer = null;
         if (!window.__mrInjectingDelete) {
-          enhanceViews();
-          removePastasNavButton();
+          requestAnimationFrame(() => {
+            enhanceViews();
+            removePastasNavButton();
+          });
         }
-      }, 50);
+      }, 120);
     }
   });
   window.__mrObserver = observer;
@@ -6241,15 +6297,16 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
-  // Tenta registrar de imediato e mantém retry até window.__mrTopActionsBound ser true
+  // Tenta registrar de imediato e se não conseguir agenda no próximo tick
   if (!bindTopActionsListener()) {
-    var retryCount = 0;
-    var retryInterval = setInterval(function() {
-      retryCount++;
-      if (bindTopActionsListener() || retryCount > 50) {
-        clearInterval(retryInterval);
-      }
-    }, 40);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function onDomReady() {
+        document.removeEventListener('DOMContentLoaded', onDomReady);
+        bindTopActionsListener();
+      });
+    } else {
+      setTimeout(bindTopActionsListener, 50);
+    }
   }
 })();
 </script>

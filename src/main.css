@@ -409,49 +409,38 @@ body .folder-stats:not(#global-stats-modal *) {
   pointer-events: none !important;
 }
 
-/* Supressão universal agnóstica de tag em .mr-subfolder-card para eliminar chips-fantasma */
-.mr-subfolder-card
-  *:not(.mr-folder-card-header):not(.mr-folder-card-header *):not(.mr-folder-card-footer):not(
-    .mr-folder-card-footer *
-  ):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename) {
+/* Supressão direcionada de elementos nativos residuais em .mr-subfolder-card para eliminar chips-fantasma */
+.mr-subfolder-card [class*='count']:not(.mr-folder-card-count-chip),
+.mr-subfolder-card [class*='badge']:not(.mr-folder-card-badge),
+.mr-subfolder-card [class*='reset']:not(.mr-folder-card-btn-reset),
+.mr-subfolder-card .deck-count,
+.mr-subfolder-card .folder-count,
+.mr-subfolder-card .card-count,
+.mr-subfolder-card .badge,
+.mr-subfolder-card .chip,
+.mr-subfolder-card .reset-btn,
+.mr-subfolder-card .btn-reset,
+.mr-subfolder-card .deck-badge,
+.mr-subfolder-card .folder-badge {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Caça adicional por classes nativas residuais nos cartões de subpasta */
-.mr-subfolder-card [class*='count']:not(.mr-folder-card-count-chip),
-.mr-subfolder-card [class*='badge']:not(.mr-folder-card-badge),
-.mr-subfolder-card [class*='reset']:not(.mr-folder-card-btn-reset) {
-  display: none !important;
-}
-
-/* Neutralização total de posicionamentos absolutos ou wrappers aninhados no cartão */
+/* Neutralização direta de posições absolutas residuais legadas */
 .mr-tutoria-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
-    .mr-folder-card-footer
-  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
+  > [style*='position: absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-tutoria-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
-    .mr-folder-card-footer
-  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'],
+  > [style*='position:absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-folder-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
-    .mr-folder-card-footer
-  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
+  > [style*='position: absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-folder-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
-    .mr-folder-card-footer
-  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'],
+  > [style*='position:absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-subfolder-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
-    .mr-folder-card-footer
-  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position: absolute'],
+  > [style*='position: absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-subfolder-card
-  *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(
-    .mr-folder-card-footer
-  ):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*='position:absolute'] {
+  > [style*='position:absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename) {
   display: none !important;
 }
 
