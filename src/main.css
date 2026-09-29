@@ -306,6 +306,7 @@ body .folder-stats:not(#global-stats-modal *) {
    ========================================================================== */
 .mr-tutoria-card,
 .mr-folder-card,
+.mr-subfolder-card,
 .deck-card.mr-tutoria-card,
 .deck-card.mr-folder-card,
 .folder-card.mr-tutoria-card,
@@ -323,6 +324,7 @@ body .folder-stats:not(#global-stats-modal *) {
   justify-content: flex-start !important;
   width: 100% !important;
   height: 100% !important;
+  min-height: 200px !important;
   box-sizing: border-box !important;
   padding: 1.15rem 1rem !important;
   transition:
@@ -333,7 +335,8 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Faixa verde superior decorativa */
 .mr-tutoria-card::before,
-.mr-folder-card::before {
+.mr-folder-card::before,
+.mr-subfolder-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -346,10 +349,12 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card:hover,
-.mr-folder-card:hover {
+.mr-folder-card:hover,
+.mr-subfolder-card:hover {
   transform: translateY(-3px) !important;
   box-shadow: 0 8px 24px rgba(22, 163, 74, 0.14) !important;
   border-color: #86efac !important;
+  background: #ffffff !important;
 }
 
 /* Ocultação estrita e completa de elementos e wrappers nativos do snapshot */
@@ -358,6 +363,10 @@ body .folder-stats:not(#global-stats-modal *) {
     .mr-folder-card-top-rename
   ):not([data-mr-decorated]),
 .mr-folder-card
+  > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
+    .mr-folder-card-top-rename
+  ):not([data-mr-decorated]),
+.mr-subfolder-card
   > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
     .mr-folder-card-top-rename
   ):not([data-mr-decorated]),
@@ -455,7 +464,10 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Chip/badge de tipo no topo do cabeçalho */
 .mr-tutoria-card .mr-folder-card-badge,
-.mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge {
+.mr-folder-card .mr-folder-card-badge,
+.mr-subfolder-card .mr-folder-card-badge,
+.mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge,
+.mr-folder-card-badge {
   align-self: flex-start !important;
   margin-bottom: 0.15rem !important;
   display: inline-flex !important;
@@ -782,6 +794,14 @@ body .folder-stats:not(#global-stats-modal *) {
   color: #166534 !important;
   border: 1px solid #86efac !important;
   box-shadow: 0 1px 2px rgba(22, 163, 74, 0.06) !important;
+}
+
+.mr-subfolder-card .mr-folder-card-btn-subfolder {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  padding: 0 0.85rem !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-subfolder:hover,

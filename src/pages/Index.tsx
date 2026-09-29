@@ -654,7 +654,7 @@ function injectHierarchySupport(html: string): string {
       pointer-events: none !important;
     }
 
-    .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card {
+    .mr-folder-card, .mr-tutoria-card, .mr-subfolder-card, .deck-card, .folder-card {
       position: relative !important;
       background: #ffffff !important;
       border-radius: 16px !important;
@@ -669,7 +669,7 @@ function injectHierarchySupport(html: string): string {
       padding: 1.15rem 1rem !important;
       box-sizing: border-box !important;
     }
-    .mr-folder-card::before, .mr-tutoria-card::before, .deck-card::before, .folder-card::before {
+    .mr-folder-card::before, .mr-tutoria-card::before, .mr-subfolder-card::before, .deck-card::before, .folder-card::before {
       content: '';
       position: absolute;
       top: 0;
@@ -680,7 +680,7 @@ function injectHierarchySupport(html: string): string {
       border-top-left-radius: 15px;
       border-top-right-radius: 15px;
     }
-    .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover {
+    .mr-folder-card:hover, .mr-tutoria-card:hover, .mr-subfolder-card:hover, .deck-card:hover, .folder-card:hover {
       transform: translateY(-3px) !important;
       box-shadow: 0 8px 24px rgba(22, 163, 74, 0.12) !important;
     }
@@ -899,10 +899,11 @@ function injectHierarchySupport(html: string): string {
     }
 
     /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
-    .mr-tutoria-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]),
-    .mr-folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]),
-    .deck-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]),
-    .folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not([data-mr-decorated]) {
+    .mr-tutoria-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
+    .mr-folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
+    .mr-subfolder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
+    .deck-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
+    .folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]) {
       display: none !important;
       visibility: hidden !important;
       height: 0 !important;
@@ -959,7 +960,7 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card *:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-footer *):not(.mr-folder-card-header *)[style*="position:absolute"] {
       display: none !important;
     }
-    .mr-folder-card::before, .mr-tutoria-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
+    .mr-folder-card::before, .mr-tutoria-card::before, .mr-subfolder-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80); border-top-left-radius: 15px; border-top-right-radius: 15px; }
     .mr-folder-card:hover, .mr-tutoria-card:hover, .deck-card:hover, .folder-card:hover, .mr-subfolder-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(22,163,74,0.14) !important; border-color: #86efac !important; }
     .mr-folder-card-header, .mr-tutoria-card .mr-folder-card-header, .mr-folder-card-header.mr-tutoria-header, .mr-folder-card .mr-folder-card-header, .deck-card .mr-folder-card-header, .folder-card .mr-folder-card-header, .mr-subfolder-card .mr-folder-card-header { display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; width: 100% !important; min-width: 0 !important; padding-right: 92px !important; box-sizing: border-box !important; }
     .mr-tutoria-card .mr-folder-card-badge, .mr-folder-card .mr-folder-card-badge, .deck-card .mr-folder-card-badge, .folder-card .mr-folder-card-badge, .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge { align-self: flex-start !important; margin-bottom: 0.15rem !important; }
