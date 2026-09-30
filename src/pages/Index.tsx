@@ -334,12 +334,8 @@ function injectHierarchySupport(html: string): string {
       return;
     }
 
-    // Se já estiver completamente decorado e nada tiver mudado, pula
-    if (card.dataset && card.dataset.mrDecorated === '1' &&
-        card.getAttribute('data-mr-folder-card-header') === '1' &&
-        card.getAttribute('data-mr-folder-card-footer') === '1' &&
-        card.querySelector('.mr-folder-card-top-delete') &&
-        (card.classList.contains('mr-tutoria-card') || card.classList.contains('mr-unified-folder-card'))) {
+    // Se o cartão já estiver marcado como decorado, ignora
+    if (card.getAttribute('data-mr-decorated') === '1' || (card.dataset && card.dataset.mrDecorated === '1')) {
       return;
     }
 
@@ -512,7 +508,6 @@ function injectHierarchySupport(html: string): string {
       card.classList.add('mr-tutoria-card');
     } else {
       card.classList.add('mr-unified-folder-card');
-      card.classList.add('mr-tutoria-card');
     }
 
     // Captura da contagem de cartas existente no cartão ANTES da limpeza (para não perder o número nativo)
@@ -4733,29 +4728,16 @@ function injectHierarchySupport(html: string): string {
           return;
         }
 
-        // Se o cartão já estiver marcado como decorado, pula imediatamente
-        if (card.dataset && card.dataset.mrDecorated === '1' && card.getAttribute('data-mr-folder-card-header') === '1') {
+        // Se o cartão já estiver marcado como decorado, passa adiante (ignora cartões já marcados)
+        if (card.getAttribute('data-mr-decorated') === '1' || (card.dataset && card.dataset.mrDecorated === '1')) {
           return;
         }
 
-        // Se for um cartão de Tutoria genuíno que já foi decorado, ou se qualquer cartão já estiver decorado completamente, pula
-        if (
-          card.dataset && card.dataset.mrDecorated === '1' &&
-          card.getAttribute('data-mr-folder-card-header') === '1' &&
-          card.getAttribute('data-mr-folder-card-footer') === '1' &&
-          card.querySelector('.mr-folder-card-top-delete') &&
-          card.querySelector('.mr-folder-card-top-rename') &&
-          (card.classList.contains('mr-tutoria-card') || card.classList.contains('mr-unified-folder-card'))
-        ) {
-          return;
-        }
-
-        // Remoção incondicional de tags de imagem e mídias nativas quebradas do snapshot
-        card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
+        // Remoção incondicional de tags de imagem, emojis/thumbnails nativos quebrados do snapshot (ex: 📝 ou ícone de teste)
+        card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), .deck-icon, .folder-icon, .card-thumbnail, .thumbnail').forEach(el => el.remove());
 
         // Determina id da pasta para exclusão/renomeação
-        const rawOnclick = card.getAttribute('onclick') || '';
-        const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
+        const rawOnclick = card.getAttribute('onclick') || '';        const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
                         rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
                         rawOnclick.match(/tutoria_d+/i);
         const rawTitleCard = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
@@ -4988,7 +4970,6 @@ function injectHierarchySupport(html: string): string {
           card.classList.add('mr-tutoria-card');
         } else {
           card.classList.add('mr-unified-folder-card');
-          card.classList.add('mr-tutoria-card');
         }
         const shouldUseStandardCard = true;
 
@@ -5313,6 +5294,22 @@ function injectHierarchySupport(html: string): string {
         parent.remove();
       }
     });
+
+    // Decorador universal imediato de cartões em todas as seções da home
+    try {
+      const homeDetectorCards = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id]');
+      homeDetectorCards.forEach(c => {
+        if (!c.classList.contains('mr-subfolder-card') && !c.classList.contains('mr-tutoria-card')) {
+          if (c.getAttribute('data-mr-decorated') !== '1' && (!c.dataset || c.dataset.mrDecorated !== '1')) {
+            if (typeof decorateCardElementImmediately === 'function') {
+              decorateCardElementImmediately(c);
+            }
+          }
+        }
+      });
+    } catch (eDetector) {
+      console.warn('Erro ao aplicar detector de cartões home:', eDetector);
+    }
 
     let currentId = null;
     if (typeof currentRoute !== 'undefined') {
