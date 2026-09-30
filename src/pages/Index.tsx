@@ -373,17 +373,25 @@ function injectHierarchySupport(html: string): string {
       const breadcrumbElements = document.querySelectorAll('.breadcrumb, .breadcrumbs, [class*="breadcrumb"], [id*="breadcrumb"], nav[aria-label*="breadcrumb"], .mr-breadcrumb-bar, .mr-breadcrumb-item, .mr-breadcrumb-active, [class*="trail"]');
       for (let i = 0; i < breadcrumbElements.length; i++) {
         const bText = (breadcrumbElements[i].textContent || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
-        if ((bText.includes('prova de modulo') || bText.includes('provas de modulo')) && (bText.includes('inicio') || bText.includes('/'))) {
+        if ((bText.includes('prova de modulo') || bText.includes('provas de modulo') || bText.includes('prova')) && (bText.includes('inicio') || bText.includes('/'))) {
           return true;
         }
       }
 
-      // Detecção por botão de ação da página como "+ Nova pasta em Prova..."
+      // Detecção por botão de ação da página como "+ Nova pasta em Prova..." ou "+ Nova pasta em Provas de Módulo"
       const allButtons = document.querySelectorAll('button, a, [role="button"]');
       for (let i = 0; i < allButtons.length; i++) {
         const btnTxt = (allButtons[i].textContent || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
-        if (btnTxt.includes('nova pasta em prova') || btnTxt.includes('novo cartao em prova')) {
+        if (btnTxt.includes('nova pasta em prova') || btnTxt.includes('novo cartao em prova') || btnTxt.includes('em prova')) {
           return true;
+        }
+      }
+
+      // Se houver cartões irmãos com chip "Provas de Módulo", este container é o de provas
+      if (document.querySelector('.mr-unified-folder-card .mr-folder-card-badge')) {
+        const badges = document.querySelectorAll('.mr-unified-folder-card .mr-folder-card-badge');
+        for (let b = 0; b < badges.length; b++) {
+          if ((badges[b].textContent || '').toLowerCase().includes('prova')) return true;
         }
       }
 
@@ -392,22 +400,24 @@ function injectHierarchySupport(html: string): string {
       return false;
     }
   }
-
   // Utilitários de validação e proteção contra decoração indevida de modais/overlays
   function isLegitimateCardTitle(el) {
     if (!el || !(el instanceof HTMLElement)) return false;
-    if (el.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav')) {
+    if (el.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav, .mr-breadcrumb-bar, .breadcrumb, [class*="breadcrumb"]')) {
       return false;
     }
     const txt = (el.textContent || '').trim().toLowerCase();
+    if (!txt) return false;
     const banned = [
       'resetar', 'reset', 'progresso', 'excluir', 'confirmar', 'cancelar',
-      'carta', 'subpasta', 'nova', 'abrir', 'configurações', 'configuracoes', 'importar', 'backup'
+      'carta', 'subpasta', 'nova', 'abrir', 'configurações', 'configuracoes', 'importar', 'backup',
+      'salvar', 'fechar', 'voltar', 'estatísticas', 'estatisticas', 'desempenho'
     ];
     for (const b of banned) {
-      if (txt.includes(b)) return false;
+      if (txt === b || txt.startsWith(b + ' ') || txt.endsWith(' ' + b)) return false;
     }
-    return txt.includes('prova');
+    // Não rejeita títulos legítimos curtos ou sem a palavra 'prova' (ex: pasta 'a' criada em Prova de Módulo, ou pastas customizadas)
+    return true;
   }
 
   function isCardGeometricallyValid(el) {
@@ -728,6 +738,7 @@ function injectHierarchySupport(html: string): string {
     const lowerTitle = titleText.toLowerCase();
     const lowerId = (effectiveFolderId || '').toLowerCase();
 
+    const isInsideProvaContext = isInsideProvasView();
     const isCustomRoot = !!(typeof state !== 'undefined' && state && state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
     const isCustomProva = !!(typeof state !== 'undefined' && state && state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
     const isCustomTutoria = !!(typeof state !== 'undefined' && state && state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
@@ -735,6 +746,7 @@ function injectHierarchySupport(html: string): string {
 
     const isTutoriaCard = isNumberedTutoria || isCustomTutoria || effectiveFolderId === 'tutoria' || lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
     const isProvaCard = !isTutoriaCard && (
+      isInsideProvaContext ||
       isCustomProva ||
       lowerTitle.includes('prova') ||
       lowerId.includes('prova') ||
@@ -4101,14 +4113,33 @@ function injectHierarchySupport(html: string): string {
     // 1. Navega automaticamente para a subpasta recém-criada (requisito 1)
     // 2. Garante que se o usuário voltar à pasta pai ela estará devidamente listada (requisito 2)
     navigateTo(subfolderId);
+
+    const tryDecorateSubfolderCard = () => {
+      try {
+        const targetCard = document.querySelector('[data-subfolder-id="' + subfolderId + '"], [data-folder-id="' + subfolderId + '"], div[onclick*="' + subfolderId + '"]');
+        if (targetCard && targetCard instanceof HTMLElement) {
+          if (targetCard.getAttribute('data-mr-decorated') !== '1' && (!targetCard.dataset || targetCard.dataset.mrDecorated !== '1')) {
+            if (typeof decorateCardElementImmediately === 'function') {
+              decorateCardElementImmediately(targetCard);
+            }
+          }
+        }
+      } catch (eDec) {
+        console.warn('Erro ao decorar subpasta recém-criada:', eDec);
+      }
+    };
+
     requestAnimationFrame(() => {
       enhanceViews();
+      tryDecorateSubfolderCard();
     });
     setTimeout(() => {
       enhanceViews();
+      tryDecorateSubfolderCard();
     }, 120);
     setTimeout(() => {
       enhanceViews();
+      tryDecorateSubfolderCard();
     }, 300);
   };
 
@@ -5003,15 +5034,57 @@ function injectHierarchySupport(html: string): string {
       origSaveNewCard(ctx);
     }
 
+    const tryDecorateCreatedCard = () => {
+      try {
+        const targetCtxId = ctx || window.__activeFolderContext;
+        // Tenta localizar elemento de cartão recém-criado por atributos ou contexto
+        let targetEl = null;
+        if (targetCtxId) {
+          targetEl = document.querySelector('[data-folder-id="' + targetCtxId + '"], [data-deck-id="' + targetCtxId + '"], [data-subfolder-id="' + targetCtxId + '"], div[onclick*="' + targetCtxId + '"]');
+        }
+        if (!targetEl) {
+          // Procura cartões não decorados que sejam geometricamente válidos
+          const candidates = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"]');
+          for (let i = 0; i < candidates.length; i++) {
+            const cand = candidates[i];
+            if (cand instanceof HTMLElement && isCardGeometricallyValid(cand)) {
+              if (cand.getAttribute('data-mr-decorated') !== '1' && (!cand.dataset || cand.dataset.mrDecorated !== '1')) {
+                targetEl = cand;
+                break;
+              }
+            }
+          }
+        }
+        if (targetEl && targetEl instanceof HTMLElement) {
+          if (targetEl.getAttribute('data-mr-decorated') !== '1' && (!targetEl.dataset || targetEl.dataset.mrDecorated !== '1')) {
+            if (typeof decorateCardElementImmediately === 'function') {
+              decorateCardElementImmediately(targetEl);
+            }
+          }
+        }
+      } catch (eCardDec) {
+        console.warn('Erro ao decorar carta recém-criada:', eCardDec);
+      }
+    };
+
     if (!window.__mrInjectingDelete) {
       requestAnimationFrame(() => {
-        if (!window.__mrInjectingDelete) enhanceViews();
+        if (!window.__mrInjectingDelete) {
+          enhanceViews();
+          tryDecorateCreatedCard();
+        }
       });
       setTimeout(() => {
-        if (!window.__mrInjectingDelete) enhanceViews();
+        if (!window.__mrInjectingDelete) {
+          enhanceViews();
+          tryDecorateCreatedCard();
+        }
       }, 120);
       setTimeout(() => {
-        if (!window.__mrInjectingDelete) enhanceViews();
+        if (!window.__mrInjectingDelete) {
+          enhanceViews();
+          tryDecorateCreatedCard();
+        }
       }, 300);
     }
   };
@@ -5203,6 +5276,25 @@ function injectHierarchySupport(html: string): string {
         var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
         if (cardContainer && isCardGeometricallyValid(cardContainer) && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
       });
+
+      // Captura de irmãos de cartões já decorados (evita cartões nativos não identificados por nome/classe)
+      const decoratedCards = document.querySelectorAll('[data-mr-decorated="1"]');
+      const seenParents = new Set();
+      decoratedCards.forEach(function (decEl) {
+        var p = decEl.parentElement;
+        if (!p || seenParents.has(p)) return;
+        seenParents.add(p);
+        if (p === document.body || p === document.documentElement) return;
+        if (p.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav, .mr-breadcrumb-bar, .mr-toast-container')) return;
+        Array.from(p.children).forEach(function (child) {
+          if (child instanceof HTMLElement && isCardGeometricallyValid(child) && !folderCardsList.includes(child)) {
+            if (!child.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"], [class*="modal"], dialog, script, style')) {
+              folderCardsList.push(child);
+            }
+          }
+        });
+      });
+
       folderCardsList.forEach(card => {
         // NÃO mexa em .mr-subfolder-card (purga direcionada própria e retorna)
         if (card.classList.contains('mr-subfolder-card')) {
@@ -5470,6 +5562,7 @@ function injectHierarchySupport(html: string): string {
         const lowerId = (effectiveFolderId || '').toLowerCase();
 
         // 1. Flags de identificação conforme plano
+        const isInsideProvaContext = isInsideProvasView();
         const isCustomRoot = !!(typeof state !== 'undefined' && state && state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
         const isCustomProva = !!(typeof state !== 'undefined' && state && state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
         const isCustomTutoria = !!(typeof state !== 'undefined' && state && state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
@@ -5480,6 +5573,7 @@ function injectHierarchySupport(html: string): string {
 
         // 3. isProvaCard
         const isProvaCard = !isTutoriaCard && (
+          isInsideProvaContext ||
           isCustomProva ||
           lowerTitle.includes('prova') ||
           lowerId.includes('prova') ||
@@ -5934,11 +6028,17 @@ function injectHierarchySupport(html: string): string {
     // Decorador universal imediato de cartões em todas as seções da home (.deck-card, .folder-card, [data-deck-id], [data-folder-id])
     try {
       const homeDetectorCards = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-folder-card, .mr-unified-folder-card, .mr-tutoria-card'));
-      const homeTitleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
+      const homeTitleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong, [class*="title"]');
       homeTitleEls.forEach(function (tEl) {
         if (!isLegitimateCardTitle(tEl)) return;
         var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
         if (cardContainer && isCardGeometricallyValid(cardContainer) && !homeDetectorCards.includes(cardContainer)) homeDetectorCards.push(cardContainer);
+      });
+      // Irmãos em grids ou containers de pastas
+      document.querySelectorAll('div:has(> .mr-unified-folder-card) > div, div:has(> .mr-folder-card) > div, .deck-grid > div, .folder-grid > div, .decks-container > div, .folders-container > div').forEach(c => {
+        if (c && isCardGeometricallyValid(c) && !homeDetectorCards.includes(c) && !c.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"]')) {
+          homeDetectorCards.push(c);
+        }
       });
       homeDetectorCards.forEach(c => {
         if (!c.classList.contains('mr-subfolder-card')) {
@@ -6256,17 +6356,42 @@ function injectHierarchySupport(html: string): string {
                 recycledCards.push(c);
               });
               // Candidatos a prova dentro do nó adicionado
-              const mutTitleEls = el.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
+              const mutTitleEls = el.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong, [class*="title"]');
               mutTitleEls.forEach(function (tEl) {
                 if (!isLegitimateCardTitle(tEl)) return;
                 var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
                 if (cardContainer && isCardGeometricallyValid(cardContainer) && !recycledCards.includes(cardContainer)) recycledCards.push(cardContainer);
               });
             }
-            if (el.matches && el.matches('h2, h3, h4, .deck-title, .folder-title, strong')) {
+            if (el.matches && el.matches('h2, h3, h4, .deck-title, .folder-title, strong, [class*="title"]')) {
               if (isLegitimateCardTitle(el)) {
                 var cCont = el.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || el.parentElement;
                 if (cCont && isCardGeometricallyValid(cCont) && !recycledCards.includes(cCont)) recycledCards.push(cCont);
+              }
+            }
+            // Verifica se o nó adicionado foi inserido dentro de uma grade de cartões
+            if (el.parentElement && isCardGeometricallyValid(el)) {
+              const parentGrid = el.parentElement;
+              if (parentGrid.querySelector && (parentGrid.querySelector('.mr-unified-folder-card, .mr-folder-card, .deck-card, .folder-card, [data-mr-decorated="1"]'))) {
+                if (!recycledCards.includes(el) && !el.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"]')) {
+                  recycledCards.push(el);
+                }
+              }
+            }
+
+            // Captura de elementos irmãos caso o nó ou algum descendente já seja decorado
+            if (el.parentElement && !el.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav, .mr-breadcrumb-bar, .mr-toast-container')) {
+              const p = el.parentElement;
+              if (p !== document.body && p !== document.documentElement) {
+                if (p.querySelector && p.querySelector('[data-mr-decorated="1"]')) {
+                  Array.from(p.children).forEach(function (sib) {
+                    if (sib instanceof HTMLElement && isCardGeometricallyValid(sib) && !recycledCards.includes(sib)) {
+                      if (!sib.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"], [class*="modal"], dialog, script, style')) {
+                        recycledCards.push(sib);
+                      }
+                    }
+                  });
+                }
               }
             }
             recycledCards.forEach(card => {
@@ -7322,7 +7447,7 @@ export default function Index() {
   return (
     <div style={{ fontFamily: 'system-ui', padding: '3rem 1rem', textAlign: 'center' }}>
       <h1 style={{ color: '#16a34a' }}>MedReview 🩺</h1>
-      <p>Carregando app FSRS-5…</p>
+      <p>Carregando app FSRS-5… (v0.0.167)</p>
     </div>
   )
 }
