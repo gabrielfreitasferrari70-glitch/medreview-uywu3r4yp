@@ -684,9 +684,14 @@ function injectHierarchySupport(html: string): string {
           if (!window.confirm('Deseja resetar o progresso FSRS-5 de ' + totalCards + ' carta(s) desta pasta?')) return;
           if (effectiveFolderId && typeof resetFolderCardsFsrs === 'function') {
             resetFolderCardsFsrs(effectiveFolderId);
+          } else if (effectiveFolderId && typeof window.resetFolderCardsFsrs === 'function') {
+            window.resetFolderCardsFsrs(effectiveFolderId);
           } else {
             const nowMs = Date.now();
+            const cardIds = new Set();
             allFolderCards.forEach(c => {
+              if (!c) return;
+              if (c.id) cardIds.add(c.id);
               c.repetitions = 0;
               c.interval = 0;
               c.easeFactor = 2.5;
@@ -697,8 +702,23 @@ function injectHierarchySupport(html: string): string {
               c.lapses = 0;
               c.lastReviewMs = null;
             });
+            if (cardIds.size > 0) {
+              try {
+                const rawHistory = localStorage.getItem('medreview_eval_history');
+                if (rawHistory) {
+                  const parsed = JSON.parse(rawHistory);
+                  if (Array.isArray(parsed)) {
+                    const updated = parsed.filter(h => h && !cardIds.has(h.cardId));
+                    localStorage.setItem('medreview_eval_history', JSON.stringify(updated));
+                  }
+                }
+              } catch { /* intentionally ignored */ }
+            }
             if (typeof saveState === 'function') saveState();
-            if (typeof showToast === 'function') {
+            if (typeof persistSubfolders === 'function') persistSubfolders();
+            if (typeof showMedReviewToast === 'function') {
+              showMedReviewToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!', '', '🔄');
+            } else if (typeof showToast === 'function') {
               showToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!');
             }
             if (typeof renderRoute === 'function') renderRoute();
@@ -723,30 +743,28 @@ function injectHierarchySupport(html: string): string {
       if (sfBtn) {
         sfBtn.onclick = function(e) {
           e.stopPropagation();
-          const targetId = effectiveFolderId || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
-          const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
-          if (subs.length === 1 && subs[0] && subs[0].id) {
-            if (typeof window.navigateTo === 'function') {
-              window.navigateTo(subs[0].id);
-            } else if (typeof navigateTo === 'function') {
-              navigateTo(subs[0].id);
-            }
-          } else if (subs.length > 1) {
-            if (typeof renderSubfoldersPicker === 'function') {
-              renderSubfoldersPicker(targetId);
-            } else if (typeof window.renderSubfoldersPicker === 'function') {
-              window.renderSubfoldersPicker(targetId);
-            } else {
-              navigateTo(targetId);
-            }
+          const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
+          if (typeof renderSubfoldersPicker === 'function') {
+            renderSubfoldersPicker(targetId);
+          } else if (typeof window.renderSubfoldersPicker === 'function') {
+            window.renderSubfoldersPicker(targetId);
           } else {
-            const msg = 'Esta pasta não possui subpastas.';
-            if (typeof showMedReviewToast === 'function') {
-              showMedReviewToast(msg, '', '📁');
-            } else if (typeof showToast === 'function') {
-              showToast(msg);
+            const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
+            if (subs.length === 1 && subs[0] && subs[0].id) {
+              if (typeof window.navigateTo === 'function') {
+                window.navigateTo(subs[0].id);
+              } else if (typeof navigateTo === 'function') {
+                navigateTo(subs[0].id);
+              }
             } else {
-              alert(msg);
+              const msg = 'Esta pasta não possui subpastas.';
+              if (typeof showMedReviewToast === 'function') {
+                showMedReviewToast(msg, '', '📁');
+              } else if (typeof showToast === 'function') {
+                showToast(msg);
+              } else {
+                alert(msg);
+              }
             }
           }
         };
@@ -4191,7 +4209,7 @@ function injectHierarchySupport(html: string): string {
       }
       bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
       if (idx === chain.length - 1) {
-        bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
+        bpHtml += '<a class="mr-breadcrumb-item mr-breadcrumb-active" href="javascript:void(0)" onclick="navigateTo(&quot;' + item.id + '&quot;)">' + escapeHtml(item.name) + '</a>';
       } else {
         bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(&quot;' + item.id + '&quot;)">' + escapeHtml(item.name) + '</a>';
       }
@@ -4212,6 +4230,9 @@ function injectHierarchySupport(html: string): string {
               <p style="margin:0; color:#64748b; font-size:0.85rem; line-height:1.35;">Selecione uma subpasta para revisar ou gerenciar seus cartões.</p>
             </div>
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm" onclick="navigateTo('\${parentId}')" style="background:#f0fdf4; color:#166534; font-weight:700; padding:0.45rem 0.95rem; border-radius:9px; border:1.5px solid #86efac; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem;">
+                <span>⬅️</span> Voltar à pasta
+              </button>
               <button type="button" class="btn btn-sm" onclick="openSubfolderCreateModal('\${parentId}')" style="background:#16a34a; color:#fff; font-weight:800; padding:0.45rem 1rem; border-radius:9px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 8px rgba(22, 163, 74, 0.25);">
                 <span>➕</span> Nova Subpasta
               </button>
@@ -5235,7 +5256,10 @@ function injectHierarchySupport(html: string): string {
                 window.resetFolderCardsFsrs(effectiveFolderId);
               } else {
                 const nowMs = Date.now();
+                const cardIds = new Set();
                 allFolderCards.forEach(c => {
+                  if (!c) return;
+                  if (c.id) cardIds.add(c.id);
                   c.repetitions = 0;
                   c.interval = 0;
                   c.easeFactor = 2.5;
@@ -5246,9 +5270,24 @@ function injectHierarchySupport(html: string): string {
                   c.lapses = 0;
                   c.lastReviewMs = null;
                 });
+                if (cardIds.size > 0) {
+                  try {
+                    const rawHistory = localStorage.getItem('medreview_eval_history');
+                    if (rawHistory) {
+                      const parsed = JSON.parse(rawHistory);
+                      if (Array.isArray(parsed)) {
+                        const updated = parsed.filter(h => h && !cardIds.has(h.cardId));
+                        localStorage.setItem('medreview_eval_history', JSON.stringify(updated));
+                      }
+                    }
+                  } catch { /* intentionally ignored */ }
+                }
 
                 if (typeof saveState === 'function') saveState();
-                if (typeof showToast === 'function') {
+                if (typeof persistSubfolders === 'function') persistSubfolders();
+                if (typeof showMedReviewToast === 'function') {
+                  showMedReviewToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!', '', '🔄');
+                } else if (typeof showToast === 'function') {
                   showToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!');
                 }
                 if (typeof renderRoute === 'function') renderRoute();
@@ -5274,33 +5313,29 @@ function injectHierarchySupport(html: string): string {
             subfolderBtn.onclick = function(e) {
               e.stopPropagation();
               const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
-              const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
-
-              if (subs.length === 1 && subs[0] && subs[0].id) {
-                // Se tem exatamente UMA subpasta: navega direto para dentro dela
-                if (typeof window.navigateTo === 'function') {
-                  window.navigateTo(subs[0].id);
-                } else if (typeof navigateTo === 'function') {
-                  navigateTo(subs[0].id);
-                } else if (typeof renderSubfolderView === 'function') {
-                  renderSubfolderView(subs[0].id);
-                }
-              } else if (subs.length > 1) {
-                // Se tem VÁRIAS subpastas: renderiza seletor de subpastas diretamente sem depender de navegação nativa
-                if (typeof renderSubfoldersPicker === 'function') {
-                  renderSubfoldersPicker(targetId);
-                } else if (typeof window.renderSubfoldersPicker === 'function') {
-                  window.renderSubfoldersPicker(targetId);
-                }
+              if (typeof renderSubfoldersPicker === 'function') {
+                renderSubfoldersPicker(targetId);
+              } else if (typeof window.renderSubfoldersPicker === 'function') {
+                window.renderSubfoldersPicker(targetId);
               } else {
-                // Se NÃO tem subpastas: toast discreto avisando e não navega
-                const msg = 'Esta pasta não possui subpastas.';
-                if (typeof showMedReviewToast === 'function') {
-                  showMedReviewToast(msg, '', '📁');
-                } else if (typeof showToast === 'function') {
-                  showToast(msg);
+                const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
+                if (subs.length === 1 && subs[0] && subs[0].id) {
+                  if (typeof window.navigateTo === 'function') {
+                    window.navigateTo(subs[0].id);
+                  } else if (typeof navigateTo === 'function') {
+                    navigateTo(subs[0].id);
+                  } else if (typeof renderSubfolderView === 'function') {
+                    renderSubfolderView(subs[0].id);
+                  }
                 } else {
-                  alert(msg);
+                  const msg = 'Esta pasta não possui subpastas.';
+                  if (typeof showMedReviewToast === 'function') {
+                    showMedReviewToast(msg, '', '📁');
+                  } else if (typeof showToast === 'function') {
+                    showToast(msg);
+                  } else {
+                    alert(msg);
+                  }
                 }
               }
             };
