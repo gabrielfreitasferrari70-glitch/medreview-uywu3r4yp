@@ -339,7 +339,7 @@ function injectHierarchySupport(html: string): string {
         card.getAttribute('data-mr-folder-card-header') === '1' &&
         card.getAttribute('data-mr-folder-card-footer') === '1' &&
         card.querySelector('.mr-folder-card-top-delete') &&
-        card.classList.contains('mr-tutoria-card')) {
+        (card.classList.contains('mr-tutoria-card') || card.classList.contains('mr-unified-folder-card'))) {
       return;
     }
 
@@ -461,8 +461,9 @@ function injectHierarchySupport(html: string): string {
     const isCustomRoot = !!(typeof state !== 'undefined' && state && state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
     const isCustomProva = !!(typeof state !== 'undefined' && state && state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
     const isCustomTutoria = !!(typeof state !== 'undefined' && state && state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
+    const isNumberedTutoria = !!(typeof state !== 'undefined' && state && state.tutorias_numbered && effectiveFolderId && state.tutorias_numbered[effectiveFolderId]);
 
-    const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
+    const isTutoriaCard = isNumberedTutoria || isCustomTutoria || effectiveFolderId === 'tutoria' || lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
     const isProvaCard = !isTutoriaCard && (
       isCustomProva ||
       lowerTitle.includes('prova') ||
@@ -470,22 +471,25 @@ function injectHierarchySupport(html: string): string {
       lowerTitle.includes('cardio') ||
       lowerTitle.includes('módulo') ||
       lowerTitle.includes('modulo') ||
+      (typeof state !== 'undefined' && state && state.provas && effectiveFolderId && !!state.provas[effectiveFolderId]) ||
       card.classList.contains('deck-card')
     );
-    const isCustomFolder = !isTutoriaCard && !isProvaCard && (isCustomRoot || isCustomTutoria);
-
-    // Todo cartão novo de pasta ou módulo recebe a classe .mr-tutoria-card
-    const shouldUseStandardCard = isTutoriaCard || isProvaCard || isCustomFolder || true;
+    const isCustomFolder = !isTutoriaCard && !isProvaCard;
 
     let categoryBadge = '📁 Pasta';
     let icon = '📁';
     if (isTutoriaCard) {
       categoryBadge = 'PBL/Tutoria';
     } else if (isProvaCard) {
-      categoryBadge = '📝 Provas';
-      icon = '📝';
-    } else if (isCustomFolder || isCustomRoot || isCustomTutoria) {
-      categoryBadge = '📁 Pasta';
+      categoryBadge = 'Provas de Módulo';
+      icon = '📁';
+    } else {
+      const parentInfo = (effectiveFolderId && typeof window.resolveFolderInfo === 'function') ? window.resolveFolderInfo(effectiveFolderId) : null;
+      if (parentInfo && parentInfo.name && parentInfo.name.toLowerCase() !== 'pasta') {
+        categoryBadge = parentInfo.name;
+      } else {
+        categoryBadge = '📁 Pasta';
+      }
       icon = '📁';
     }
 
@@ -501,10 +505,13 @@ function injectHierarchySupport(html: string): string {
       cleanTitle = resolvedName;
     }
 
-    // Aplica classes imediatamente sem esperar timers
+    // Aplica classes imediatamente: Tutoria usa .mr-tutoria-card; os demais bancos usam .mr-unified-folder-card
     card.classList.add('mr-folder-card');
     card.setAttribute('data-mr-folder-card', '1');
-    if (shouldUseStandardCard) {
+    if (isTutoriaCard) {
+      card.classList.add('mr-tutoria-card');
+    } else {
+      card.classList.add('mr-unified-folder-card');
       card.classList.add('mr-tutoria-card');
     }
 
@@ -527,8 +534,8 @@ function injectHierarchySupport(html: string): string {
       card.style.position = 'relative';
     }
 
-    // Oculta/remove expurgando imagens e mídias nativas residuais
-    card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => {
+    // Oculta/remove expurgando imagens e mídias nativas residuais e thumbnails nativos do snapshot (ex: 📝 ou ícones de teste)
+    card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), .deck-icon, .folder-icon, .card-thumbnail, .thumbnail').forEach(el => {
       el.remove();
     });
 
@@ -682,6 +689,24 @@ function injectHierarchySupport(html: string): string {
           if (!window.confirm('Deseja resetar o progresso FSRS-5 de ' + totalCards + ' carta(s) desta pasta?')) return;
           if (effectiveFolderId && typeof resetFolderCardsFsrs === 'function') {
             resetFolderCardsFsrs(effectiveFolderId);
+          } else {
+            const nowMs = Date.now();
+            allFolderCards.forEach(c => {
+              c.repetitions = 0;
+              c.interval = 0;
+              c.easeFactor = 2.5;
+              c.dueDate = nowMs;
+              c.fsrsS = null;
+              c.fsrsD = null;
+              c.fsrsState = 'new';
+              c.lapses = 0;
+              c.lastReviewMs = null;
+            });
+            if (typeof saveState === 'function') saveState();
+            if (typeof showToast === 'function') {
+              showToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!');
+            }
+            if (typeof renderRoute === 'function') renderRoute();
           }
         };
       }
@@ -690,7 +715,7 @@ function injectHierarchySupport(html: string): string {
       if (addBtn) {
         addBtn.onclick = function(e) {
           e.stopPropagation();
-          const targetId = effectiveFolderId || 'tutoria';
+          const targetId = effectiveFolderId || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
           if (typeof openCreateChoice === 'function') {
             openCreateChoice(targetId);
           } else if (typeof openNewCardModal === 'function') {
@@ -703,21 +728,30 @@ function injectHierarchySupport(html: string): string {
       if (sfBtn) {
         sfBtn.onclick = function(e) {
           e.stopPropagation();
-          const targetId = effectiveFolderId || 'tutoria';
+          const targetId = effectiveFolderId || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
           const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
-          if (subs.length === 1) {
-            navigateTo(subs[0].id);
+          if (subs.length === 1 && subs[0] && subs[0].id) {
+            if (typeof window.navigateTo === 'function') {
+              window.navigateTo(subs[0].id);
+            } else if (typeof navigateTo === 'function') {
+              navigateTo(subs[0].id);
+            }
           } else if (subs.length > 1) {
             if (typeof renderSubfoldersPicker === 'function') {
               renderSubfoldersPicker(targetId);
+            } else if (typeof window.renderSubfoldersPicker === 'function') {
+              window.renderSubfoldersPicker(targetId);
             } else {
               navigateTo(targetId);
             }
           } else {
-            if (typeof openSubfolderCreateModal === 'function') {
-              openSubfolderCreateModal(targetId);
+            const msg = 'Esta pasta não possui subpastas.';
+            if (typeof showMedReviewToast === 'function') {
+              showMedReviewToast(msg, '', '📁');
+            } else if (typeof showToast === 'function') {
+              showToast(msg);
             } else {
-              navigateTo(targetId);
+              alert(msg);
             }
           }
         };
@@ -746,11 +780,16 @@ function injectHierarchySupport(html: string): string {
     });
 
     // Limpeza interna residual de ícones e textos duplicados ou soltos do snapshot
-    card.querySelectorAll('.deck-icon, .folder-icon, img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), i').forEach(el => {
+    card.querySelectorAll('.deck-icon, .folder-icon, .card-thumbnail, .thumbnail, img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), i').forEach(el => {
       if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
         el.remove();
       }
     });
+
+    // Garante normalização de botões ✏️ e 🗑 e marcação definitiva imediata
+    normalizeCardTopButtons(card);
+    card.dataset.mrDecorated = '1';
+    card.setAttribute('data-mr-decorated', '1');
   }
   window.__decorateCardElementImmediately = decorateCardElementImmediately;
 
@@ -4684,7 +4723,7 @@ function injectHierarchySupport(html: string): string {
 
     // Padronização visual dos cartões de pasta (.mr-folder-card)
     try {
-      const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]');
+      const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, .mr-unified-folder-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]');
       folderCards.forEach(card => {
         // Purga profunda em .mr-subfolder-card antes de retornar (preserva header/footer/✏️/🗑 e purga geometricamente)
         if (card.classList.contains('mr-subfolder-card')) {
@@ -4694,13 +4733,14 @@ function injectHierarchySupport(html: string): string {
           return;
         }
 
-        // Guarda rápida se o cartão já foi completamente decorado
+        // Se for um cartão de Tutoria genuíno que já foi decorado, ou se qualquer cartão já estiver decorado completamente, pula
         if (
           card.dataset && card.dataset.mrDecorated === '1' &&
           card.getAttribute('data-mr-folder-card-header') === '1' &&
           card.getAttribute('data-mr-folder-card-footer') === '1' &&
           card.querySelector('.mr-folder-card-top-delete') &&
-          card.querySelector('.mr-folder-card-top-rename')
+          card.querySelector('.mr-folder-card-top-rename') &&
+          (card.classList.contains('mr-tutoria-card') || card.classList.contains('mr-unified-folder-card'))
         ) {
           return;
         }
@@ -4853,9 +4893,10 @@ function injectHierarchySupport(html: string): string {
         const isCustomRoot = !!(typeof state !== 'undefined' && state && state.custom_root_folders && effectiveFolderId && state.custom_root_folders[effectiveFolderId]);
         const isCustomProva = !!(typeof state !== 'undefined' && state && state.custom_prova_folders && effectiveFolderId && state.custom_prova_folders[effectiveFolderId]);
         const isCustomTutoria = !!(typeof state !== 'undefined' && state && state.custom_tutoria_folders && effectiveFolderId && state.custom_tutoria_folders[effectiveFolderId]);
+        const isNumberedTutoria = !!(typeof state !== 'undefined' && state && state.tutorias_numbered && effectiveFolderId && state.tutorias_numbered[effectiveFolderId]);
 
-        // 2. isTutoriaCard existente
-        const isTutoriaCard = lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
+        // 2. isTutoriaCard: estritamente delimitado aos bancos de tutoria (imutáveis, referência ouro)
+        const isTutoriaCard = isNumberedTutoria || isCustomTutoria || effectiveFolderId === 'tutoria' || lowerTitle.includes('tutoria') || lowerId.includes('tutoria');
 
         // 3. isProvaCard
         const isProvaCard = !isTutoriaCard && (
@@ -4865,25 +4906,31 @@ function injectHierarchySupport(html: string): string {
           lowerTitle.includes('cardio') ||
           lowerTitle.includes('módulo') ||
           lowerTitle.includes('modulo') ||
+          (typeof state !== 'undefined' && state && state.provas && effectiveFolderId && !!state.provas[effectiveFolderId]) ||
           card.classList.contains('deck-card')
         );
 
         // 4. isCustomFolder
-        const isCustomFolder = !isTutoriaCard && !isProvaCard && (isCustomRoot || isCustomTutoria);
+        const isCustomFolder = !isTutoriaCard && !isProvaCard;
 
-        // 5. Badge e ícone por tipo
-        let categoryBadge = 'Pasta';
+        // 5. Badge e ícone por tipo (com chip dinâmico para não-tutorias)
+        let categoryBadge = '📁 Pasta';
         let icon = '📁';
         if (isTutoriaCard) {
           categoryBadge = 'PBL/Tutoria';
         } else if (isProvaCard) {
-          categoryBadge = '📝 Provas';
-          icon = '📝';
-        } else if (isCustomFolder) {
-          categoryBadge = '📁 Pasta';
+          categoryBadge = 'Provas de Módulo';
           icon = '📁';
         } else if (card.classList.contains('mr-subfolder-card')) {
           categoryBadge = 'Subpasta';
+          icon = '📁';
+        } else {
+          const parentInfo = (effectiveFolderId && typeof window.resolveFolderInfo === 'function') ? window.resolveFolderInfo(effectiveFolderId) : null;
+          if (parentInfo && parentInfo.name && parentInfo.name.toLowerCase() !== 'pasta') {
+            categoryBadge = parentInfo.name;
+          } else {
+            categoryBadge = '📁 Pasta';
+          }
           icon = '📁';
         }
 
@@ -4931,11 +4978,14 @@ function injectHierarchySupport(html: string): string {
           }
         });
 
-        // 6. Aplicação da classe .mr-tutoria-card para Tutoria, Provas e Custom Folders
-        const shouldUseStandardCard = isTutoriaCard || isProvaCard || isCustomFolder;
-        if (shouldUseStandardCard) {
+        // 6. Aplicação da classe de estilização: Tutoria mantém .mr-tutoria-card; outros bancos recebem .mr-unified-folder-card
+        if (isTutoriaCard) {
+          card.classList.add('mr-tutoria-card');
+        } else {
+          card.classList.add('mr-unified-folder-card');
           card.classList.add('mr-tutoria-card');
         }
+        const shouldUseStandardCard = true;
 
         // 4. CABEÇALHO PADRONIZADO (.mr-tutoria-header, chip no topo esquerdo, título com ícone)
         if (!alreadyHasHeader) {
@@ -4982,9 +5032,9 @@ function injectHierarchySupport(html: string): string {
           card.setAttribute('data-mr-folder-card-header', '1');
         }
 
-        // Captura da contagem nativa de cartas do cartão de tutoria ANTES da limpeza
+        // Captura da contagem nativa de cartas de QUALQUER cartão de pasta ANTES da limpeza
         let nativeCardCount = null;
-        if (isTutoriaCard) {
+        {
           // Busca em nós de texto e elementos filhos fora do header já criado
           const findCardCountInText = (str) => {
             const m = (str || '').match(/(\\d+)\\s*cartas?/i);
@@ -5008,7 +5058,7 @@ function injectHierarchySupport(html: string): string {
             const candidateEls = card.querySelectorAll('p, div, span, small, b, strong, em');
             for (let i = 0; i < candidateEls.length; i++) {
               const el = candidateEls[i];
-              if (!el.closest('.mr-folder-card-header')) {
+              if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
                 const parsed = findCardCountInText(el.textContent);
                 if (parsed !== null && parsed > 0) {
                   nativeCardCount = parsed;
@@ -5018,12 +5068,14 @@ function injectHierarchySupport(html: string): string {
             }
           }
 
-          // 3. Fallback: textContent geral excluindo header
+          // 3. Fallback: textContent geral excluindo header e footer
           if (nativeCardCount === null) {
             const headerEl = card.querySelector('.mr-folder-card-header');
             const headerTxt = headerEl ? headerEl.textContent || '' : '';
+            const footerEl = card.querySelector('.mr-folder-card-footer');
+            const footerTxt = footerEl ? footerEl.textContent || '' : '';
             const wholeTxt = card.textContent || '';
-            const strippedTxt = wholeTxt.replace(headerTxt, '');
+            const strippedTxt = wholeTxt.replace(headerTxt, '').replace(footerTxt, '');
             const parsed = findCardCountInText(strippedTxt);
             if (parsed !== null && parsed > 0) {
               nativeCardCount = parsed;
@@ -5033,8 +5085,8 @@ function injectHierarchySupport(html: string): string {
 
         // Limpeza de ícones e contagens nativas duplicadas no corpo do cartão
         if (shouldUseStandardCard) {
-          // Remove ícone de pasta e mídias residuais no corpo do cartão fora do header e footer
-          card.querySelectorAll('.deck-icon, .folder-icon, img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), i').forEach(el => {
+          // Remove ícone de pasta, thumbnails e mídias residuais no corpo do cartão fora do header e footer
+          card.querySelectorAll('.deck-icon, .folder-icon, .card-thumbnail, .thumbnail, img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), i').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer')) {
               el.remove();
             }
@@ -5133,7 +5185,7 @@ function injectHierarchySupport(html: string): string {
           if (addBtn) {
             addBtn.onclick = function(e) {
               e.stopPropagation();
-              const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null);
+              const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
               if (typeof openCreateChoice === 'function') {
                 openCreateChoice(targetId);
               } else if (typeof openNewCardModal === 'function') {
@@ -5146,7 +5198,7 @@ function injectHierarchySupport(html: string): string {
           if (subfolderBtn) {
             subfolderBtn.onclick = function(e) {
               e.stopPropagation();
-              const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || 'tutoria';
+              const targetId = effectiveFolderId || (typeof currentFolderContext === 'function' ? currentFolderContext() : null) || (isTutoriaCard ? 'tutoria' : (isProvaCard ? 'provas' : 'custom'));
               const subs = typeof getSubfoldersOf === 'function' ? getSubfoldersOf(targetId) : [];
 
               if (subs.length === 1 && subs[0] && subs[0].id) {
@@ -5211,6 +5263,15 @@ function injectHierarchySupport(html: string): string {
             child.remove();
           }
         });
+
+        // Garante normalização de botões ✏️ e 🗑 e marcação definitiva imediata
+        if (typeof normalizeCardTopButtons === 'function') {
+          normalizeCardTopButtons(card);
+        }
+        if (card.dataset) {
+          card.dataset.mrDecorated = '1';
+        }
+        card.setAttribute('data-mr-decorated', '1');
       });
     } catch (e) {
       console.warn('Erro ao padronizar cabeçalhos e rodapés de cartões de pasta:', e);
@@ -5536,11 +5597,11 @@ function injectHierarchySupport(html: string): string {
 
             // Se o nó adicionado for ou contiver cartões que foram reciclados/re-renderizados pelo snapshot nativo
             const recycledCards = [];
-            if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]'))) {
+            if (el.matches && (el.matches('.deck-card, .folder-card, .mr-tutoria-card, .mr-unified-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]'))) {
               recycledCards.push(el);
             }
             if (el.querySelectorAll) {
-              el.querySelectorAll('.deck-card, .folder-card, .mr-tutoria-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]').forEach(c => {
+              el.querySelectorAll('.deck-card, .folder-card, .mr-tutoria-card, .mr-unified-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]').forEach(c => {
                 recycledCards.push(c);
               });
             }
