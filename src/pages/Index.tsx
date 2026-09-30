@@ -445,11 +445,62 @@ function injectHierarchySupport(html: string): string {
     const titleTutoriaMatch = titleText.match(/tutoria\\s*(\\d+)/i);
     const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
 
-    const effectiveFolderId = card.getAttribute('data-folder-id') ||
-                              card.getAttribute('data-deck-id') ||
-                              navMatch ||
-                              titleTutoriaId ||
-                              null;
+    let effectiveFolderId = card.getAttribute('data-folder-id') ||
+                            card.getAttribute('data-deck-id') ||
+                            navMatch ||
+                            titleTutoriaId ||
+                            null;
+
+    if (!effectiveFolderId) {
+      // 1. Resolução pelo título limpo do cartão
+      const cleanCandidateTitle = titleText
+        .replace(/(\\d+)\\s*cartas?/gi, '')
+        .replace(/^[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|^[\\u2600-\\u27BF]|\\uD83D[\\uDCC1\\uDCDD]/u, '')
+        .trim();
+      const lowerCleanCandidate = cleanCandidateTitle.toLowerCase();
+
+      if (typeof state !== 'undefined' && state && cleanCandidateTitle) {
+        const stores = [
+          state.tutorias_numbered,
+          state.provas,
+          state.custom_tutoria_folders,
+          state.custom_prova_folders,
+          state.custom_root_folders
+        ];
+
+        // Match exato primeiro
+        for (const store of stores) {
+          if (!store || typeof store !== 'object') continue;
+          for (const key of Object.keys(store)) {
+            const item = store[key];
+            if (!item) continue;
+            const t = (item.title || item.name || '').trim();
+            if (t && t === cleanCandidateTitle) {
+              effectiveFolderId = key;
+              break;
+            }
+          }
+          if (effectiveFolderId) break;
+        }
+
+        // Match case-insensitive/trim secundário
+        if (!effectiveFolderId) {
+          for (const store of stores) {
+            if (!store || typeof store !== 'object') continue;
+            for (const key of Object.keys(store)) {
+              const item = store[key];
+              if (!item) continue;
+              const t = (item.title || item.name || '').trim().toLowerCase();
+              if (t && t === lowerCleanCandidate) {
+                effectiveFolderId = key;
+                break;
+              }
+            }
+            if (effectiveFolderId) break;
+          }
+        }
+      }
+    }
 
     const lowerTitle = titleText.toLowerCase();
     const lowerId = (effectiveFolderId || '').toLowerCase();
@@ -655,7 +706,12 @@ function injectHierarchySupport(html: string): string {
     // Rodapé padronizado como filho DIRETO no fundo (último filho)
     let footerEl = card.querySelector('.mr-folder-card-footer');
     const allFolderCards = effectiveFolderId && typeof getFolderAllCards === 'function' ? getFolderAllCards(effectiveFolderId) : [];
-    let totalCards = (allFolderCards && allFolderCards.length > 0) ? allFolderCards.length : (typeof nativeCardCount === 'number' ? nativeCardCount : 0);
+    let totalCards = 0;
+    if (effectiveFolderId && typeof getFolderAllCards === 'function') {
+      totalCards = allFolderCards ? allFolderCards.length : 0;
+    } else if (typeof nativeCardCount === 'number') {
+      totalCards = nativeCardCount;
+    }
 
     if (!footerEl || card.getAttribute('data-mr-folder-card-footer') !== '1') {
       const oldFooters = card.querySelectorAll('.mr-folder-card-footer, .deck-footer, .folder-footer');
@@ -4971,11 +5027,62 @@ function injectHierarchySupport(html: string): string {
         const titleTutoriaMatch = titleText.match(/tutoria\\s*(\\d+)/i);
         const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
 
-        const effectiveFolderId = card.getAttribute('data-folder-id') ||
-                                  card.getAttribute('data-deck-id') ||
-                                  navMatch ||
-                                  titleTutoriaId ||
-                                  null;
+        let effectiveFolderId = card.getAttribute('data-folder-id') ||
+                                card.getAttribute('data-deck-id') ||
+                                navMatch ||
+                                titleTutoriaId ||
+                                null;
+
+        if (!effectiveFolderId) {
+          // 1. Resolução pelo título limpo do cartão
+          const cleanCandidateTitle = titleText
+            .replace(/(\\d+)\\s*cartas?/gi, '')
+            .replace(/^[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|^[\\u2600-\\u27BF]|\\uD83D[\\uDCC1\\uDCDD]/u, '')
+            .trim();
+          const lowerCleanCandidate = cleanCandidateTitle.toLowerCase();
+
+          if (typeof state !== 'undefined' && state && cleanCandidateTitle) {
+            const stores = [
+              state.tutorias_numbered,
+              state.provas,
+              state.custom_tutoria_folders,
+              state.custom_prova_folders,
+              state.custom_root_folders
+            ];
+
+            // Match exato primeiro
+            for (const store of stores) {
+              if (!store || typeof store !== 'object') continue;
+              for (const key of Object.keys(store)) {
+                const item = store[key];
+                if (!item) continue;
+                const t = (item.title || item.name || '').trim();
+                if (t && t === cleanCandidateTitle) {
+                  effectiveFolderId = key;
+                  break;
+                }
+              }
+              if (effectiveFolderId) break;
+            }
+
+            // Match case-insensitive/trim secundário
+            if (!effectiveFolderId) {
+              for (const store of stores) {
+                if (!store || typeof store !== 'object') continue;
+                for (const key of Object.keys(store)) {
+                  const item = store[key];
+                  if (!item) continue;
+                  const t = (item.title || item.name || '').trim().toLowerCase();
+                  if (t && t === lowerCleanCandidate) {
+                    effectiveFolderId = key;
+                    break;
+                  }
+                }
+                if (effectiveFolderId) break;
+              }
+            }
+          }
+        }
 
         const lowerTitle = titleText.toLowerCase();
         const lowerId = (effectiveFolderId || '').toLowerCase();
@@ -5204,7 +5311,9 @@ function injectHierarchySupport(html: string): string {
         if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
           const allFolderCards = effectiveFolderId ? getFolderAllCards(effectiveFolderId) : [];
           let totalCards = 0;
-          if (typeof nativeCardCount === 'number' && nativeCardCount > 0) {
+          if (effectiveFolderId && typeof getFolderAllCards === 'function') {
+            totalCards = allFolderCards ? allFolderCards.length : 0;
+          } else if (typeof nativeCardCount === 'number' && nativeCardCount > 0) {
             totalCards = nativeCardCount;
           } else if (allFolderCards && allFolderCards.length > 0) {
             totalCards = allFolderCards.length;
