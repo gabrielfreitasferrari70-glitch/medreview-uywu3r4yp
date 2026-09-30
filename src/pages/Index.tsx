@@ -561,19 +561,30 @@ function injectHierarchySupport(html: string): string {
   function _executeDecorateCardElementImmediately(card) {
     const isHome = isHomeView();
 
+    // Helper de normalização estrita de título de pasta (remove emojis, espaços duplicados e diacríticos)
+    const normalizeFolderCardTitle = (str) => {
+      return (str || '')
+        .replace(/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/gu, '')
+        .replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|\\uD83D[\\uDCC1\\uDCDD]|📁|📂/gu, '')
+        .replace(/\\s+/g, ' ')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\\u0300-\\u036f]/g, '');
+    };
+
     // [mr-provas-root-hide] Oculta cartão auto-referencial "Provas de Módulo" APENAS dentro da pasta de provas (NUNCA na Home)
     const earlyCardFolderId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || '';
     const rawTitleEarly = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
     const titleEarlyText = (rawTitleEarly?.textContent || card.getAttribute('data-folder-name') || '').trim();
     const earlyLower = titleEarlyText.toLowerCase();
-    const cleanEarlyLower = earlyLower.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uD83D[\uDCC1\uDCDD]|📁|📂/gu, '').replace(/s+/g, ' ').trim();
-    const normEarlyLower = cleanEarlyLower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normEarlyTitle = normalizeFolderCardTitle(titleEarlyText);
     const onclickEarly = card.getAttribute('onclick') || '';
 
     const isProvasRootEarly = (
       earlyCardFolderId === 'provas' ||
-      normEarlyLower === 'provas de modulo' ||
-      normEarlyLower === 'prova de modulo'
+      normEarlyTitle === 'provas de modulo' ||
+      normEarlyTitle === 'prova de modulo'
     );
 
     if (!isHome && isInsideProvasView() && isProvasRootEarly) {
@@ -765,12 +776,14 @@ function injectHierarchySupport(html: string): string {
     }
 
     // [mr-provas-root-hide] Proteção secundária para cartão raiz 'provas' APENAS dentro da pasta de provas (NUNCA na Home)
-    const cleanLowerTitle = (cleanTitle || '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uD83D[\uDCC1\uDCDD]|📁|📂/gu, '').replace(/s+/g, ' ').trim().toLowerCase();
-    const normLowerTitle = cleanLowerTitle.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normCleanTitle = normalizeFolderCardTitle(cleanTitle);
+    const normRawTitle = normalizeFolderCardTitle(titleText);
     const isProvasRootCard = (
       effectiveFolderId === 'provas' ||
-      normLowerTitle === 'provas de modulo' ||
-      normLowerTitle === 'prova de modulo'
+      normCleanTitle === 'provas de modulo' ||
+      normCleanTitle === 'prova de modulo' ||
+      normRawTitle === 'provas de modulo' ||
+      normRawTitle === 'prova de modulo'
     );
     if (!isHome && isInsideProvasView() && isProvasRootCard) {
       card.style.display = 'none';
@@ -5200,19 +5213,30 @@ function injectHierarchySupport(html: string): string {
         }
 
         const isHome = isHomeView();
+
+        const normalizeFolderCardTitleScoped = (str) => {
+          return (str || '')
+            .replace(/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/gu, '')
+            .replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|\\uD83D[\\uDCC1\\uDCDD]|📁|📂/gu, '')
+            .replace(/\\s+/g, ' ')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\\u0300-\\u036f]/g, '');
+        };
+
         const rawTitleEarly = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
         const titleEarlyText = (rawTitleEarly?.textContent || card.getAttribute('data-folder-name') || '').trim();
         const earlyLower = titleEarlyText.toLowerCase();
-        const cleanEarlyLower = earlyLower.replace(/^[\\s📁]+/, '').trim();
+        const normEarlyText = normalizeFolderCardTitleScoped(titleEarlyText);
         const onclickEarly = card.getAttribute('onclick') || '';
         const earlyCardFolderId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || '';
 
         // [mr-provas-root-hide] Oculta cartão auto-referencial "Provas de Módulo" APENAS dentro da pasta de provas (NUNCA na Home)
-        const cleanEarlyLowerNorm = cleanEarlyLower.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uD83D[\uDCC1\uDCDD]|📁|📂/gu, '').replace(/s+/g, ' ').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const isProvasRootEarly = (
           earlyCardFolderId === 'provas' ||
-          cleanEarlyLowerNorm === 'provas de modulo' ||
-          cleanEarlyLowerNorm === 'prova de modulo'
+          normEarlyText === 'provas de modulo' ||
+          normEarlyText === 'prova de modulo'
         );
 
         if (!isHome && isInsideProvasView() && isProvasRootEarly) {
@@ -5499,11 +5523,14 @@ function injectHierarchySupport(html: string): string {
         }
 
         // [mr-provas-root-hide] Proteção secundária para cartão raiz 'provas' APENAS dentro da pasta de provas (NUNCA na Home)
-        const cleanLowerTitleCardNorm = (cleanTitle || '').replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uD83D[\uDCC1\uDCDD]|📁|📂/gu, '').replace(/s+/g, ' ').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const normCleanTitleCard = normalizeFolderCardTitleScoped(cleanTitle);
+        const normRawTitleCard = normalizeFolderCardTitleScoped(titleText);
         const isProvasRootCard = (
           effectiveFolderId === 'provas' ||
-          cleanLowerTitleCardNorm === 'provas de modulo' ||
-          cleanLowerTitleCardNorm === 'prova de modulo'
+          normCleanTitleCard === 'provas de modulo' ||
+          normCleanTitleCard === 'prova de modulo' ||
+          normRawTitleCard === 'provas de modulo' ||
+          normRawTitleCard === 'prova de modulo'
         );
         if (!isHome && isInsideProvasView() && isProvasRootCard) {
           card.style.display = 'none';
@@ -6245,9 +6272,19 @@ function injectHierarchySupport(html: string): string {
             recycledCards.forEach(card => {
               // [mr-provas-root-hide] Oculta cartão auto-referencial "Provas de Módulo" APENAS dentro da pasta de provas (NUNCA na Home)
               if (!isHomeView() && isInsideProvasView()) {
+                const normalizeTitleLocal = (str) => {
+                  return (str || '')
+                    .replace(/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/gu, '')
+                    .replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|\\uD83D[\\uDCC1\\uDCDD]|📁|📂/gu, '')
+                    .replace(/\\s+/g, ' ')
+                    .trim()
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\\u0300-\\u036f]/g, '');
+                };
                 const rFolderId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || '';
                 const rTitle = (card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong')?.textContent || card.getAttribute('data-folder-name') || '').trim();
-                const rCleanNorm = rTitle.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|\uD83D[\uDCC1\uDCDD]|📁|📂/gu, '').replace(/s+/g, ' ').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const rCleanNorm = normalizeTitleLocal(rTitle);
                 if (
                   rFolderId === 'provas' ||
                   rCleanNorm === 'provas de modulo' ||
