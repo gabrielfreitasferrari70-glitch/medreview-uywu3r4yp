@@ -326,6 +326,38 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
+  // Detecção se o contexto atual é a home ("/", rota principal)
+  function isHomeView() {
+    try {
+      if (typeof window.currentRoute !== 'undefined') {
+        const r = String(window.currentRoute).trim().toLowerCase();
+        if (r && r !== 'home' && r !== '/' && r !== 'index') return false;
+      }
+      if (typeof currentRoute !== 'undefined') {
+        const r = String(currentRoute).trim().toLowerCase();
+        if (r && r !== 'home' && r !== '/' && r !== 'index') return false;
+      }
+      if (typeof window.studyState !== 'undefined' && window.studyState && window.studyState.deckId) {
+        return false;
+      }
+      if (typeof studyState !== 'undefined' && studyState && studyState.deckId) {
+        return false;
+      }
+      const subWrapper = document.getElementById('mr-subfolder-wrapper');
+      if (subWrapper && subWrapper.style.display !== 'none') {
+        return false;
+      }
+      const activeFolder = document.querySelector('.folder-view, .deck-view');
+      if (activeFolder && activeFolder.offsetParent !== null && !activeFolder.classList.contains('hidden')) {
+        return false;
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  }
+  window.__isHomeView = isHomeView;
+
   // Utilitários de validação e proteção contra decoração indevida de modais/overlays
   function isLegitimateCardTitle(el) {
     if (!el || !(el instanceof HTMLElement)) return false;
@@ -489,6 +521,63 @@ function injectHierarchySupport(html: string): string {
   }
 
   function _executeDecorateCardElementImmediately(card) {
+    const isHome = isHomeView();
+
+    // Se estiver na Home, NUNCA destrói nem injeta cabeçalho/rodapé de gestão no cartão Tutoria ou Prova de Módulo
+    // O snapshot nativo já traz a estrutura perfeita Tutoria-like: quadrinho verde com ícone, badge, título, descrição, barra de progresso, rodapé "Simulados & Avaliações" + "Abrir ➜"
+    const rawTitleEarly = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
+    const titleEarlyText = (rawTitleEarly?.textContent || card.getAttribute('data-folder-name') || '').trim();
+    const earlyLower = titleEarlyText.toLowerCase();
+    const onclickEarly = card.getAttribute('onclick') || '';
+    const isEarlyTutoria = earlyLower.includes('tutoria') || onclickEarly.includes('tutoria');
+    const isEarlyProva = !isEarlyTutoria && (earlyLower.includes('prova') || earlyLower.includes('módulo') || earlyLower.includes('modulo') || onclickEarly.includes('provas') || onclickEarly.includes('prova'));
+
+    if (isHome && (isEarlyTutoria || isEarlyProva)) {
+      // Aplica apenas as classes visuais do design unificado
+      card.classList.add('mr-folder-card');
+      card.setAttribute('data-mr-folder-card', '1');
+      if (isEarlyTutoria) {
+        card.classList.add('mr-tutoria-card');
+      } else {
+        card.classList.add('mr-unified-folder-card');
+      }
+
+      // Remove botões ✏️ e 🗑 se por acaso foram injetados antes
+      card.querySelectorAll('.mr-folder-card-top-rename, .mr-folder-card-top-delete, [data-mr-folder-rename], [data-mr-folder-delete], [data-mr-sub-delete]').forEach(b => b.remove());
+
+      // Remove qualquer rodapé de gestão com 🔄 Resetar, + Carta, 📁 Subpasta ou chip solto
+      card.querySelectorAll('.mr-folder-card-footer, .mr-folder-card-actions, .mr-folder-card-count-chip').forEach(f => f.remove());
+
+      // Resolve contagem real de cartas para atualizar na linha "📖 N cartas"
+      let totalCount = 0;
+      let effectiveId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || (isEarlyTutoria ? 'tutoria' : 'provas');
+      if (typeof getFolderAllCards === 'function') {
+        const cList = getFolderAllCards(effectiveId);
+        if (cList && cList.length > 0) totalCount = cList.length;
+      }
+
+      // Se a contagem nativa tiver "0 cartas", ou número desatualizado, e temos totalCount > 0, atualiza o texto da carta
+      if (totalCount > 0) {
+        card.querySelectorAll('p, div, span, small, b, strong').forEach(el => {
+          if (el.children.length === 0 && (el.textContent || '').match(/\\d+\\s*cartas?/i)) {
+            el.textContent = el.textContent.replace(/\\d+\\s*cartas?/i, totalCount + (totalCount === 1 ? ' carta' : ' cartas'));
+          }
+        });
+      }
+
+      // Garante que o título esteja limpo, sem emoji 📁 duplicado
+      if (rawTitleEarly) {
+        const cleanT = rawTitleEarly.textContent.replace(/^[\\s📁]+/, '').trim();
+        if (cleanT && cleanT !== rawTitleEarly.textContent) {
+          rawTitleEarly.textContent = cleanT;
+        }
+      }
+
+      card.dataset.mrDecorated = '1';
+      card.setAttribute('data-mr-decorated', '1');
+      return;
+    }
+
     // Remoção incondicional e agressiva de tags de imagem, emojis/thumbnails nativos quebrados do snapshot (ex: 📝 ou ícone de teste)
     card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), .deck-icon, .folder-icon, .card-thumbnail, .thumbnail').forEach(el => el.remove());
 
@@ -1310,12 +1399,7 @@ function injectHierarchySupport(html: string): string {
     }
 
     /* PASSO 4: GRID UNIFORME, HOVER CONSISTENTE E TIPOGRAFIA */
-    .mr-tutoria-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
-    .mr-unified-folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
-    .mr-folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
-    .mr-subfolder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
-    .deck-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]),
-    .folder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]) {
+    .mr-subfolder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not([data-mr-decorated]) {
       display: none !important;
       visibility: hidden !important;
       height: 0 !important;
@@ -4969,6 +5053,24 @@ function injectHierarchySupport(html: string): string {
           if (typeof purgeSubfolderCard === 'function') {
             purgeSubfolderCard(card);
           }
+          return;
+        }
+
+        const isHome = isHomeView();
+        const rawTitleEarly = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
+        const titleEarlyText = (rawTitleEarly?.textContent || card.getAttribute('data-folder-name') || '').trim();
+        const earlyLower = titleEarlyText.toLowerCase();
+        const onclickEarly = card.getAttribute('onclick') || '';
+        const isEarlyTutoria = earlyLower.includes('tutoria') || onclickEarly.includes('tutoria');
+        const isEarlyProva = !isEarlyTutoria && (earlyLower.includes('prova') || earlyLower.includes('módulo') || earlyLower.includes('modulo') || onclickEarly.includes('provas') || onclickEarly.includes('prova'));
+
+        if (isHome && (isEarlyTutoria || isEarlyProva)) {
+          card.classList.add('mr-folder-card');
+          card.setAttribute('data-mr-folder-card', '1');
+          if (isEarlyTutoria) { card.classList.add('mr-tutoria-card'); } else { card.classList.add('mr-unified-folder-card'); }
+          card.querySelectorAll('.mr-folder-card-top-rename, .mr-folder-card-top-delete, .mr-folder-card-footer, .mr-folder-card-actions').forEach(function(el){ el.remove(); });
+          card.dataset.mrDecorated = '1';
+          card.setAttribute('data-mr-decorated', '1');
           return;
         }
 
