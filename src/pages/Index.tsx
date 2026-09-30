@@ -4733,6 +4733,11 @@ function injectHierarchySupport(html: string): string {
           return;
         }
 
+        // Se o cartão já estiver marcado como decorado, pula imediatamente
+        if (card.dataset && card.dataset.mrDecorated === '1' && card.getAttribute('data-mr-folder-card-header') === '1') {
+          return;
+        }
+
         // Se for um cartão de Tutoria genuíno que já foi decorado, ou se qualquer cartão já estiver decorado completamente, pula
         if (
           card.dataset && card.dataset.mrDecorated === '1' &&
