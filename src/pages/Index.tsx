@@ -416,15 +416,30 @@ function injectHierarchySupport(html: string): string {
     for (const b of banned) {
       if (txt === b || txt.startsWith(b + ' ') || txt.endsWith(' ' + b)) return false;
     }
+
+    // Rejeições globais de contêineres/seções que não são cartões de pasta (válidas em todas as telas)
+    const normTxt = (el.textContent || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    if (
+      normTxt.includes('pastas de tutoria') ||
+      normTxt.includes('pastas de prova') ||
+      normTxt.includes('pastas de estudo') ||
+      normTxt.includes('pasta de estudo') ||
+      normTxt.includes('exibindo de') ||
+      normTxt.includes('biblioteca geral') ||
+      normTxt.includes('buscar por termo') ||
+      normTxt.includes('nova pasta') ||
+      normTxt.includes('nova carta')
+    ) {
+      return false;
+    }
+
     // Rejeição na home de contêineres/seções que não são cartões de pasta
     if (typeof isHomeView === 'function' && isHomeView()) {
-      const normTxt = (el.textContent || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
       if (
-        normTxt.includes('pastas de estudo') ||
-        normTxt.includes('pasta de estudo') ||
         normTxt.includes('todos os cards') ||
         normTxt.includes('todas as cartas') ||
         normTxt.includes('todos os flashcards') ||
@@ -456,8 +471,27 @@ function injectHierarchySupport(html: string): string {
     const z = parseInt(style.zIndex, 10);
     if (!isNaN(z) && z >= 50) return false;
     const rect = el.getBoundingClientRect();
-    if (rect.height > (vpHeight * 0.6) || rect.width > (vpWidth * 0.9)) return false;
+    if (rect.height > (vpHeight * 0.6) || rect.width > (vpWidth * 0.85)) return false;
     return true;
+  }
+
+  function isValidFolderCardContainer(el) {
+    if (!el || !(el instanceof HTMLElement)) return false;
+    if (
+      el.hasAttribute('data-folder-id') ||
+      el.hasAttribute('data-deck-id') ||
+      el.hasAttribute('data-subfolder-id')
+    ) {
+      return true;
+    }
+    if (el.classList.contains('mr-unified-folder-card') || el.classList.contains('mr-folder-card')) {
+      return true;
+    }
+    const oc = el.getAttribute('onclick') || '';
+    if (oc.includes('navigateTo') || oc.includes('studyDeck') || oc.includes('tutoria_')) {
+      return true;
+    }
+    return false;
   }
 
   function unDecorateInvalidCard(el) {
@@ -5323,8 +5357,8 @@ function injectHierarchySupport(html: string): string {
       const titleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
       titleEls.forEach(function (tEl) {
         if (!isLegitimateCardTitle(tEl)) return;
-        var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
-        if (cardContainer && isCardGeometricallyValid(cardContainer) && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
+        var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]');
+        if (cardContainer && isValidFolderCardContainer(cardContainer) && isCardGeometricallyValid(cardContainer) && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
       });
 
       folderCardsList.forEach(card => {
@@ -6373,14 +6407,14 @@ function injectHierarchySupport(html: string): string {
               const mutTitleEls = el.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong, [class*="title"]');
               mutTitleEls.forEach(function (tEl) {
                 if (!isLegitimateCardTitle(tEl)) return;
-                var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
-                if (cardContainer && isCardGeometricallyValid(cardContainer) && !recycledCards.includes(cardContainer)) recycledCards.push(cardContainer);
+                var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]');
+                if (cardContainer && isValidFolderCardContainer(cardContainer) && isCardGeometricallyValid(cardContainer) && !recycledCards.includes(cardContainer)) recycledCards.push(cardContainer);
               });
             }
             if (el.matches && el.matches('h2, h3, h4, .deck-title, .folder-title, strong, [class*="title"]')) {
               if (isLegitimateCardTitle(el)) {
-                var cCont = el.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || el.parentElement;
-                if (cCont && isCardGeometricallyValid(cCont) && !recycledCards.includes(cCont)) recycledCards.push(cCont);
+                var cCont = el.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]');
+                if (cCont && isValidFolderCardContainer(cCont) && isCardGeometricallyValid(cCont) && !recycledCards.includes(cCont)) recycledCards.push(cCont);
               }
             }
             recycledCards.forEach(card => {
