@@ -305,11 +305,14 @@ body .folder-stats:not(#global-stats-modal *) {
    Subpastas, Pastas Raiz e Customizadas). O tipo é diferenciado pelo chip/ícone.
    ========================================================================== */
 .mr-tutoria-card,
+.mr-unified-folder-card,
 .mr-folder-card,
 .mr-subfolder-card,
 .deck-card.mr-tutoria-card,
+.deck-card.mr-unified-folder-card,
 .deck-card.mr-folder-card,
 .folder-card.mr-tutoria-card,
+.folder-card.mr-unified-folder-card,
 .folder-card.mr-folder-card {
   position: relative !important;
   background: #ffffff !important;
@@ -335,6 +338,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Faixa verde superior decorativa */
 .mr-tutoria-card::before,
+.mr-unified-folder-card::before,
 .mr-folder-card::before,
 .mr-subfolder-card::before {
   content: '';
@@ -349,6 +353,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card:hover,
+.mr-unified-folder-card:hover,
 .mr-folder-card:hover,
 .mr-subfolder-card:hover {
   transform: translateY(-3px) !important;
@@ -359,6 +364,10 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Ocultação estrita e completa de elementos e wrappers nativos do snapshot */
 .mr-tutoria-card
+  > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
+    .mr-folder-card-top-rename
+  ):not([data-mr-decorated]),
+.mr-unified-folder-card
   > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-delete):not(
     .mr-folder-card-top-rename
   ):not([data-mr-decorated]),
@@ -451,6 +460,10 @@ body .folder-stats:not(#global-stats-modal *) {
   > [style*='position: absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-tutoria-card
   > [style*='position:absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+.mr-unified-folder-card
+  > [style*='position: absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+.mr-unified-folder-card
+  > [style*='position:absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-folder-card
   > [style*='position: absolute']:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
 .mr-folder-card
@@ -469,6 +482,12 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-tutoria-card embed,
 .mr-tutoria-card canvas,
 .mr-tutoria-card svg:not(.mr-allowed-svg),
+.mr-unified-folder-card img,
+.mr-unified-folder-card picture,
+.mr-unified-folder-card object,
+.mr-unified-folder-card embed,
+.mr-unified-folder-card canvas,
+.mr-unified-folder-card svg:not(.mr-allowed-svg),
 .mr-folder-card img,
 .mr-folder-card picture,
 .mr-folder-card object,
@@ -499,6 +518,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Cabeçalho do Cartão: chip/badge acima, título com ícone abaixo em linha de largura total (88px de padding-right para os botões ✏️ e 🗑) */
 .mr-tutoria-card .mr-folder-card-header,
+.mr-unified-folder-card .mr-folder-card-header,
 .mr-folder-card-header.mr-tutoria-header,
 .mr-folder-card .mr-folder-card-header,
 .mr-subfolder-card .mr-folder-card-header {
@@ -516,6 +536,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Chip/badge de tipo no topo do cabeçalho */
 .mr-tutoria-card .mr-folder-card-badge,
+.mr-unified-folder-card .mr-folder-card-badge,
 .mr-folder-card .mr-folder-card-badge,
 .mr-subfolder-card .mr-folder-card-badge,
 .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge,
@@ -538,6 +559,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Wrap de título com ícone: ocupa 100% da largura, quebra de texto natural, emoji inline */
 .mr-tutoria-card .mr-folder-card-title-wrap,
+.mr-unified-folder-card .mr-folder-card-title-wrap,
 .mr-folder-card .mr-folder-card-title-wrap,
 .deck-card .mr-folder-card-title-wrap,
 .folder-card .mr-folder-card-title-wrap,
@@ -549,6 +571,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-icon,
+.mr-unified-folder-card .mr-folder-card-icon,
 .mr-folder-card .mr-folder-card-icon,
 .deck-card .mr-folder-card-icon,
 .folder-card .mr-folder-card-icon {
@@ -560,6 +583,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-title,
+.mr-unified-folder-card .mr-folder-card-title,
 .mr-folder-card .mr-folder-card-title,
 .deck-card .mr-folder-card-title,
 .folder-card .mr-folder-card-title {
@@ -579,6 +603,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Slot do botão 🗑 no canto superior direito */
 .mr-tutoria-card .mr-folder-card-top-delete,
+.mr-unified-folder-card .mr-folder-card-top-delete,
 .mr-folder-card .mr-folder-card-top-delete,
 .mr-subfolder-card .mr-folder-card-top-delete,
 [data-mr-folder-delete],
@@ -613,6 +638,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-top-delete:hover,
+.mr-unified-folder-card .mr-folder-card-top-delete:hover,
 .mr-folder-card .mr-folder-card-top-delete:hover,
 .mr-subfolder-card .mr-folder-card-top-delete:hover,
 [data-mr-folder-delete]:hover,
@@ -624,6 +650,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Slot do botão ✏️ (editar nome) ao lado do botão 🗑 no canto superior direito */
 .mr-tutoria-card .mr-folder-card-top-rename,
+.mr-unified-folder-card .mr-folder-card-top-rename,
 .mr-folder-card .mr-folder-card-top-rename,
 .mr-subfolder-card .mr-folder-card-top-rename,
 [data-mr-folder-rename] {
@@ -658,6 +685,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-top-rename:hover,
+.mr-unified-folder-card .mr-folder-card-top-rename:hover,
 .mr-folder-card .mr-folder-card-top-rename:hover,
 .mr-subfolder-card .mr-folder-card-top-rename:hover,
 [data-mr-folder-rename]:hover {
@@ -730,6 +758,7 @@ body .folder-stats:not(#global-stats-modal *) {
 
 /* Divisor pontilhado e rodapé de cartões de pasta (.mr-tutoria-card e .mr-folder-card) */
 .mr-tutoria-card .mr-folder-card-footer,
+.mr-unified-folder-card .mr-folder-card-footer,
 .mr-folder-card .mr-folder-card-footer,
 .deck-card .mr-folder-card-footer,
 .folder-card .mr-folder-card-footer,
@@ -742,7 +771,7 @@ body .folder-stats:not(#global-stats-modal *) {
   margin-top: auto !important;
   position: relative !important;
   padding-top: 0.85rem !important;
-  border-top: 1.5px dashed #cbd5e1 !important;
+  border-top: 1.5px dashed #bbf7d0 !important;
   font-size: 0.8rem !important;
   color: #64748b !important;
   width: 100% !important;
@@ -750,6 +779,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-footer-left,
+.mr-unified-folder-card .mr-folder-card-footer-left,
 .mr-folder-card .mr-folder-card-footer-left,
 .deck-card .mr-folder-card-footer-left,
 .folder-card .mr-folder-card-footer-left,
@@ -762,6 +792,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-count-chip,
+.mr-unified-folder-card .mr-folder-card-count-chip,
 .mr-folder-card .mr-folder-card-count-chip,
 .deck-card .mr-folder-card-count-chip,
 .folder-card .mr-folder-card-count-chip,
@@ -785,6 +816,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions,
+.mr-unified-folder-card .mr-folder-card-actions,
 .mr-folder-card .mr-folder-card-actions,
 .deck-card .mr-folder-card-actions,
 .folder-card .mr-folder-card-actions,
@@ -800,6 +832,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
 .deck-card .mr-folder-card-actions .mr-folder-card-btn-action,
 .folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
@@ -812,8 +845,8 @@ body .folder-stats:not(#global-stats-modal *) {
   align-items: center !important;
   justify-content: center !important;
   gap: 0.35rem !important;
-  height: 34px !important;
-  min-height: 34px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   min-width: 64px !important;
   font-size: 0.72rem !important;
   padding: 0 0.35rem !important;
@@ -829,21 +862,26 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action:hover,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-action:hover,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-action:hover,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-action:hover {
   transform: translateY(-1px) !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-reset,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-reset,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-reset,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-reset {
   background: #f0fdf4 !important;
   color: #15803d !important;
   border: 1px solid #bbf7d0 !important;
   border-radius: 8px !important;
+  height: 36px !important;
+  min-height: 36px !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-reset:hover {
   background: #fef3c7 !important;
@@ -852,6 +890,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-add,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-add,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-add,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-add {
   background: #16a34a !important;
@@ -859,9 +898,13 @@ body .folder-stats:not(#global-stats-modal *) {
   border: 1px solid #16a34a !important;
   font-weight: 800 !important;
   box-shadow: 0 1px 3px rgba(22, 163, 74, 0.2) !important;
+  border-radius: 8px !important;
+  height: 36px !important;
+  min-height: 36px !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-add:hover,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-add:hover,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-add:hover,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-add:hover {
   background: #15803d !important;
@@ -870,12 +913,16 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-subfolder,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-subfolder,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-subfolder,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-subfolder {
   background: #f0fdf4 !important;
   color: #166534 !important;
   border: 1px solid #86efac !important;
   box-shadow: 0 1px 2px rgba(22, 163, 74, 0.06) !important;
+  border-radius: 8px !important;
+  height: 36px !important;
+  min-height: 36px !important;
 }
 
 .mr-subfolder-card .mr-folder-card-actions {
@@ -926,6 +973,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-subfolder:hover,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-subfolder:hover,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-subfolder:hover,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-subfolder:hover {
   background: #dcfce7 !important;
@@ -934,6 +982,7 @@ body .folder-stats:not(#global-stats-modal *) {
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-delete,
+.mr-unified-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-delete,
 .mr-folder-card-footer .mr-folder-card-btn-delete,
