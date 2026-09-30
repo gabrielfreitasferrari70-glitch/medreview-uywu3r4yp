@@ -159,15 +159,28 @@ function injectHierarchySupport(html: string): string {
 // MedReview — Motor de Hierarquia de Pastas & Subpastas (FSRS-5)
 // ========================================================
 (function() {
-  // Higienização / purga direcionada e deduplicada para cartões de subpasta
+  // Higienização / purga direcionada, deduplicada e GEOMÉTRICA para cartões de subpasta
   function purgeSubfolderCard(card) {
     if (!card || !(card instanceof HTMLElement)) return;
-    if (card.dataset && card.dataset.mrPurged === '1') return;
 
     const prevFlag = window.__mrInjectingDelete;
     window.__mrInjectingDelete = true;
     try {
-      // 1. Remove qualquer filho fora de header/footer/top-rename/top-delete mesmo se marcado com data-mr-decorated
+      // 1. Deduplicação física rigorosa: mantém apenas o PRIMEIRO ✏️ e 🗑
+      const renames = card.querySelectorAll(':scope > .mr-folder-card-top-rename, .mr-folder-card-top-rename');
+      if (renames.length > 1) {
+        for (let i = 1; i < renames.length; i++) {
+          renames[i].remove();
+        }
+      }
+      const deletes = card.querySelectorAll(':scope > .mr-folder-card-top-delete, .mr-folder-card-top-delete');
+      if (deletes.length > 1) {
+        for (let i = 1; i < deletes.length; i++) {
+          deletes[i].remove();
+        }
+      }
+
+      // 2. Remove qualquer filho direto fora de header, footer, top-rename ou top-delete
       Array.from(card.children).forEach(child => {
         if (
           !child.classList.contains('mr-folder-card-header') &&
@@ -182,7 +195,54 @@ function injectHierarchySupport(html: string): string {
         }
       });
 
-      // 1b. Remove TODO button/a/[role="button"] dentro de .mr-subfolder-card fora de header/footer e que não seja top-rename/top-delete/btn-subfolder
+      // 3. Purga GEOMÉTRICA de chips-fantasma no canto superior direito do cartão
+      const cardRect = card.getBoundingClientRect();
+      const allDescendants = card.querySelectorAll('*');
+      allDescendants.forEach(el => {
+        if (
+          el.classList.contains('mr-folder-card-top-rename') ||
+          el.classList.contains('mr-folder-card-top-delete') ||
+          el.hasAttribute('data-mr-folder-rename') ||
+          el.hasAttribute('data-mr-sub-delete') ||
+          el.hasAttribute('data-mr-folder-delete') ||
+          el.closest('.mr-folder-card-top-rename') ||
+          el.closest('.mr-folder-card-top-delete')
+        ) {
+          return;
+        }
+
+        const compStyle = window.getComputedStyle(el);
+        const isAbsolute = compStyle.position === 'absolute' || compStyle.position === 'fixed';
+        const elRect = el.getBoundingClientRect();
+
+        // Posição relativa às bordas do cartão
+        const relTop = elRect.top - cardRect.top;
+        const relRight = cardRect.right - elRect.right;
+
+        // Zona do canto superior direito (top relativo 0..60px, right relativo 0..120px)
+        const inTopRightZone = (relTop >= -5 && relTop <= 65) && (relRight >= -5 && relRight <= 125);
+
+        if (isAbsolute && inTopRightZone) {
+          el.remove();
+          return;
+        }
+
+        // Também neutraliza elementos que herdam classe de cartão ou pseudo-cartões clonados
+        if (
+          el.classList.contains('deck-card') ||
+          el.classList.contains('folder-card') ||
+          el.classList.contains('mr-subfolder-card') ||
+          el.classList.contains('mr-tutoria-card') ||
+          el.classList.contains('mr-folder-card')
+        ) {
+          if (el !== card) {
+            el.remove();
+            return;
+          }
+        }
+      });
+
+      // 4. Remove TODO button/a/[role="button"] dentro de .mr-subfolder-card fora de header/footer e que não seja top-rename/top-delete/btn-subfolder
       card.querySelectorAll('button, a, [role="button"]').forEach(btn => {
         if (
           !btn.closest('.mr-folder-card-footer') &&
@@ -195,34 +255,11 @@ function injectHierarchySupport(html: string): string {
         }
       });
 
-      // 2. Remove nós residuais candidatos (badges/chips/botões fantasmas nativos) fora de header/footer/top-actions
-      const candidates = card.querySelectorAll('[class*="count"], [class*="badge"], [class*="reset"], button, a, [role="button"], span.btn');
-      const blacklist = ['subpasta', 'nova', 'abrir', 'carta', 'cartas', 'reset', '0 ca', 'rs', 'dominado', '🔄', '🔁'];
-      candidates.forEach(el => {
-        if (
-          el.closest('.mr-folder-card-footer') ||
-          el.closest('.mr-folder-card-header') ||
-          el.classList.contains('mr-folder-card-top-delete') ||
-          el.classList.contains('mr-folder-card-top-rename') ||
-          el.hasAttribute('data-mr-folder-rename') ||
-          el.hasAttribute('data-mr-sub-delete') ||
-          el.hasAttribute('data-mr-folder-delete')
-        ) {
-          return;
-        }
-        const txt = (el.textContent || '').trim().toLowerCase();
-        if (blacklist.some(item => txt.includes(item))) {
-          el.remove();
-        }
-      });
-
-      // 3. Remove nós de texto soltos filhos diretos do cartão
+      // 5. Remove nós de texto soltos filhos diretos do cartão
       Array.from(card.childNodes).forEach(node => {
         if (node.nodeType === Node.TEXT_NODE) {
-          const val = (node.nodeValue || '').trim().toLowerCase();
-          if (blacklist.some(item => val.includes(item))) {
-            node.remove();
-          }
+          const val = (node.nodeValue || '').trim();
+          if (val) node.remove();
         }
       });
 
@@ -683,7 +720,7 @@ function injectHierarchySupport(html: string): string {
       padding-bottom: 0 !important;
       display: block;
       width: 100%;
-      max-width: 100vw !important;
+      max-width: 100% !important;
       box-sizing: border-box !important;
       overflow-x: hidden !important;
       background: transparent !important;
@@ -708,14 +745,22 @@ function injectHierarchySupport(html: string): string {
       margin-bottom: 1.25rem !important;
       padding: 0.55rem 0.95rem !important;
     }
-    #mr-subfolder-wrapper .mr-subfolder-hero-card {
+    #mr-subfolder-wrapper .mr-subfolder-hero-card,
+    .mr-subfolder-hero-card {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      flex-wrap: wrap !important;
+      gap: 0.75rem !important;
+      padding: 1rem 1.25rem !important;
       margin-top: 0 !important;
-      margin-bottom: 1.35rem !important;
+      margin-bottom: 1.25rem !important;
       width: 100% !important;
       max-width: 100% !important;
       box-sizing: border-box !important;
     }
-    #mr-subfolder-wrapper .mr-subfolder-hero-card button {
+    #mr-subfolder-wrapper .mr-subfolder-hero-card button,
+    .mr-subfolder-hero-card button {
       flex-shrink: 0 !important;
       white-space: nowrap !important;
     }
@@ -926,11 +971,16 @@ function injectHierarchySupport(html: string): string {
     }
 
     .mr-subfolder-card { align-items: stretch !important; display: flex !important; flex-direction: column !important; width: 100% !important; box-sizing: border-box !important; background: #ffffff !important; }
+    .mr-subfolder-card *, .mr-subfolder-card *::before, .mr-subfolder-card *::after { content: none !important; }
+    .mr-subfolder-card > *::before { display: none !important; }
+    .mr-subfolder-card > *:not(.mr-folder-card-header):not(.mr-folder-card-footer):not(.mr-folder-card-top-rename):not(.mr-folder-card-top-delete) { position: static !important; }
+    .mr-subfolder-card .mr-folder-card-top-rename { background: #eff6ff !important; border: 1px solid #bfdbfe !important; border-radius: 8px !important; width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; z-index: 10 !important; }
+    .mr-subfolder-card .mr-folder-card-top-delete { background: #fef2f2 !important; border: 1px solid #fecaca !important; border-radius: 8px !important; width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; z-index: 10 !important; }
     .mr-subfolder-card .mr-folder-card-header { width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.55rem !important; margin-bottom: 0.85rem !important; padding-right: 92px !important; box-sizing: border-box !important; }
     .mr-subfolder-card .mr-folder-card-footer { width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; gap: 0.6rem !important; margin-top: auto !important; padding-top: 0.85rem !important; border-top: 1.5px dashed #cbd5e1 !important; }
     .mr-subfolder-card .mr-folder-card-footer-left { display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; min-width: 0 !important; }
-    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; justify-content: flex-end !important; padding-right: 4px !important; box-sizing: border-box !important; }
-    .mr-subfolder-card .mr-folder-card-btn-subfolder { margin-right: 4px !important; padding: 0 0.75rem !important; max-width: calc(100% - 8px) !important; box-sizing: border-box !important; white-space: nowrap !important; display: inline-flex !important; align-items: center !important; }
+    .mr-subfolder-card .mr-folder-card-actions { display: flex !important; justify-content: flex-end !important; padding-right: 8px !important; box-sizing: border-box !important; }
+    .mr-subfolder-card .mr-folder-card-btn-subfolder { margin-right: 6px !important; padding: 0 0.75rem !important; max-width: calc(100% - 12px) !important; box-sizing: border-box !important; white-space: nowrap !important; display: inline-flex !important; align-items: center !important; }
     .mr-subfolder-card:hover {
       border-color: #16a34a;
       transform: translateY(-2px);
@@ -3977,8 +4027,8 @@ function injectHierarchySupport(html: string): string {
               <div class="mr-folder-card-footer-left">
                 <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
-              <div class="mr-folder-card-actions">
-                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')" style="flex:0 0 auto !important; margin-left:auto !important; margin-right:4px !important; padding:0 0.85rem !important;">Abrir ➜</button>
+              <div class="mr-folder-card-actions" style="padding-right:8px !important; box-sizing:border-box !important;">
+                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')" style="flex:0 0 auto !important; margin-left:auto !important; margin-right:6px !important; padding:0 0.85rem !important; max-width:calc(100% - 12px) !important; box-sizing:border-box !important;">Abrir ➜</button>
               </div>
             </div>
           </div>
@@ -4148,8 +4198,8 @@ function injectHierarchySupport(html: string): string {
               <div class="mr-folder-card-footer-left">
                 <span class="mr-folder-card-count-chip">\${cCount} \${cCount === 1 ? 'carta' : 'cartas'}</span>
               </div>
-              <div class="mr-folder-card-actions">
-                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')">Abrir ➜</button>
+              <div class="mr-folder-card-actions" style="padding-right:8px !important; box-sizing:border-box !important;">
+                <button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" onclick="event.stopPropagation(); navigateTo('\${s.id}')" style="flex:0 0 auto !important; margin-left:auto !important; margin-right:6px !important; padding:0 0.85rem !important; max-width:calc(100% - 12px) !important; box-sizing:border-box !important;">Abrir ➜</button>
               </div>
             </div>
           </div>
@@ -4392,8 +4442,14 @@ function injectHierarchySupport(html: string): string {
             }
           };
 
-          // Injeção dos botões ✏️ e 🗑 no canto superior direito do cartão de subpasta
-          let editBtnSub = sCard.querySelector('.mr-folder-card-top-rename');
+          // Anti-duplicação física real: antes de injetar, verifica e deduplica
+          const existingRenames = sCard.querySelectorAll(':scope > .mr-folder-card-top-rename, .mr-folder-card-top-rename');
+          if (existingRenames.length > 1) {
+            for (let i = 1; i < existingRenames.length; i++) {
+              existingRenames[i].remove();
+            }
+          }
+          let editBtnSub = sCard.querySelector(':scope > .mr-folder-card-top-rename') || sCard.querySelector('.mr-folder-card-top-rename');
           if (!editBtnSub) {
             const currentPos = window.getComputedStyle(sCard).position;
             if (!currentPos || currentPos === 'static') {
@@ -4428,23 +4484,30 @@ function injectHierarchySupport(html: string): string {
             editBtnSub.style.zIndex = '10';
           }
 
-          if (sCard.getAttribute('data-mr-folder-top-delete') !== '1' && !sCard.querySelector('.mr-folder-card-top-delete')) {
+          const existingDeletes = sCard.querySelectorAll(':scope > .mr-folder-card-top-delete, .mr-folder-card-top-delete');
+          if (existingDeletes.length > 1) {
+            for (let i = 1; i < existingDeletes.length; i++) {
+              existingDeletes[i].remove();
+            }
+          }
+          let delBtnSub = sCard.querySelector(':scope > .mr-folder-card-top-delete') || sCard.querySelector('.mr-folder-card-top-delete');
+          if (!delBtnSub) {
             const currentPos = window.getComputedStyle(sCard).position;
             if (!currentPos || currentPos === 'static') {
               sCard.style.position = 'relative';
             }
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.className = 'mr-folder-card-top-delete';
-            delBtn.title = 'Excluir subpasta';
-            delBtn.setAttribute('data-mr-sub-delete', '1');
-            delBtn.setAttribute('data-mr-folder-delete', '1');
-            delBtn.setAttribute('data-mr-decorated', '1');
-            delBtn.setAttribute('data-folder-id', subId);
-            delBtn.setAttribute('data-is-subfolder', '1');
-            delBtn.style.cssText = 'position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
-            delBtn.innerHTML = '🗑';
-            delBtn.onclick = function(e) {
+            delBtnSub = document.createElement('button');
+            delBtnSub.type = 'button';
+            delBtnSub.className = 'mr-folder-card-top-delete';
+            delBtnSub.title = 'Excluir subpasta';
+            delBtnSub.setAttribute('data-mr-sub-delete', '1');
+            delBtnSub.setAttribute('data-mr-folder-delete', '1');
+            delBtnSub.setAttribute('data-mr-decorated', '1');
+            delBtnSub.setAttribute('data-folder-id', subId);
+            delBtnSub.setAttribute('data-is-subfolder', '1');
+            delBtnSub.style.cssText = 'position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
+            delBtnSub.innerHTML = '🗑';
+            delBtnSub.onclick = function(e) {
               e.stopPropagation();
               if (typeof window.openSubfolderDeleteModal === 'function') {
                 window.openSubfolderDeleteModal(subId);
@@ -4456,16 +4519,13 @@ function injectHierarchySupport(html: string): string {
                 openFolderDeleteModal(subId, true);
               }
             };
-            sCard.appendChild(delBtn);
+            sCard.appendChild(delBtnSub);
             sCard.setAttribute('data-mr-folder-top-delete', '1');
           } else {
-            const existingDel = sCard.querySelector('.mr-folder-card-top-delete');
-            if (existingDel) {
-              existingDel.setAttribute('data-mr-sub-delete', '1');
-              existingDel.setAttribute('data-mr-folder-delete', '1');
-              existingDel.style.pointerEvents = 'auto';
-              existingDel.style.zIndex = '10';
-            }
+            delBtnSub.setAttribute('data-mr-sub-delete', '1');
+            delBtnSub.setAttribute('data-mr-folder-delete', '1');
+            delBtnSub.style.pointerEvents = 'auto';
+            delBtnSub.style.zIndex = '10';
           }
 
           sCard.dataset.mrSubfolderReady = '1';
@@ -4479,68 +4539,10 @@ function injectHierarchySupport(html: string): string {
     try {
       const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]');
       folderCards.forEach(card => {
-        // Purga profunda em .mr-subfolder-card antes de retornar (preserva header/footer/✏️/🗑 e remove chips-fantasma como "0 cartas", "Resetar", "🔄")
+        // Purga profunda em .mr-subfolder-card antes de retornar (preserva header/footer/✏️/🗑 e purga geometricamente)
         if (card.classList.contains('mr-subfolder-card')) {
-          if (card.dataset && card.dataset.mrPurged === '1') return;
-          try {
-            // 1. Remove qualquer descendente que não pertença a header, footer, ✏️ ou 🗑 mesmo se tiver data-mr-decorated="1"
-            Array.from(card.children).forEach(child => {
-              if (
-                !child.classList.contains('mr-folder-card-header') &&
-                !child.classList.contains('mr-folder-card-footer') &&
-                !child.classList.contains('mr-folder-card-top-delete') &&
-                !child.classList.contains('mr-folder-card-top-rename') &&
-                !child.hasAttribute('data-mr-folder-rename') &&
-                !child.hasAttribute('data-mr-sub-delete') &&
-                !child.hasAttribute('data-mr-folder-delete')
-              ) {
-                child.remove();
-              }
-            });
-
-            // 1b. Remove TODO button/a/[role="button"] dentro de .mr-subfolder-card fora de header/footer e que não seja top-rename/top-delete/btn-subfolder
-            card.querySelectorAll('button, a, [role="button"]').forEach(btn => {
-              if (
-                !btn.closest('.mr-folder-card-footer') &&
-                !btn.closest('.mr-folder-card-header') &&
-                !btn.classList.contains('mr-folder-card-top-rename') &&
-                !btn.classList.contains('mr-folder-card-top-delete') &&
-                !btn.classList.contains('mr-folder-card-btn-subfolder')
-              ) {
-                btn.remove();
-              }
-            });
-
-            // 2. Remove candidatos a chips fantasmas fora de header/footer com blacklist expandida
-            const candidates = card.querySelectorAll('[class*="count"], [class*="badge"], [class*="reset"], button, a, [role="button"], span.btn');
-            const subBlacklist = ['subpasta', 'nova', 'abrir', 'carta', 'cartas', 'reset', '0 ca', 'rs', 'dominado', '🔄', '🔁'];
-            candidates.forEach(el => {
-              if (
-                el.closest('.mr-folder-card-footer') ||
-                el.closest('.mr-folder-card-header') ||
-                el.classList.contains('mr-folder-card-top-delete') ||
-                el.classList.contains('mr-folder-card-top-rename')
-              ) {
-                return;
-              }
-              const txt = (el.textContent || '').trim().toLowerCase();
-              if (subBlacklist.some(item => txt.includes(item))) {
-                el.remove();
-              }
-            });
-
-            // 3. Remove nós de texto soltos filhos diretos do cartão
-            Array.from(card.childNodes).forEach(node => {
-              if (node.nodeType === Node.TEXT_NODE) {
-                const val = (node.nodeValue || '').trim().toLowerCase();
-                if (subBlacklist.some(item => val.includes(item))) {
-                  node.remove();
-                }
-              }
-            });
-            card.dataset.mrPurged = '1';
-          } catch (purgeErr) {
-            console.warn('Erro ao purgar cartão de subpasta:', purgeErr);
+          if (typeof purgeSubfolderCard === 'function') {
+            purgeSubfolderCard(card);
           }
           return;
         }
