@@ -2506,6 +2506,65 @@ function injectHierarchySupport(html: string): string {
     return (localData && typeof localData === 'object' && !Array.isArray(localData)) ? localData : {};
   }
 
+  // Função utilitária que zera o progresso FSRS-5 de todas as cartas de uma pasta/subpasta
+  function resetFolderCardsFsrs(folderId) {
+    if (!folderId) return;
+    const cards = typeof getFolderAllCards === 'function' ? getFolderAllCards(folderId) : [];
+    if (!cards || cards.length === 0) {
+      if (typeof showToast === 'function') showToast('Esta pasta não possui cartas para resetar.');
+      return;
+    }
+
+    const nowMs = Date.now();
+    const cardIds = new Set();
+    cards.forEach(c => {
+      if (!c) return;
+      if (c.id) cardIds.add(c.id);
+      c.repetitions = 0;
+      c.interval = 0;
+      c.easeFactor = 2.5;
+      c.dueDate = nowMs;
+      c.fsrsS = null;
+      c.fsrsD = null;
+      c.fsrsState = 'new';
+      c.lapses = 0;
+      c.lastReviewMs = null;
+    });
+
+    // Zera histórico de avaliações em localStorage['medreview_eval_history']
+    if (cardIds.size > 0) {
+      try {
+        const rawHistory = localStorage.getItem('medreview_eval_history');
+        if (rawHistory) {
+          const parsed = JSON.parse(rawHistory);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.filter(h => h && !cardIds.has(h.cardId));
+            localStorage.setItem('medreview_eval_history', JSON.stringify(updated));
+          }
+        }
+      } catch { /* intentionally ignored */ }
+    }
+
+    // Persiste via saveState()
+    if (typeof saveState === 'function') {
+      saveState();
+    }
+    if (typeof persistSubfolders === 'function') {
+      persistSubfolders();
+    }
+
+    if (typeof showMedReviewToast === 'function') {
+      showMedReviewToast('Progresso FSRS-5 resetado com sucesso (' + cards.length + ' cartas)!', '', '🔄');
+    } else if (typeof showToast === 'function') {
+      showToast('Progresso FSRS-5 resetado com sucesso (' + cards.length + ' cartas)!');
+    }
+
+    if (typeof renderRoute === 'function') {
+      renderRoute();
+    }
+  }
+  window.resetFolderCardsFsrs = resetFolderCardsFsrs;
+
   function persistSubfolders() {
     try {
       const sf = (typeof state !== 'undefined' && state && state.subfolders) ? state.subfolders : getSubfolderStore();
@@ -4120,8 +4179,16 @@ function injectHierarchySupport(html: string): string {
     const chain = getBreadcrumbChain(parentId);
 
     let bpHtml = '<div class="mr-breadcrumb-bar">';
-    bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(&quot;home&quot;)">🏠 Início</a>';
+    const originRootId = (chain.length > 0 && chain[0] && chain[0].id) ? chain[0].id : null;
+    const homeTarget = (originRootId === 'provas' || originRootId === 'tutoria') ? originRootId : 'home';
+    const originLabel = (originRootId === 'provas') ? '📋 Provas' : (originRootId === 'tutoria' ? '🎓 Tutoria' : '🏠 Início');
+
+    bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(&quot;' + homeTarget + '&quot;)">' + originLabel + '</a>';
     chain.forEach((item, idx) => {
+      if (idx === 0 && (item.id === 'provas' || item.id === 'tutoria')) {
+        // Já renderizado como raiz de origem
+        return;
+      }
       bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
       if (idx === chain.length - 1) {
         bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
@@ -4276,8 +4343,16 @@ function injectHierarchySupport(html: string): string {
     const mainEl = document.querySelector('main') || document.getElementById('app-container') || document.body;
 
     let bpHtml = '<div class="mr-breadcrumb-bar">';
-    bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(&quot;home&quot;)">🏠 Início</a>';
+    const originRootId = (chain.length > 0 && chain[0] && chain[0].id) ? chain[0].id : null;
+    const homeTarget = (originRootId === 'provas' || originRootId === 'tutoria') ? originRootId : 'home';
+    const originLabel = (originRootId === 'provas') ? '📋 Provas' : (originRootId === 'tutoria' ? '🎓 Tutoria' : '🏠 Início');
+
+    bpHtml += '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(&quot;' + homeTarget + '&quot;)">' + originLabel + '</a>';
     chain.forEach((item, idx) => {
+      if (idx === 0 && (item.id === 'provas' || item.id === 'tutoria')) {
+        // Já renderizado como raiz de origem
+        return;
+      }
       bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
       if (idx === chain.length - 1) {
         bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
@@ -5154,24 +5229,30 @@ function injectHierarchySupport(html: string): string {
               const confirmReset = window.confirm('Deseja resetar o progresso FSRS-5 de ' + totalCards + ' carta(s) desta pasta?');
               if (!confirmReset) return;
 
-              const nowMs = Date.now();
-              allFolderCards.forEach(c => {
-                c.repetitions = 0;
-                c.interval = 0;
-                c.easeFactor = 2.5;
-                c.dueDate = nowMs;
-                c.fsrsS = null;
-                c.fsrsD = null;
-                c.fsrsState = 'new';
-                c.lapses = 0;
-                c.lastReviewMs = null;
-              });
+              if (effectiveFolderId && typeof resetFolderCardsFsrs === 'function') {
+                resetFolderCardsFsrs(effectiveFolderId);
+              } else if (effectiveFolderId && typeof window.resetFolderCardsFsrs === 'function') {
+                window.resetFolderCardsFsrs(effectiveFolderId);
+              } else {
+                const nowMs = Date.now();
+                allFolderCards.forEach(c => {
+                  c.repetitions = 0;
+                  c.interval = 0;
+                  c.easeFactor = 2.5;
+                  c.dueDate = nowMs;
+                  c.fsrsS = null;
+                  c.fsrsD = null;
+                  c.fsrsState = 'new';
+                  c.lapses = 0;
+                  c.lastReviewMs = null;
+                });
 
-              if (typeof saveState === 'function') saveState();
-              if (typeof showToast === 'function') {
-                showToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!');
+                if (typeof saveState === 'function') saveState();
+                if (typeof showToast === 'function') {
+                  showToast('Progresso FSRS-5 resetado com sucesso (' + totalCards + ' cartas)!');
+                }
+                if (typeof renderRoute === 'function') renderRoute();
               }
-              if (typeof renderRoute === 'function') renderRoute();
             };
           }
 
@@ -5346,8 +5427,15 @@ function injectHierarchySupport(html: string): string {
         const bc = document.createElement('div');
         bc.id = 'mr-breadcrumb-injected';
         bc.className = 'mr-breadcrumb-bar';
-        let bpHtml = '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'home\\')">🏠 Início</a>';
+        const originRootId = (chain.length > 0 && chain[0] && chain[0].id) ? chain[0].id : null;
+        const homeTarget = (originRootId === 'provas' || originRootId === 'tutoria') ? originRootId : 'home';
+        const originLabel = (originRootId === 'provas') ? '📋 Provas' : (originRootId === 'tutoria' ? '🎓 Tutoria' : '🏠 Início');
+
+        let bpHtml = '<a class="mr-breadcrumb-item" href="javascript:void(0)" onclick="navigateTo(\\'' + homeTarget + '\\')">' + originLabel + '</a>';
         chain.forEach((item, idx) => {
+          if (idx === 0 && (item.id === 'provas' || item.id === 'tutoria')) {
+            return;
+          }
           bpHtml += '<span class="mr-breadcrumb-sep">/</span>';
           if (idx === chain.length - 1) {
             bpHtml += '<span class="mr-breadcrumb-active">' + escapeHtml(item.name) + '</span>';
