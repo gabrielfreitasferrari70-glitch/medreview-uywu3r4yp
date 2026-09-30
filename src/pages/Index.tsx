@@ -4870,8 +4870,15 @@ function injectHierarchySupport(html: string): string {
 
     // Padronização visual dos cartões de pasta (.mr-folder-card, .mr-unified-folder-card, .deck-card, .folder-card, [data-deck-id], [data-folder-id])
     try {
-      const folderCards = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-subfolder-card, .mr-tutoria-card, .mr-unified-folder-card, div[onclick*="tutoria_"]');
-      folderCards.forEach(card => {
+      const folderCardsList = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-subfolder-card, .mr-tutoria-card, .mr-unified-folder-card, div[onclick*="tutoria_"]'));
+      const titleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
+      titleEls.forEach(function (tEl) {
+        var tx = (tEl.textContent || '').trim().toLowerCase();
+        if (tx.indexOf('prova') === -1) return;
+        var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
+        if (cardContainer && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
+      });
+      folderCardsList.forEach(card => {
         // NÃO mexa em .mr-subfolder-card (purga direcionada própria e retorna)
         if (card.classList.contains('mr-subfolder-card')) {
           if (typeof purgeSubfolderCard === 'function') {
@@ -5530,7 +5537,14 @@ function injectHierarchySupport(html: string): string {
 
     // Decorador universal imediato de cartões em todas as seções da home (.deck-card, .folder-card, [data-deck-id], [data-folder-id])
     try {
-      const homeDetectorCards = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id]');
+      const homeDetectorCards = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id]'));
+      const homeTitleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
+      homeTitleEls.forEach(function (tEl) {
+        var tx = (tEl.textContent || '').trim().toLowerCase();
+        if (tx.indexOf('prova') === -1) return;
+        var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
+        if (cardContainer && !homeDetectorCards.includes(cardContainer)) homeDetectorCards.push(cardContainer);
+      });
       homeDetectorCards.forEach(c => {
         if (!c.classList.contains('mr-subfolder-card') && !c.classList.contains('mr-tutoria-card')) {
           if (c.getAttribute('data-mr-decorated') !== '1' && (!c.dataset || c.dataset.mrDecorated !== '1')) {
@@ -5846,6 +5860,21 @@ function injectHierarchySupport(html: string): string {
               el.querySelectorAll('.deck-card, .folder-card, .mr-tutoria-card, .mr-unified-folder-card, .mr-subfolder-card, [data-folder-id], [data-deck-id], [data-subfolder-id], div[onclick*="tutoria_"]').forEach(c => {
                 recycledCards.push(c);
               });
+              // Candidatos a prova dentro do nó adicionado
+              const mutTitleEls = el.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
+              mutTitleEls.forEach(function (tEl) {
+                var tx = (tEl.textContent || '').trim().toLowerCase();
+                if (tx.indexOf('prova') === -1) return;
+                var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
+                if (cardContainer && !recycledCards.includes(cardContainer)) recycledCards.push(cardContainer);
+              });
+            }
+            if (el.matches && el.matches('h2, h3, h4, .deck-title, .folder-title, strong')) {
+              var txNode = (el.textContent || '').trim().toLowerCase();
+              if (txNode.indexOf('prova') !== -1) {
+                var cCont = el.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || el.parentElement;
+                if (cCont && !recycledCards.includes(cCont)) recycledCards.push(cCont);
+              }
             }
             recycledCards.forEach(card => {
               if (card.classList.contains('mr-subfolder-card')) {
