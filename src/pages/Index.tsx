@@ -326,9 +326,66 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
+  // Utilitários de validação e proteção contra decoração indevida de modais/overlays
+  function isLegitimateCardTitle(el) {
+    if (!el || !(el instanceof HTMLElement)) return false;
+    if (el.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav')) {
+      return false;
+    }
+    const txt = (el.textContent || '').trim().toLowerCase();
+    const banned = [
+      'resetar', 'reset', 'progresso', 'excluir', 'confirmar', 'cancelar',
+      'carta', 'subpasta', 'nova', 'abrir', 'configurações', 'configuracoes', 'importar', 'backup'
+    ];
+    for (const b of banned) {
+      if (txt.includes(b)) return false;
+    }
+    return txt.includes('prova');
+  }
+
+  function isCardGeometricallyValid(el) {
+    if (!el || !(el instanceof HTMLElement)) return false;
+    if (el.matches('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .modal-overlay, .backdrop, [class*="overlay"], [class*="backdrop"]') ||
+        el.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .modal-overlay, .backdrop, [class*="overlay"], [class*="backdrop"]')) {
+      return false;
+    }
+    const style = window.getComputedStyle(el);
+    if (style.position === 'fixed') return false;
+    const vpHeight = window.innerHeight || document.documentElement.clientHeight || 800;
+    const vpWidth = window.innerWidth || document.documentElement.clientWidth || 1200;
+    if (style.position === 'absolute' && el.offsetHeight > (vpHeight * 0.5)) return false;
+    const z = parseInt(style.zIndex, 10);
+    if (!isNaN(z) && z >= 50) return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.height > (vpHeight * 0.6) || rect.width > (vpWidth * 0.9)) return false;
+    return true;
+  }
+
+  function unDecorateInvalidCard(el) {
+    if (!el || !(el instanceof HTMLElement)) return;
+    el.classList.remove('mr-unified-folder-card', 'mr-folder-card');
+    el.removeAttribute('data-mr-folder-card');
+    el.removeAttribute('data-mr-decorated');
+    el.removeAttribute('data-mr-folder-card-header');
+    el.removeAttribute('data-mr-folder-card-footer');
+    el.removeAttribute('data-mr-folder-top-delete');
+    if (el.dataset) {
+      delete el.dataset.mrFolderCard;
+      delete el.dataset.mrDecorated;
+      delete el.dataset.mrFolderCardHeader;
+      delete el.dataset.mrFolderCardFooter;
+      delete el.dataset.mrFolderTopDelete;
+    }
+    el.querySelectorAll(':scope > .mr-folder-card-header, :scope > .mr-folder-card-footer, :scope > .mr-folder-card-top-delete, :scope > .mr-folder-card-top-rename').forEach(c => c.remove());
+  }
+
   // PASSO 3: Função síncrona padronizadora de qualquer elemento de cartão de pasta recém-renderizado
   function decorateCardElementImmediately(card) {
     if (!card || !(card instanceof HTMLElement)) return;
+    if (!isCardGeometricallyValid(card)) {
+      unDecorateInvalidCard(card);
+      return;
+    }
     if (card.classList.contains('mr-subfolder-card')) {
       purgeSubfolderCard(card);
       return;
@@ -4902,10 +4959,9 @@ function injectHierarchySupport(html: string): string {
       const folderCardsList = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-subfolder-card, .mr-tutoria-card, .mr-unified-folder-card, div[onclick*="tutoria_"]'));
       const titleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
       titleEls.forEach(function (tEl) {
-        var tx = (tEl.textContent || '').trim().toLowerCase();
-        if (tx.indexOf('prova') === -1) return;
+        if (!isLegitimateCardTitle(tEl)) return;
         var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
-        if (cardContainer && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
+        if (cardContainer && isCardGeometricallyValid(cardContainer) && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
       });
       folderCardsList.forEach(card => {
         // NÃO mexa em .mr-subfolder-card (purga direcionada própria e retorna)
@@ -5563,8 +5619,9 @@ function injectHierarchySupport(html: string): string {
       const homeDetectorCards = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-folder-card, .mr-unified-folder-card, .mr-tutoria-card'));
       const homeTitleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
       homeTitleEls.forEach(function (tEl) {
+        if (!isLegitimateCardTitle(tEl)) return;
         var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
-        if (cardContainer && !homeDetectorCards.includes(cardContainer)) homeDetectorCards.push(cardContainer);
+        if (cardContainer && isCardGeometricallyValid(cardContainer) && !homeDetectorCards.includes(cardContainer)) homeDetectorCards.push(cardContainer);
       });
       homeDetectorCards.forEach(c => {
         if (!c.classList.contains('mr-subfolder-card')) {
@@ -5884,17 +5941,15 @@ function injectHierarchySupport(html: string): string {
               // Candidatos a prova dentro do nó adicionado
               const mutTitleEls = el.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
               mutTitleEls.forEach(function (tEl) {
-                var tx = (tEl.textContent || '').trim().toLowerCase();
-                if (tx.indexOf('prova') === -1) return;
+                if (!isLegitimateCardTitle(tEl)) return;
                 var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
-                if (cardContainer && !recycledCards.includes(cardContainer)) recycledCards.push(cardContainer);
+                if (cardContainer && isCardGeometricallyValid(cardContainer) && !recycledCards.includes(cardContainer)) recycledCards.push(cardContainer);
               });
             }
             if (el.matches && el.matches('h2, h3, h4, .deck-title, .folder-title, strong')) {
-              var txNode = (el.textContent || '').trim().toLowerCase();
-              if (txNode.indexOf('prova') !== -1) {
+              if (isLegitimateCardTitle(el)) {
                 var cCont = el.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || el.parentElement;
-                if (cCont && !recycledCards.includes(cCont)) recycledCards.push(cCont);
+                if (cCont && isCardGeometricallyValid(cCont) && !recycledCards.includes(cCont)) recycledCards.push(cCont);
               }
             }
             recycledCards.forEach(card => {
