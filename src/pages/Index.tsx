@@ -432,8 +432,8 @@ function injectHierarchySupport(html: string): string {
   }
 
   function _executeDecorateCardElementImmediately(card) {
-    // Remoção incondicional e agressiva de tags de imagem e mídias nativas quebradas do snapshot
-    card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg)').forEach(el => el.remove());
+    // Remoção incondicional e agressiva de tags de imagem, emojis/thumbnails nativos quebrados do snapshot (ex: 📝 ou ícone de teste)
+    card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), .deck-icon, .folder-icon, .card-thumbnail, .thumbnail').forEach(el => el.remove());
 
     const rawTitleEl = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
     const titleText = (rawTitleEl?.textContent || card.getAttribute('data-folder-name') || '').trim();
@@ -4716,11 +4716,11 @@ function injectHierarchySupport(html: string): string {
       console.warn('Erro ao assegurar cliques de subpastas:', e);
     }
 
-    // Padronização visual dos cartões de pasta (.mr-folder-card)
+    // Padronização visual dos cartões de pasta (.mr-folder-card, .mr-unified-folder-card, .deck-card, .folder-card, [data-deck-id], [data-folder-id])
     try {
-      const folderCards = document.querySelectorAll('.mr-subfolder-card, .deck-card, .folder-card, .mr-tutoria-card, .mr-unified-folder-card, [data-folder-id], [data-deck-id], div[onclick*="tutoria_"]');
+      const folderCards = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-subfolder-card, .mr-tutoria-card, .mr-unified-folder-card, div[onclick*="tutoria_"]');
       folderCards.forEach(card => {
-        // Purga profunda em .mr-subfolder-card antes de retornar (preserva header/footer/✏️/🗑 e purga geometricamente)
+        // NÃO mexa em .mr-subfolder-card (purga direcionada própria e retorna)
         if (card.classList.contains('mr-subfolder-card')) {
           if (typeof purgeSubfolderCard === 'function') {
             purgeSubfolderCard(card);
@@ -4728,9 +4728,17 @@ function injectHierarchySupport(html: string): string {
           return;
         }
 
-        // Se o cartão já estiver marcado como decorado, passa adiante (ignora cartões já marcados)
+        // Se o cartão já estiver marcado como decorado, passa adiante (passes seguintes ignoram cartões já marcados)
         if (card.getAttribute('data-mr-decorated') === '1' || (card.dataset && card.dataset.mrDecorated === '1')) {
           return;
+        }
+
+        // Se for cartão nativo não-tutoria, delega para decorateCardElementImmediately para garantir unificação e marcação
+        if (!card.classList.contains('mr-tutoria-card')) {
+          if (typeof decorateCardElementImmediately === 'function') {
+            decorateCardElementImmediately(card);
+            return;
+          }
         }
 
         // Remoção incondicional de tags de imagem, emojis/thumbnails nativos quebrados do snapshot (ex: 📝 ou ícone de teste)
@@ -5295,7 +5303,7 @@ function injectHierarchySupport(html: string): string {
       }
     });
 
-    // Decorador universal imediato de cartões em todas as seções da home
+    // Decorador universal imediato de cartões em todas as seções da home (.deck-card, .folder-card, [data-deck-id], [data-folder-id])
     try {
       const homeDetectorCards = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id]');
       homeDetectorCards.forEach(c => {
