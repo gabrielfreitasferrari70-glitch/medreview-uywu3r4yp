@@ -421,7 +421,7 @@ function injectHierarchySupport(html: string): string {
       }
     }
     if (effectiveFolderId) {
-      const tutoriaMatch = effectiveFolderId.match(/tutoria_?(d+)/i);
+      const tutoriaMatch = effectiveFolderId.match(/tutoria_?(\\d+)/i);
       if (tutoriaMatch) return 'Tutoria ' + tutoriaMatch[1];
     }
     const candidate = (domTitle || rawText || '').trim();
@@ -441,8 +441,8 @@ function injectHierarchySupport(html: string): string {
     const onclickAttr = card.getAttribute('onclick') || '';
     const navMatch = onclickAttr.match(/navigateTo(['"]([^'"]+)['"])/)?.[1] ||
                      onclickAttr.match(/studyDeck(['"]([^'"]+)['"])/)?.[1] ||
-                     onclickAttr.match(/tutoria_d+/i)?.[0];
-    const titleTutoriaMatch = titleText.match(/tutorias*(d+)/i);
+                     onclickAttr.match(/tutoria_\\d+/i)?.[0];
+    const titleTutoriaMatch = titleText.match(/tutoria\\s*(\\d+)/i);
     const titleTutoriaId = titleTutoriaMatch ? ('tutoria_' + titleTutoriaMatch[1]) : null;
 
     const effectiveFolderId = card.getAttribute('data-folder-id') ||
@@ -513,7 +513,7 @@ function injectHierarchySupport(html: string): string {
     // Captura da contagem de cartas existente no cartão ANTES da limpeza (para não perder o número nativo)
     let nativeCardCount = null;
     const findCardCountInText = (str) => {
-      const m = (str || '').match(/(d+)s*cartas?/i);
+      const m = (str || '').match(/(\\d+)\\s*cartas?/i);
       return m ? parseInt(m[1], 10) : null;
     };
     card.querySelectorAll('p, div, span, small, b, strong, em').forEach(el => {
@@ -1780,7 +1780,7 @@ function injectHierarchySupport(html: string): string {
         if (navM && navM[1]) {
           resolvedId = navM[1];
         } else {
-          const tutM = onclickAttr.match(/tutoria_d+/i);
+          const tutM = onclickAttr.match(/tutoria_\\d+/i);
           if (tutM) resolvedId = tutM[0];
         }
       }
@@ -1790,7 +1790,7 @@ function injectHierarchySupport(html: string): string {
         const titleEl = cardEl.querySelector('.mr-folder-card-title, .title, strong, h2, h3, h4');
         const rawTitle = ((titleEl && titleEl.textContent) || optionalTitle || '').trim();
         if (rawTitle) {
-          const tutMatch = rawTitle.match(/tutorias*(d+)/i);
+          const tutMatch = rawTitle.match(/tutoria\\s*(\\d+)/i);
           if (tutMatch) {
             resolvedId = 'tutoria_' + tutMatch[1];
           } else if (typeof state !== 'undefined' && state) {
@@ -4843,10 +4843,10 @@ function injectHierarchySupport(html: string): string {
         // Determina id da pasta para exclusão/renomeação
         const rawOnclick = card.getAttribute('onclick') || '';        const idMatch = rawOnclick.match(/navigateTo(['"]([^'"]+)['"])/) ||
                         rawOnclick.match(/studyDeck(['"]([^'"]+)['"])/) ||
-                        rawOnclick.match(/tutoria_d+/i);
+                        rawOnclick.match(/tutoria_\\d+/i);
         const rawTitleCard = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
         const titleCardTxt = (rawTitleCard?.textContent || card.getAttribute('data-folder-name') || '').trim();
-        const cardTutoriaMatch = titleCardTxt.match(/tutorias*(d+)/i);
+        const cardTutoriaMatch = titleCardTxt.match(/tutoria\\s*(\\d+)/i);
         const cardTutoriaId = cardTutoriaMatch ? ('tutoria_' + cardTutoriaMatch[1]) : null;
 
         const cardFolderId = card.getAttribute('data-folder-id') ||
@@ -5185,7 +5185,7 @@ function injectHierarchySupport(html: string): string {
           card.querySelectorAll('p, div, span, small, a, button').forEach(el => {
             if (!el.closest('.mr-folder-card-header') && !el.closest('.mr-folder-card-footer') && !el.classList.contains('mr-folder-card-top-delete')) {
               const txt = (el.textContent || '').trim();
-              if (txt.match(/^d+s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta' || txt.includes('Reset') || txt.includes('+ Carta') || txt.includes('Subpasta') || txt.includes('Excluir')) {
+              if (txt.match(/^(\\d+)\\s*cartas?$/i) || txt === '📁' || txt === '📝' || txt.includes('dominado') || txt.toLowerCase() === 'cartas' || txt.toLowerCase() === 'carta' || txt.includes('Reset') || txt.includes('+ Carta') || txt.includes('Subpasta') || txt.includes('Excluir')) {
                 el.remove();
               }
             }
