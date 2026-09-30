@@ -1748,10 +1748,14 @@ function injectHierarchySupport(html: string): string {
       display: none !important;
     }
 
-    /* [mr-provas-root-hide] Oculta cartão-raiz "Provas de Módulo" na Home */
-    body:not(.folder-view):not(.deck-view) .mr-folder-card[data-mr-hidden-provas-root="1"],
-    body:not(.folder-view):not(.deck-view) [data-folder-id="provas"],
-    body:not(.folder-view):not(.deck-view) [data-deck-id="provas"] {
+    /* [mr-provas-root-hide] Oculta cartão auto-referencial "Provas de Módulo" DENTRO da pasta de provas */
+    .folder-view[data-current-folder="provas"] [data-folder-id="provas"],
+    .folder-view[data-current-folder="provas"] .mr-folder-card[data-mr-hidden-provas-root="1"],
+    .deck-view[data-current-folder="provas"] [data-folder-id="provas"],
+    .deck-view[data-current-folder="provas"] .mr-folder-card[data-mr-hidden-provas-root="1"],
+    [data-mr-current-folder="provas"] [data-folder-id="provas"],
+    [data-mr-current-folder="provas"] .mr-folder-card[data-mr-hidden-provas-root="1"],
+    .mr-folder-card[data-mr-hidden-provas-root="1"] {
       display: none !important;
     }
 
