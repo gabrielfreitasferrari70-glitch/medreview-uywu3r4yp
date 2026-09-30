@@ -2,7 +2,7 @@
   "name": "skip-react-template",
   "description": "MedReview Flashcards FSRS-5",
   "private": true,
-  "version": "0.0.141",
+  "version": "0.0.143",
   "type": "module",
   "scripts": {
     "start": "vite dev",
