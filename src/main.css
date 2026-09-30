@@ -1087,6 +1087,13 @@ div:has(> .folder-card) {
   box-sizing: border-box !important;
 }
 
+/* [mr-provas-root-hide] Oculta cartão-raiz "Provas de Módulo" na Home */
+body:not(.folder-view):not(.deck-view) .mr-folder-card[data-mr-hidden-provas-root='1'],
+body:not(.folder-view):not(.deck-view) [data-folder-id='provas'],
+body:not(.folder-view):not(.deck-view) [data-deck-id='provas'] {
+  display: none !important;
+}
+
 /* C) Cartões gêmeos */
 .mr-folder-card,
 .mr-tutoria-card,

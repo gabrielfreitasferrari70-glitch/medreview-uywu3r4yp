@@ -524,12 +524,39 @@ function injectHierarchySupport(html: string): string {
   function _executeDecorateCardElementImmediately(card) {
     const isHome = isHomeView();
 
-    // Se estiver na Home, NUNCA destrói nem injeta cabeçalho/rodapé de gestão no cartão Tutoria ou Prova de Módulo
-    // O snapshot nativo já traz a estrutura perfeita Tutoria-like: quadrinho verde com ícone, badge, título, descrição, barra de progresso, rodapé "Simulados & Avaliações" + "Abrir ➜"
+    // [mr-provas-root-hide] Se for o cartão-raiz 'provas' na Home, oculta imediatamente
+    const earlyCardFolderId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || '';
     const rawTitleEarly = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
     const titleEarlyText = (rawTitleEarly?.textContent || card.getAttribute('data-folder-name') || '').trim();
     const earlyLower = titleEarlyText.toLowerCase();
+    const cleanEarlyLower = earlyLower.replace(/^[\\s📁]+/, '').trim();
     const onclickEarly = card.getAttribute('onclick') || '';
+
+    const isProvasRootEarly = (
+      earlyCardFolderId === 'provas' ||
+      cleanEarlyLower === 'provas de módulo' ||
+      cleanEarlyLower === 'provas de modulo' ||
+      cleanEarlyLower === 'prova de módulo' ||
+      cleanEarlyLower === 'prova de modulo' ||
+      earlyLower === 'provas de módulo' ||
+      earlyLower === 'provas de modulo' ||
+      earlyLower === 'prova de módulo' ||
+      earlyLower === 'prova de modulo'
+    );
+
+    if (isHome && isProvasRootEarly) {
+      card.style.display = 'none';
+      card.setAttribute('data-mr-hidden-provas-root', '1');
+      if (card.dataset) {
+        card.dataset.mrHiddenProvasRoot = '1';
+        card.dataset.mrDecorated = '1';
+      }
+      card.setAttribute('data-mr-decorated', '1');
+      return;
+    }
+
+    // Se estiver na Home, NUNCA destrói nem injeta cabeçalho/rodapé de gestão no cartão Tutoria ou Prova de Módulo
+    // O snapshot nativo já traz a estrutura perfeita Tutoria-like: quadrinho verde com ícone, badge, título, descrição, barra de progresso, rodapé "Simulados & Avaliações" + "Abrir ➜"
     const isEarlyTutoria = earlyLower.includes('tutoria') || onclickEarly.includes('tutoria');
     const isEarlyProva = !isEarlyTutoria && (earlyLower.includes('prova') || earlyLower.includes('módulo') || earlyLower.includes('modulo') || onclickEarly.includes('provas') || onclickEarly.includes('prova'));
 
@@ -697,6 +724,30 @@ function injectHierarchySupport(html: string): string {
     const resolvedName = getEffectiveFolderDisplayName(effectiveFolderId, cleanTitle, titleText);
     if (resolvedName && resolvedName.toLowerCase() !== 'pasta') {
       cleanTitle = resolvedName;
+    }
+
+    // [mr-provas-root-hide] Proteção secundária para cartão raiz 'provas' no contexto Home
+    const cleanLowerTitle = (cleanTitle || '').trim().toLowerCase();
+    const isProvasRootCard = (
+      effectiveFolderId === 'provas' ||
+      cleanLowerTitle === 'provas de módulo' ||
+      cleanLowerTitle === 'provas de modulo' ||
+      cleanLowerTitle === 'prova de módulo' ||
+      cleanLowerTitle === 'prova de modulo' ||
+      titleText.trim().toLowerCase() === 'provas de módulo' ||
+      titleText.trim().toLowerCase() === 'provas de modulo' ||
+      titleText.trim().toLowerCase() === 'prova de módulo' ||
+      titleText.trim().toLowerCase() === 'prova de modulo'
+    );
+    if (isHome && isProvasRootCard) {
+      card.style.display = 'none';
+      card.setAttribute('data-mr-hidden-provas-root', '1');
+      if (card.dataset) {
+        card.dataset.mrHiddenProvasRoot = '1';
+        card.dataset.mrDecorated = '1';
+      }
+      card.setAttribute('data-mr-decorated', '1');
+      return;
     }
 
     // Aplica classes imediatamente: Tutoria usa .mr-tutoria-card; os demais bancos usam .mr-unified-folder-card
@@ -1694,6 +1745,13 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-footer .mr-folder-card-btn-delete,
     .mr-folder-card-actions .mr-folder-card-btn-delete,
     .mr-folder-card-btn-delete {
+      display: none !important;
+    }
+
+    /* [mr-provas-root-hide] Oculta cartão-raiz "Provas de Módulo" na Home */
+    body:not(.folder-view):not(.deck-view) .mr-folder-card[data-mr-hidden-provas-root="1"],
+    body:not(.folder-view):not(.deck-view) [data-folder-id="provas"],
+    body:not(.folder-view):not(.deck-view) [data-deck-id="provas"] {
       display: none !important;
     }
 
@@ -5109,7 +5167,34 @@ function injectHierarchySupport(html: string): string {
         const rawTitleEarly = card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong');
         const titleEarlyText = (rawTitleEarly?.textContent || card.getAttribute('data-folder-name') || '').trim();
         const earlyLower = titleEarlyText.toLowerCase();
+        const cleanEarlyLower = earlyLower.replace(/^[\\s📁]+/, '').trim();
         const onclickEarly = card.getAttribute('onclick') || '';
+        const earlyCardFolderId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || '';
+
+        // [mr-provas-root-hide] Se for o cartão-raiz 'provas' na Home, oculta imediatamente e impede re-exibição
+        const isProvasRootEarly = (
+          earlyCardFolderId === 'provas' ||
+          cleanEarlyLower === 'provas de módulo' ||
+          cleanEarlyLower === 'provas de modulo' ||
+          cleanEarlyLower === 'prova de módulo' ||
+          cleanEarlyLower === 'prova de modulo' ||
+          earlyLower === 'provas de módulo' ||
+          earlyLower === 'provas de modulo' ||
+          earlyLower === 'prova de módulo' ||
+          earlyLower === 'prova de modulo'
+        );
+
+        if (isHome && isProvasRootEarly) {
+          card.style.display = 'none';
+          card.setAttribute('data-mr-hidden-provas-root', '1');
+          if (card.dataset) {
+            card.dataset.mrHiddenProvasRoot = '1';
+            card.dataset.mrDecorated = '1';
+          }
+          card.setAttribute('data-mr-decorated', '1');
+          return;
+        }
+
         const isEarlyTutoria = earlyLower.includes('tutoria') || onclickEarly.includes('tutoria');
         const isEarlyProva = !isEarlyTutoria && (earlyLower.includes('prova') || earlyLower.includes('módulo') || earlyLower.includes('modulo') || onclickEarly.includes('provas') || onclickEarly.includes('prova'));
 
@@ -5375,6 +5460,30 @@ function injectHierarchySupport(html: string): string {
           // Se o título original já trazia um emoji próprio, preservamos o ícone do título
           icon = iconMatch[0];
           cleanTitle = cleanTitle.replace(icon, '').trim();
+        }
+
+        // [mr-provas-root-hide] Proteção secundária para cartão raiz 'provas' dentro de _executeEnhanceViews
+        const cleanLowerTitleCard = (cleanTitle || '').trim().toLowerCase();
+        const isProvasRootCard = (
+          effectiveFolderId === 'provas' ||
+          cleanLowerTitleCard === 'provas de módulo' ||
+          cleanLowerTitleCard === 'provas de modulo' ||
+          cleanLowerTitleCard === 'prova de módulo' ||
+          cleanLowerTitleCard === 'prova de modulo' ||
+          titleText.trim().toLowerCase() === 'provas de módulo' ||
+          titleText.trim().toLowerCase() === 'provas de modulo' ||
+          titleText.trim().toLowerCase() === 'prova de módulo' ||
+          titleText.trim().toLowerCase() === 'prova de modulo'
+        );
+        if (isHome && isProvasRootCard) {
+          card.style.display = 'none';
+          card.setAttribute('data-mr-hidden-provas-root', '1');
+          if (card.dataset) {
+            card.dataset.mrHiddenProvasRoot = '1';
+            card.dataset.mrDecorated = '1';
+          }
+          card.setAttribute('data-mr-decorated', '1');
+          return;
         }
 
         // 3. LIMPEZA DO TOPO NATIVO: captura handlers antigos de reset e lixeira
@@ -6104,6 +6213,33 @@ function injectHierarchySupport(html: string): string {
               }
             }
             recycledCards.forEach(card => {
+              // [mr-provas-root-hide] Se for o cartão-raiz 'provas' na Home, oculta e não reprocessa
+              if (isHomeView()) {
+                const rFolderId = card.getAttribute('data-folder-id') || card.getAttribute('data-deck-id') || '';
+                const rTitle = (card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong')?.textContent || card.getAttribute('data-folder-name') || '').trim();
+                const rClean = rTitle.toLowerCase().replace(/^[\\s📁]+/, '').trim();
+                if (
+                  rFolderId === 'provas' ||
+                  rClean === 'provas de módulo' ||
+                  rClean === 'provas de modulo' ||
+                  rClean === 'prova de módulo' ||
+                  rClean === 'prova de modulo' ||
+                  rTitle.toLowerCase() === 'provas de módulo' ||
+                  rTitle.toLowerCase() === 'provas de modulo' ||
+                  rTitle.toLowerCase() === 'prova de módulo' ||
+                  rTitle.toLowerCase() === 'prova de modulo'
+                ) {
+                  card.style.display = 'none';
+                  card.setAttribute('data-mr-hidden-provas-root', '1');
+                  if (card.dataset) {
+                    card.dataset.mrHiddenProvasRoot = '1';
+                    card.dataset.mrDecorated = '1';
+                  }
+                  card.setAttribute('data-mr-decorated', '1');
+                  return;
+                }
+              }
+
               if (card.classList.contains('mr-subfolder-card')) {
                 if (typeof purgeSubfolderCard === 'function') {
                   purgeSubfolderCard(card);
