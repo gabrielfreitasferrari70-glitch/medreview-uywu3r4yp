@@ -4114,32 +4114,14 @@ function injectHierarchySupport(html: string): string {
     // 2. Garante que se o usuário voltar à pasta pai ela estará devidamente listada (requisito 2)
     navigateTo(subfolderId);
 
-    const tryDecorateSubfolderCard = () => {
-      try {
-        const targetCard = document.querySelector('[data-subfolder-id="' + subfolderId + '"], [data-folder-id="' + subfolderId + '"], div[onclick*="' + subfolderId + '"]');
-        if (targetCard && targetCard instanceof HTMLElement) {
-          if (targetCard.getAttribute('data-mr-decorated') !== '1' && (!targetCard.dataset || targetCard.dataset.mrDecorated !== '1')) {
-            if (typeof decorateCardElementImmediately === 'function') {
-              decorateCardElementImmediately(targetCard);
-            }
-          }
-        }
-      } catch (eDec) {
-        console.warn('Erro ao decorar subpasta recém-criada:', eDec);
-      }
-    };
-
     requestAnimationFrame(() => {
       enhanceViews();
-      tryDecorateSubfolderCard();
     });
     setTimeout(() => {
       enhanceViews();
-      tryDecorateSubfolderCard();
     }, 120);
     setTimeout(() => {
       enhanceViews();
-      tryDecorateSubfolderCard();
     }, 300);
   };
 
@@ -5034,56 +5016,20 @@ function injectHierarchySupport(html: string): string {
       origSaveNewCard(ctx);
     }
 
-    const tryDecorateCreatedCard = () => {
-      try {
-        const targetCtxId = ctx || window.__activeFolderContext;
-        // Tenta localizar elemento de cartão recém-criado por atributos ou contexto
-        let targetEl = null;
-        if (targetCtxId) {
-          targetEl = document.querySelector('[data-folder-id="' + targetCtxId + '"], [data-deck-id="' + targetCtxId + '"], [data-subfolder-id="' + targetCtxId + '"], div[onclick*="' + targetCtxId + '"]');
-        }
-        if (!targetEl) {
-          // Procura cartões não decorados que sejam geometricamente válidos
-          const candidates = document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"]');
-          for (let i = 0; i < candidates.length; i++) {
-            const cand = candidates[i];
-            if (cand instanceof HTMLElement && isCardGeometricallyValid(cand)) {
-              if (cand.getAttribute('data-mr-decorated') !== '1' && (!cand.dataset || cand.dataset.mrDecorated !== '1')) {
-                targetEl = cand;
-                break;
-              }
-            }
-          }
-        }
-        if (targetEl && targetEl instanceof HTMLElement) {
-          if (targetEl.getAttribute('data-mr-decorated') !== '1' && (!targetEl.dataset || targetEl.dataset.mrDecorated !== '1')) {
-            if (typeof decorateCardElementImmediately === 'function') {
-              decorateCardElementImmediately(targetEl);
-            }
-          }
-        }
-      } catch (eCardDec) {
-        console.warn('Erro ao decorar carta recém-criada:', eCardDec);
-      }
-    };
-
     if (!window.__mrInjectingDelete) {
       requestAnimationFrame(() => {
         if (!window.__mrInjectingDelete) {
           enhanceViews();
-          tryDecorateCreatedCard();
         }
       });
       setTimeout(() => {
         if (!window.__mrInjectingDelete) {
           enhanceViews();
-          tryDecorateCreatedCard();
         }
       }, 120);
       setTimeout(() => {
         if (!window.__mrInjectingDelete) {
           enhanceViews();
-          tryDecorateCreatedCard();
         }
       }, 300);
     }
@@ -5275,24 +5221,6 @@ function injectHierarchySupport(html: string): string {
         if (!isLegitimateCardTitle(tEl)) return;
         var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
         if (cardContainer && isCardGeometricallyValid(cardContainer) && !folderCardsList.includes(cardContainer)) folderCardsList.push(cardContainer);
-      });
-
-      // Captura de irmãos de cartões já decorados (evita cartões nativos não identificados por nome/classe)
-      const decoratedCards = document.querySelectorAll('[data-mr-decorated="1"]');
-      const seenParents = new Set();
-      decoratedCards.forEach(function (decEl) {
-        var p = decEl.parentElement;
-        if (!p || seenParents.has(p)) return;
-        seenParents.add(p);
-        if (p === document.body || p === document.documentElement) return;
-        if (p.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav, .mr-breadcrumb-bar, .mr-toast-container')) return;
-        Array.from(p.children).forEach(function (child) {
-          if (child instanceof HTMLElement && isCardGeometricallyValid(child) && !folderCardsList.includes(child)) {
-            if (!child.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"], [class*="modal"], dialog, script, style')) {
-              folderCardsList.push(child);
-            }
-          }
-        });
       });
 
       folderCardsList.forEach(card => {
@@ -6025,33 +5953,7 @@ function injectHierarchySupport(html: string): string {
       }
     });
 
-    // Decorador universal imediato de cartões em todas as seções da home (.deck-card, .folder-card, [data-deck-id], [data-folder-id])
-    try {
-      const homeDetectorCards = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-folder-card, .mr-unified-folder-card, .mr-tutoria-card'));
-      const homeTitleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong, [class*="title"]');
-      homeTitleEls.forEach(function (tEl) {
-        if (!isLegitimateCardTitle(tEl)) return;
-        var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
-        if (cardContainer && isCardGeometricallyValid(cardContainer) && !homeDetectorCards.includes(cardContainer)) homeDetectorCards.push(cardContainer);
-      });
-      // Irmãos em grids ou containers de pastas
-      document.querySelectorAll('div:has(> .mr-unified-folder-card) > div, div:has(> .mr-folder-card) > div, .deck-grid > div, .folder-grid > div, .decks-container > div, .folders-container > div').forEach(c => {
-        if (c && isCardGeometricallyValid(c) && !homeDetectorCards.includes(c) && !c.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"]')) {
-          homeDetectorCards.push(c);
-        }
-      });
-      homeDetectorCards.forEach(c => {
-        if (!c.classList.contains('mr-subfolder-card')) {
-          if (c.getAttribute('data-mr-decorated') !== '1' && (!c.dataset || c.dataset.mrDecorated !== '1')) {
-            if (typeof decorateCardElementImmediately === 'function') {
-              decorateCardElementImmediately(c);
-            }
-          }
-        }
-      });
-    } catch (eDetector) {
-      console.warn('Erro ao aplicar detector de cartões home:', eDetector);
-    }
+
 
     let currentId = null;
     if (typeof currentRoute !== 'undefined') {
@@ -6367,31 +6269,6 @@ function injectHierarchySupport(html: string): string {
               if (isLegitimateCardTitle(el)) {
                 var cCont = el.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || el.parentElement;
                 if (cCont && isCardGeometricallyValid(cCont) && !recycledCards.includes(cCont)) recycledCards.push(cCont);
-              }
-            }
-            // Verifica se o nó adicionado foi inserido dentro de uma grade de cartões
-            if (el.parentElement && isCardGeometricallyValid(el)) {
-              const parentGrid = el.parentElement;
-              if (parentGrid.querySelector && (parentGrid.querySelector('.mr-unified-folder-card, .mr-folder-card, .deck-card, .folder-card, [data-mr-decorated="1"]'))) {
-                if (!recycledCards.includes(el) && !el.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"]')) {
-                  recycledCards.push(el);
-                }
-              }
-            }
-
-            // Captura de elementos irmãos caso o nó ou algum descendente já seja decorado
-            if (el.parentElement && !el.closest('.modal, [id*="modal"], [class*="modal"], dialog, [role="dialog"], .med-topbar, header, nav, .mr-breadcrumb-bar, .mr-toast-container')) {
-              const p = el.parentElement;
-              if (p !== document.body && p !== document.documentElement) {
-                if (p.querySelector && p.querySelector('[data-mr-decorated="1"]')) {
-                  Array.from(p.children).forEach(function (sib) {
-                    if (sib instanceof HTMLElement && isCardGeometricallyValid(sib) && !recycledCards.includes(sib)) {
-                      if (!sib.matches('.mr-folder-card-header, .mr-folder-card-footer, .mr-breadcrumb-bar, .modal, [id*="modal"], [class*="modal"], dialog, script, style')) {
-                        recycledCards.push(sib);
-                      }
-                    }
-                  });
-                }
               }
             }
             recycledCards.forEach(card => {
