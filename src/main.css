@@ -304,6 +304,26 @@ body .folder-stats:not(#global-stats-modal *) {
    Estrutura consolidada para qualquer tipo de pasta (Tutoria, Provas, Módulos,
    Subpastas, Pastas Raiz e Customizadas). O tipo é diferenciado pelo chip/ícone.
    ========================================================================== */
+.decks,
+.folders,
+.deck-grid,
+.folder-grid,
+.decks-container,
+.folders-container,
+.folder-cards-list,
+.deck-cards-list,
+.cards-grid,
+div:has(> .mr-folder-card),
+div:has(> .mr-tutoria-card),
+div:has(> .mr-unified-folder-card),
+div:has(> .deck-card),
+div:has(> .folder-card) {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)) !important;
+  gap: 1.25rem !important;
+  align-items: stretch !important;
+}
+
 .mr-tutoria-card,
 .mr-unified-folder-card,
 .mr-folder-card,
@@ -327,9 +347,9 @@ body .folder-stats:not(#global-stats-modal *) {
   justify-content: flex-start !important;
   width: 100% !important;
   height: 100% !important;
-  min-height: 200px !important;
+  min-height: 230px !important;
   box-sizing: border-box !important;
-  padding: 1.15rem 1rem !important;
+  padding: 1.25rem 1.15rem !important;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -542,7 +562,7 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-folder-card-header.mr-tutoria-header .mr-folder-card-badge,
 .mr-folder-card-badge {
   align-self: flex-start !important;
-  margin-bottom: 0.15rem !important;
+  margin-bottom: 0.65rem !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 0.35rem !important;
@@ -557,15 +577,18 @@ body .folder-stats:not(#global-stats-modal *) {
   flex-shrink: 0 !important;
 }
 
-/* Wrap de título com ícone: ocupa 100% da largura, quebra de texto natural, emoji inline */
+/* Wrap de título com ícone: min-height 3.1rem, flex-start */
 .mr-tutoria-card .mr-folder-card-title-wrap,
 .mr-unified-folder-card .mr-folder-card-title-wrap,
 .mr-folder-card .mr-folder-card-title-wrap,
 .deck-card .mr-folder-card-title-wrap,
 .folder-card .mr-folder-card-title-wrap,
-.mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap {
+.mr-folder-card-header.mr-tutoria-header .mr-folder-card-title-wrap,
+.mr-folder-card-title-wrap {
   width: 100% !important;
-  display: block !important;
+  min-height: 3.1rem !important;
+  display: flex !important;
+  align-items: flex-start !important;
   min-width: 0 !important;
   line-height: 1.35 !important;
 }
@@ -576,28 +599,28 @@ body .folder-stats:not(#global-stats-modal *) {
 .deck-card .mr-folder-card-icon,
 .folder-card .mr-folder-card-icon {
   font-size: 1.2rem !important;
-  line-height: 1 !important;
+  line-height: 1.35 !important;
   display: inline-block !important;
-  vertical-align: -0.1em !important;
+  vertical-align: top !important;
   margin-right: 0.45rem !important;
+  flex-shrink: 0 !important;
 }
 
 .mr-tutoria-card .mr-folder-card-title,
 .mr-unified-folder-card .mr-folder-card-title,
 .mr-folder-card .mr-folder-card-title,
 .deck-card .mr-folder-card-title,
-.folder-card .mr-folder-card-title {
+.folder-card .mr-folder-card-title,
+.mr-folder-card-title {
   font-size: 1.15rem !important;
   font-weight: 800 !important;
   color: #14532d !important;
   line-height: 1.35 !important;
   letter-spacing: -0.01em !important;
-  white-space: normal !important;
-  word-break: normal !important;
-  overflow-wrap: break-word !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  display: inline !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
   width: 100% !important;
 }
 
@@ -606,6 +629,7 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-unified-folder-card .mr-folder-card-top-delete,
 .mr-folder-card .mr-folder-card-top-delete,
 .mr-subfolder-card .mr-folder-card-top-delete,
+.mr-folder-card-top-delete,
 [data-mr-folder-delete],
 [data-mr-sub-delete] {
   position: absolute !important;
@@ -623,7 +647,7 @@ body .folder-stats:not(#global-stats-modal *) {
   border: 1px solid #fecaca !important;
   border-radius: 8px !important;
   padding: 0 !important;
-  font-size: 16px !important;
+  font-size: 15px !important;
   cursor: pointer !important;
   line-height: 1 !important;
   display: flex !important;
@@ -641,6 +665,7 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-unified-folder-card .mr-folder-card-top-delete:hover,
 .mr-folder-card .mr-folder-card-top-delete:hover,
 .mr-subfolder-card .mr-folder-card-top-delete:hover,
+.mr-folder-card-top-delete:hover,
 [data-mr-folder-delete]:hover,
 [data-mr-sub-delete]:hover {
   background: #fee2e2 !important;
@@ -653,6 +678,7 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-unified-folder-card .mr-folder-card-top-rename,
 .mr-folder-card .mr-folder-card-top-rename,
 .mr-subfolder-card .mr-folder-card-top-rename,
+.mr-folder-card-top-rename,
 [data-mr-folder-rename] {
   position: absolute !important;
   top: 14px !important;
@@ -669,7 +695,7 @@ body .folder-stats:not(#global-stats-modal *) {
   border: 1px solid #bfdbfe !important;
   border-radius: 8px !important;
   padding: 0 !important;
-  font-size: 16px !important;
+  font-size: 15px !important;
   cursor: pointer !important;
   line-height: 1 !important;
   display: flex !important;
@@ -796,13 +822,15 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-folder-card .mr-folder-card-count-chip,
 .deck-card .mr-folder-card-count-chip,
 .folder-card .mr-folder-card-count-chip,
-.mr-subfolder-card .mr-folder-card-count-chip {
+.mr-subfolder-card .mr-folder-card-count-chip,
+.mr-folder-card-count-chip {
   white-space: nowrap !important;
   flex-shrink: 0 !important;
   font-size: 0.78rem !important;
   min-height: 28px !important;
   height: 28px !important;
   padding: 0 0.75rem !important;
+  margin-bottom: 0.75rem !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -820,15 +848,18 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-folder-card .mr-folder-card-actions,
 .deck-card .mr-folder-card-actions,
 .folder-card .mr-folder-card-actions,
+.mr-folder-card-actions {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 0.5rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+}
+
 .mr-subfolder-card .mr-folder-card-actions {
   display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 0.45rem !important;
-  width: 100% !important;
-  flex-wrap: wrap !important;
-  margin-left: 0 !important;
-  box-sizing: border-box !important;
+  justify-content: flex-end !important;
 }
 
 .mr-tutoria-card .mr-folder-card-actions .mr-folder-card-btn-action,
@@ -836,22 +867,21 @@ body .folder-stats:not(#global-stats-modal *) {
 .mr-folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
 .deck-card .mr-folder-card-actions .mr-folder-card-btn-action,
 .folder-card .mr-folder-card-actions .mr-folder-card-btn-action,
-.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-action {
+.mr-subfolder-card .mr-folder-card-actions .mr-folder-card-btn-action,
+.mr-folder-card-btn-action {
   white-space: nowrap !important;
-  font-size: 0.78rem !important;
+  font-size: 0.76rem !important;
   font-weight: 700 !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 0.35rem !important;
+  width: 100% !important;
   height: 36px !important;
   min-height: 36px !important;
-  min-width: 64px !important;
-  font-size: 0.72rem !important;
   padding: 0 0.35rem !important;
   border-radius: 8px !important;
-  flex: 1 1 0% !important;
   box-sizing: border-box !important;
   line-height: 1 !important;
   transition:
