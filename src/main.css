@@ -1093,8 +1093,7 @@ div:has(> .folder-card) {
 .deck-view[data-current-folder='provas'] [data-folder-id='provas'],
 .deck-view[data-current-folder='provas'] .mr-folder-card[data-mr-hidden-provas-root='1'],
 [data-mr-current-folder='provas'] [data-folder-id='provas'],
-[data-mr-current-folder='provas'] .mr-folder-card[data-mr-hidden-provas-root='1'],
-.mr-folder-card[data-mr-hidden-provas-root='1'] {
+[data-mr-current-folder='provas'] .mr-folder-card[data-mr-hidden-provas-root='1'] {
   display: none !important;
 }
 
