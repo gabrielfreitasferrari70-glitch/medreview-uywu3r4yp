@@ -1696,12 +1696,45 @@ function injectHierarchySupport(html: string): string {
     .mr-folder-card-btn-delete {
       display: none !important;
     }
+
+    /* [mr-prova-grid-fix] Correção de layout da visão interna da pasta Prova de Módulo */
+    /* A) Isolar botão de criação fora da malha dos cartões */
+    .folder-grid > button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .deck-grid > button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    .cards-grid > button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename),
+    div:has(> .mr-folder-card) > button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-btn-action),
+    div:has(> .mr-unified-folder-card) > button:not(.mr-folder-card-top-delete):not(.mr-folder-card-top-rename):not(.mr-folder-card-btn-action) {
+      grid-column: 1 / -1 !important;
+      width: fit-content !important;
+      justify-self: start !important;
+      margin-bottom: 0.85rem !important;
+    }
+
+    /* B) Grade com colunas rigorosamente iguais */
+    .decks, .folders, .deck-grid, .folder-grid, .decks-container, .folders-container, .folder-cards-list, .deck-cards-list, .cards-grid,
+    div:has(> .mr-folder-card), div:has(> .mr-tutoria-card), div:has(> .mr-unified-folder-card),
+    div:has(> .deck-card), div:has(> .folder-card) {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+      gap: 1.25rem !important;
+      align-items: stretch !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    /* C) Cartões gêmeos */
+    .mr-folder-card, .mr-tutoria-card, .mr-unified-folder-card, .deck-card.mr-folder-card, .folder-card.mr-folder-card {
+      width: 100% !important; min-width: 0 !important; height: 100% !important; min-height: 230px !important;
+      display: flex !important; flex-direction: column !important; align-items: stretch !important;
+      justify-content: space-between !important; box-sizing: border-box !important;
+    }
+    .mr-folder-card-title-wrap { width: 100% !important; min-height: 3.1rem !important; height: 3.1rem !important; display: flex !important; align-items: flex-start !important; min-width: 0 !important; }
+    .mr-folder-card-title { display: -webkit-box !important; -webkit-line-clamp: 2 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; line-height: 1.35 !important; font-size: 1.15rem !important; font-weight: 800 !important; width: 100% !important; }
   \`;
   document.head.appendChild(styleEl);
 
   // 2. Injeta Modal de Escolha no DOM: "Nova Subpasta" vs "Nova Carta"
-  const modalChoiceHtml = \`
-  <div id="create-choice-modal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCreateChoiceModal()">
+  const modalChoiceHtml = \`  <div id="create-choice-modal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(15, 23, 42, 0.55); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;" onclick="if(event.target===this) closeCreateChoiceModal()">
     <div style="background:#ffffff; border-radius:18px; max-width:460px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.24); border:1.5px solid #bbf7d0; overflow:hidden; animation:mr-fade-up 0.2s ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; padding:1.15rem 1.35rem; border-bottom:1px solid #d1fae5; background:#f0fdf4;">
         <h3 id="create-choice-title" style="margin:0; font-size:1.1rem; font-weight:800; color:#14532d; display:flex; align-items:center; gap:0.5rem;">
