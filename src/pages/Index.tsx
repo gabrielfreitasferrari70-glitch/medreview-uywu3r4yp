@@ -416,6 +416,28 @@ function injectHierarchySupport(html: string): string {
     for (const b of banned) {
       if (txt === b || txt.startsWith(b + ' ') || txt.endsWith(' ' + b)) return false;
     }
+    // Rejeição na home de contêineres/seções que não são cartões de pasta
+    if (typeof isHomeView === 'function' && isHomeView()) {
+      const normTxt = (el.textContent || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      if (
+        normTxt.includes('pastas de estudo') ||
+        normTxt.includes('pasta de estudo') ||
+        normTxt.includes('todos os cards') ||
+        normTxt.includes('todas as cartas') ||
+        normTxt.includes('todos os flashcards') ||
+        normTxt.includes('motor de repeticao') ||
+        normTxt.includes('open-spaced-repetition') ||
+        normTxt.includes('700m+') ||
+        normTxt.includes('guyton') ||
+        normTxt.includes('robbins') ||
+        (normTxt.includes('fsrs-5') && normTxt.includes('revisao ativa'))
+      ) {
+        return false;
+      }
+    }
     // Não rejeita títulos legítimos curtos ou sem a palavra 'prova' (ex: pasta 'a' criada em Prova de Módulo, ou pastas customizadas)
     return true;
   }
@@ -453,13 +475,70 @@ function injectHierarchySupport(html: string): string {
       delete el.dataset.mrFolderCardFooter;
       delete el.dataset.mrFolderTopDelete;
     }
-    el.querySelectorAll(':scope > .mr-folder-card-header, :scope > .mr-folder-card-footer, :scope > .mr-folder-card-top-delete, :scope > .mr-folder-card-top-rename').forEach(c => c.remove());
+    // Remove cabeçalhos, rodapés, botões ✏️/🗑 e chips injetados (mesmo se aninhados)
+    el.querySelectorAll('.mr-folder-card-header, .mr-folder-card-footer, .mr-folder-card-top-delete, .mr-folder-card-top-rename, .mr-folder-card-actions, .mr-folder-card-count-chip, .mr-folder-card-btn-action, [data-mr-folder-rename], [data-mr-folder-delete], [data-mr-sub-delete]').forEach(c => c.remove());
+  }
+
+  // Identificação e exclusão de contêineres nativos da Home que NÃO devem ser decorados
+  function isExcludedHomeCard(card, rawTitle) {
+    if (!card || !(card instanceof HTMLElement)) return false;
+    if (typeof isHomeView === 'function' && !isHomeView()) return false;
+
+    const norm = (str) => (str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const tNorm = norm(rawTitle || card.querySelector('h2, h3, h4, .deck-title, .folder-title, .title, strong')?.textContent || card.getAttribute('data-folder-name') || '');
+    const cTextNorm = norm(card.textContent || '');
+
+    // 1. Cartão contêiner com título "📁📁 Pastas de Estudo"
+    if (tNorm.includes('pastas de estudo') || tNorm.includes('pasta de estudo') || cTextNorm.includes('pastas de estudo') || cTextNorm.includes('pasta de estudo')) {
+      return true;
+    }
+
+    // 2. Cartão "Todos os Cards"
+    if (
+      tNorm.includes('todos os cards') ||
+      tNorm.includes('todas as cartas') ||
+      tNorm.includes('todos os flashcards') ||
+      cTextNorm.includes('todos os cards') ||
+      cTextNorm.includes('todas as cartas') ||
+      cTextNorm.includes('todos os flashcards')
+    ) {
+      return true;
+    }
+
+    // 3. Banner FSRS-5 e termos associados
+    if (
+      cTextNorm.includes('motor de repeticao') ||
+      cTextNorm.includes('open-spaced-repetition') ||
+      cTextNorm.includes('700m+') ||
+      cTextNorm.includes('guyton') ||
+      cTextNorm.includes('robbins') ||
+      (cTextNorm.includes('fsrs-5') && cTextNorm.includes('revisao ativa'))
+    ) {
+      return true;
+    }
+
+    // 4. Critério geométrico: banner de largura total / contêiner grande
+    try {
+      const rect = card.getBoundingClientRect();
+      const vpWidth = window.innerWidth || document.documentElement.clientWidth || 1200;
+      if (rect.width > 0.85 * vpWidth && (card.textContent || '').trim().length > 120) {
+        return true;
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+
+    return false;
   }
 
   // PASSO 3: Função síncrona padronizadora de qualquer elemento de cartão de pasta recém-renderizado
   function decorateCardElementImmediately(card) {
     if (!card || !(card instanceof HTMLElement)) return;
-    if (!isCardGeometricallyValid(card)) {
+    if (!isCardGeometricallyValid(card) || isExcludedHomeCard(card)) {
       unDecorateInvalidCard(card);
       return;
     }
@@ -570,6 +649,14 @@ function injectHierarchySupport(html: string): string {
 
   function _executeDecorateCardElementImmediately(card) {
     const isHome = isHomeView();
+
+    // Se estiver na Home e for contêiner/banner excluído, desdecora e aborta imediatamente
+    if (isHome && typeof isExcludedHomeCard === 'function' && isExcludedHomeCard(card)) {
+      if (typeof unDecorateInvalidCard === 'function') {
+        unDecorateInvalidCard(card);
+      }
+      return;
+    }
 
     // Helper de normalização estrita de título de pasta (remove emojis, espaços duplicados e diacríticos)
     const normalizeFolderCardTitle = (str) => {
@@ -5075,6 +5162,23 @@ function injectHierarchySupport(html: string): string {
 
   function _executeEnhanceViews() {
     suppressNativeStatsModal();
+
+    // Na Home, desfaz qualquer decoração prévia ou acidental nos 3 contêineres nativos
+    if (typeof isHomeView === 'function' && isHomeView()) {
+      try {
+        const potentialCards = document.querySelectorAll('.mr-folder-card, .mr-unified-folder-card, [data-mr-decorated]');
+        potentialCards.forEach(c => {
+          if (typeof isExcludedHomeCard === 'function' && isExcludedHomeCard(c)) {
+            if (typeof unDecorateInvalidCard === 'function') {
+              unDecorateInvalidCard(c);
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('Erro ao sanitizar contêineres na home:', e);
+      }
+    }
+
     // Garante que cartões de subpasta (.mr-subfolder-card) tenham clique funcional e desimpedido para abrir a subpasta
     try {
       const subfolderCards = document.querySelectorAll('.mr-subfolder-card');
@@ -5228,6 +5332,14 @@ function injectHierarchySupport(html: string): string {
         if (card.classList.contains('mr-subfolder-card')) {
           if (typeof purgeSubfolderCard === 'function') {
             purgeSubfolderCard(card);
+          }
+          return;
+        }
+
+        // Verificação se o elemento é um contêiner nativo da Home que deve ser desdecorado
+        if (typeof isExcludedHomeCard === 'function' && isExcludedHomeCard(card)) {
+          if (typeof unDecorateInvalidCard === 'function') {
+            unDecorateInvalidCard(card);
           }
           return;
         }
@@ -6272,6 +6384,14 @@ function injectHierarchySupport(html: string): string {
               }
             }
             recycledCards.forEach(card => {
+              // Verificação se o elemento é um contêiner nativo da Home que deve ser desdecorado
+              if (typeof isExcludedHomeCard === 'function' && isExcludedHomeCard(card)) {
+                if (typeof unDecorateInvalidCard === 'function') {
+                  unDecorateInvalidCard(card);
+                }
+                return;
+              }
+
               // [mr-provas-root-hide] Oculta cartão auto-referencial "Provas de Módulo" APENAS dentro da pasta de provas (NUNCA na Home)
               if (!isHomeView() && isInsideProvasView()) {
                 const normalizeTitleLocal = (str) => {
