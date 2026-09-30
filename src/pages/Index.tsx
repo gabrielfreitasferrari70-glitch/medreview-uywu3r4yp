@@ -163,8 +163,8 @@ function injectHierarchySupport(html: string): string {
   function normalizeCardTopButtons(root) {
     if (!root || !root.querySelectorAll) return;
     try {
-      const scope = (root.classList && (root.classList.contains('mr-folder-card') || root.classList.contains('mr-tutoria-card') || root.classList.contains('mr-subfolder-card'))) ? [root] : [];
-      const cards = scope.length > 0 ? scope : root.querySelectorAll('.mr-subfolder-card, .mr-folder-card, .mr-tutoria-card, .deck-card, .folder-card');
+      const scope = (root.classList && (root.classList.contains('mr-folder-card') || root.classList.contains('mr-tutoria-card') || root.classList.contains('mr-subfolder-card') || root.classList.contains('mr-unified-folder-card') || root.classList.contains('deck-card') || root.classList.contains('folder-card'))) ? [root] : [];
+      const cards = scope.length > 0 ? scope : root.querySelectorAll('.mr-subfolder-card, .mr-folder-card, .mr-tutoria-card, .mr-unified-folder-card, .deck-card, .folder-card, [data-deck-id], [data-folder-id]');
 
       cards.forEach(card => {
         const renames = card.querySelectorAll(':scope > .mr-folder-card-top-rename, :scope > [data-mr-folder-rename], .mr-folder-card-top-rename, [data-mr-folder-rename]');
@@ -2832,6 +2832,17 @@ function injectHierarchySupport(html: string): string {
     if (typeof openNewCardModal === 'function') {
       openNewCardModal(ctx);
     }
+    if (!window.__mrInjectingDelete) {
+      requestAnimationFrame(() => {
+        if (!window.__mrInjectingDelete && typeof enhanceViews === 'function') enhanceViews();
+      });
+      setTimeout(() => {
+        if (!window.__mrInjectingDelete && typeof enhanceViews === 'function') enhanceViews();
+      }, 120);
+      setTimeout(() => {
+        if (!window.__mrInjectingDelete && typeof enhanceViews === 'function') enhanceViews();
+      }, 300);
+    }
   };
 
   window.handleChoiceImportCsv = function() {
@@ -3796,6 +3807,12 @@ function injectHierarchySupport(html: string): string {
     requestAnimationFrame(() => {
       enhanceViews();
     });
+    setTimeout(() => {
+      enhanceViews();
+    }, 120);
+    setTimeout(() => {
+      enhanceViews();
+    }, 300);
   };
 
   // 9. Adaptador para navegar até subpastas
@@ -4688,6 +4705,18 @@ function injectHierarchySupport(html: string): string {
     if (typeof origSaveNewCard === 'function') {
       origSaveNewCard(ctx);
     }
+
+    if (!window.__mrInjectingDelete) {
+      requestAnimationFrame(() => {
+        if (!window.__mrInjectingDelete) enhanceViews();
+      });
+      setTimeout(() => {
+        if (!window.__mrInjectingDelete) enhanceViews();
+      }, 120);
+      setTimeout(() => {
+        if (!window.__mrInjectingDelete) enhanceViews();
+      }, 300);
+    }
   };
 
   function suppressNativeStatsModal() {
@@ -4892,13 +4921,7 @@ function injectHierarchySupport(html: string): string {
           return;
         }
 
-        // Se for cartão nativo não-tutoria, delega para decorateCardElementImmediately para garantir unificação e marcação
-        if (!card.classList.contains('mr-tutoria-card')) {
-          if (typeof decorateCardElementImmediately === 'function') {
-            decorateCardElementImmediately(card);
-            return;
-          }
-        }
+
 
         // Remoção incondicional de tags de imagem, emojis/thumbnails nativos quebrados do snapshot (ex: 📝 ou ícone de teste)
         card.querySelectorAll('img, picture, object, embed, canvas, svg:not(.mr-allowed-svg), .deck-icon, .folder-icon, .card-thumbnail, .thumbnail').forEach(el => el.remove());
@@ -5537,16 +5560,14 @@ function injectHierarchySupport(html: string): string {
 
     // Decorador universal imediato de cartões em todas as seções da home (.deck-card, .folder-card, [data-deck-id], [data-folder-id])
     try {
-      const homeDetectorCards = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id]'));
+      const homeDetectorCards = Array.from(document.querySelectorAll('.deck-card, .folder-card, [data-deck-id], [data-folder-id], .mr-folder-card, .mr-unified-folder-card, .mr-tutoria-card'));
       const homeTitleEls = document.querySelectorAll('h2, h3, h4, .deck-title, .folder-title, strong');
       homeTitleEls.forEach(function (tEl) {
-        var tx = (tEl.textContent || '').trim().toLowerCase();
-        if (tx.indexOf('prova') === -1) return;
         var cardContainer = tEl.closest('.deck-card, .folder-card, [data-deck-id], [data-folder-id], div[class*="card"], div[class*="deck"]') || tEl.parentElement;
         if (cardContainer && !homeDetectorCards.includes(cardContainer)) homeDetectorCards.push(cardContainer);
       });
       homeDetectorCards.forEach(c => {
-        if (!c.classList.contains('mr-subfolder-card') && !c.classList.contains('mr-tutoria-card')) {
+        if (!c.classList.contains('mr-subfolder-card')) {
           if (c.getAttribute('data-mr-decorated') !== '1' && (!c.dataset || c.dataset.mrDecorated !== '1')) {
             if (typeof decorateCardElementImmediately === 'function') {
               decorateCardElementImmediately(c);
