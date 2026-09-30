@@ -598,12 +598,13 @@ body .folder-stats:not(#global-stats-modal *) {
   border: 1px solid #fecaca !important;
   border-radius: 8px !important;
   padding: 0 !important;
-  font-size: 15px !important;
+  font-size: 16px !important;
   cursor: pointer !important;
   line-height: 1 !important;
-  display: inline-flex !important;
+  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  overflow: hidden !important;
   box-shadow: 0 1px 3px rgba(220, 38, 38, 0.12) !important;
   transition:
     background 0.15s ease,
@@ -641,12 +642,13 @@ body .folder-stats:not(#global-stats-modal *) {
   border: 1px solid #bfdbfe !important;
   border-radius: 8px !important;
   padding: 0 !important;
-  font-size: 15px !important;
+  font-size: 16px !important;
   cursor: pointer !important;
   line-height: 1 !important;
-  display: inline-flex !important;
+  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  overflow: hidden !important;
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12) !important;
   transition:
     background 0.15s ease,
@@ -663,6 +665,34 @@ body .folder-stats:not(#global-stats-modal *) {
   border-color: #93c5fd !important;
   color: #1d4ed8 !important;
   transform: translateY(-1px) !important;
+}
+
+/* Neutralização estrita de pseudo-elementos e filhos estranhos dentro dos botões oficiais */
+.mr-folder-card-top-rename::before,
+.mr-folder-card-top-rename::after,
+.mr-folder-card-top-delete::before,
+.mr-folder-card-top-delete::after,
+[data-mr-folder-rename]::before,
+[data-mr-folder-rename]::after,
+[data-mr-folder-delete]::before,
+[data-mr-folder-delete]::after,
+[data-mr-sub-delete]::before,
+[data-mr-sub-delete]::after {
+  content: none !important;
+  display: none !important;
+}
+
+.mr-folder-card-top-rename > *,
+.mr-folder-card-top-delete > *,
+[data-mr-folder-rename] > *,
+[data-mr-folder-delete] > *,
+[data-mr-sub-delete] > * {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
 }
 
 /* Modal de renomear pasta/subpasta */
