@@ -324,22 +324,18 @@ function injectHierarchySupport(html: string): string {
     }
   }
 
-  // Detecção se o contexto atual é a home ("/", rota principal)
+  // Detecção se o contexto atual é a home ("/", rota principal) - leitura DINÂMICA fresca
   function isHomeView() {
     try {
-      if (typeof window.currentRoute !== 'undefined') {
-        const r = String(window.currentRoute).trim().toLowerCase();
-        if (r && r !== 'home' && r !== '/' && r !== 'index') return false;
-      }
-      if (typeof currentRoute !== 'undefined') {
-        const r = String(currentRoute).trim().toLowerCase();
-        if (r && r !== 'home' && r !== '/' && r !== 'index') return false;
-      }
-      if (typeof window.studyState !== 'undefined' && window.studyState && window.studyState.deckId) {
-        return false;
-      }
-      if (typeof studyState !== 'undefined' && studyState && studyState.deckId) {
-        return false;
+      if (typeof window !== 'undefined' && window.location) {
+        const hash = (window.location.hash || '').toLowerCase();
+        if (hash && hash !== '#' && hash !== '#/' && hash !== '#home' && hash !== '#index') {
+          return false;
+        }
+        const pathname = (window.location.pathname || '').toLowerCase();
+        if (pathname && pathname !== '/' && pathname !== '/index.html' && pathname !== '/index' && pathname !== '/home') {
+          return false;
+        }
       }
       const subWrapper = document.getElementById('mr-subfolder-wrapper');
       if (subWrapper && subWrapper.style.display !== 'none') {
@@ -348,6 +344,30 @@ function injectHierarchySupport(html: string): string {
       const activeFolder = document.querySelector('.folder-view, .deck-view');
       if (activeFolder && activeFolder.offsetParent !== null && !activeFolder.classList.contains('hidden')) {
         return false;
+      }
+      const studyContainer = document.querySelector('.study-view, .study-interface, #study-view, [data-study-view], .flashcard-study-container, #flashcard-study');
+      if (studyContainer && studyContainer.offsetParent !== null && !studyContainer.classList.contains('hidden') && studyContainer.style.display !== 'none') {
+        return false;
+      }
+      if (typeof window.studyState !== 'undefined' && window.studyState && window.studyState.deckId) {
+        const studyUI = document.querySelector('.study-view, .study-interface, #study-view, .flashcard-container, [data-study-active]');
+        if (studyUI && studyUI.offsetParent !== null && studyUI.style.display !== 'none') {
+          return false;
+        }
+      }
+      if (typeof studyState !== 'undefined' && studyState && studyState.deckId) {
+        const studyUI = document.querySelector('.study-view, .study-interface, #study-view, .flashcard-container, [data-study-active]');
+        if (studyUI && studyUI.offsetParent !== null && studyUI.style.display !== 'none') {
+          return false;
+        }
+      }
+      if (typeof window.currentRoute !== 'undefined') {
+        const r = String(window.currentRoute).trim().toLowerCase();
+        if (r && r !== 'home' && r !== '/' && r !== 'index') return false;
+      }
+      if (typeof currentRoute !== 'undefined') {
+        const r = String(currentRoute).trim().toLowerCase();
+        if (r && r !== 'home' && r !== '/' && r !== 'index') return false;
       }
       return true;
     } catch {
@@ -4250,6 +4270,10 @@ function injectHierarchySupport(html: string): string {
   if (window.navigateTo && window.navigateTo.__mrWrapped) return;
   const origNavigateTo = window.navigateTo;
   const wrappedNavigateTo = function(target) {
+    // Invalidação e limpeza antes de restaurar contêineres ou navegar
+    document.querySelectorAll('[data-mr-decorated="1"]').forEach(function(el){ el.removeAttribute('data-mr-decorated'); });
+    document.querySelectorAll('[data-mr-injected="1"]').forEach(function(el){ el.remove(); });
+
     // Antes de navegar, restaura a visibilidade do #mr-subfolder-wrapper e dos elementos nativos ocultados
     const subWrapper = document.getElementById('mr-subfolder-wrapper');
     if (subWrapper) {
@@ -4274,17 +4298,32 @@ function injectHierarchySupport(html: string): string {
       });
     }
 
+    function triggerRedecorate() {
+      if (window.__mrRedecoratePending) return;
+      window.__mrRedecoratePending = true;
+      requestAnimationFrame(function() {
+        try {
+          if (typeof enhanceViews === 'function') {
+            enhanceViews();
+          }
+        } finally {
+          requestAnimationFrame(function() {
+            window.__mrRedecoratePending = false;
+          });
+        }
+      });
+    }
+
     const sfStore = getSubfolderStore();
     if (sfStore[target]) {
       // É uma subpasta customizada: renderiza visão de pasta dedicada
       renderSubfolderView(target);
+      triggerRedecorate();
       return;
     }
     if (typeof origNavigateTo === 'function') {
       origNavigateTo(target);
-      requestAnimationFrame(() => {
-        enhanceViews();
-      });
+      triggerRedecorate();
     }
   };
   wrappedNavigateTo.__mrWrapped = true;
