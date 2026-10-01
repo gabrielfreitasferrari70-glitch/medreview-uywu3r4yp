@@ -712,6 +712,20 @@ function injectHierarchySupport(html: string): string {
       return;
     }
 
+    // SANITIZAÇÃO DA HOME: quando a rota fresca for home, remove dos cartões da home apenas nós de gestão injetados
+    if (isHome) {
+      card.querySelectorAll('.mr-folder-card-top-rename, .mr-folder-card-top-delete, [data-mr-folder-rename], [data-mr-folder-delete], [data-mr-sub-delete]').forEach(function(el){ el.remove(); });
+      card.querySelectorAll('.mr-folder-card-actions, .mr-folder-card-btn-action, .mr-folder-card-count-chip').forEach(function(el){ el.remove(); });
+      card.querySelectorAll('[data-mr-injected="1"]').forEach(function(el){
+        if (
+          el.matches('.mr-folder-card-top-rename, .mr-folder-card-top-delete, .mr-folder-card-actions, .mr-folder-card-btn-action, .mr-folder-card-count-chip') ||
+          el.querySelector('.mr-folder-card-btn-reset, .mr-folder-card-btn-add, .mr-folder-card-btn-subfolder')
+        ) {
+          el.remove();
+        }
+      });
+    }
+
     // Helper de normalização estrita de título de pasta (remove emojis, espaços duplicados e diacríticos)
     const normalizeFolderCardTitle = (str) => {
       return (str || '')
@@ -991,6 +1005,7 @@ function injectHierarchySupport(html: string): string {
       editBtn.title = 'Editar nome';
       editBtn.setAttribute('data-mr-folder-rename', '1');
       editBtn.setAttribute('data-mr-decorated', '1');
+      editBtn.setAttribute('data-mr-injected', '1');
       if (effectiveFolderId) editBtn.setAttribute('data-folder-id', effectiveFolderId);
       if (cleanTitle) editBtn.setAttribute('data-folder-title', cleanTitle);
       editBtn.style.cssText = 'position:absolute; top:14px; right:54px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 1px 3px rgba(37,99,235,0.12);';
@@ -1006,12 +1021,15 @@ function injectHierarchySupport(html: string): string {
           openFolderRenameModal(effId, effTitle, isSub);
         }
       };
-      card.appendChild(editBtn);
+      if (!card.querySelector('.mr-folder-card-top-rename')) {
+        card.appendChild(editBtn);
+      }
     } else {
       editBtn.innerHTML = '';
       editBtn.textContent = '✏️';
       editBtn.setAttribute('data-mr-decorated', '1');
       editBtn.setAttribute('data-mr-folder-rename', '1');
+      editBtn.setAttribute('data-mr-injected', '1');
       editBtn.style.pointerEvents = 'auto';
       editBtn.style.zIndex = '10';
       editBtn.style.overflow = 'hidden';
@@ -1036,6 +1054,7 @@ function injectHierarchySupport(html: string): string {
       delBtn.title = 'Excluir pasta';
       delBtn.setAttribute('data-mr-folder-delete', '1');
       delBtn.setAttribute('data-mr-decorated', '1');
+      delBtn.setAttribute('data-mr-injected', '1');
       if (effectiveFolderId) delBtn.setAttribute('data-folder-id', effectiveFolderId);
       if (cleanTitle) delBtn.setAttribute('data-folder-title', cleanTitle);
       delBtn.style.cssText = 'position:absolute; top:14px; right:14px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 1px 3px rgba(220,38,38,0.12);';
@@ -1050,13 +1069,16 @@ function injectHierarchySupport(html: string): string {
           openFolderDeleteModal(effId, effTitle);
         }
       };
-      card.appendChild(delBtn);
-      card.setAttribute('data-mr-folder-top-delete', '1');
+      if (!card.querySelector('.mr-folder-card-top-delete')) {
+        card.appendChild(delBtn);
+        card.setAttribute('data-mr-folder-top-delete', '1');
+      }
     } else {
       delBtn.innerHTML = '';
       delBtn.textContent = '🗑';
       delBtn.setAttribute('data-mr-decorated', '1');
       delBtn.setAttribute('data-mr-folder-delete', '1');
+      delBtn.setAttribute('data-mr-injected', '1');
       delBtn.style.pointerEvents = 'auto';
       delBtn.style.zIndex = '10';
       delBtn.style.overflow = 'hidden';
@@ -1078,11 +1100,12 @@ function injectHierarchySupport(html: string): string {
       headerEl = document.createElement('div');
       headerEl.className = 'mr-folder-card-header mr-tutoria-header';
       headerEl.setAttribute('data-mr-decorated', '1');
+      headerEl.setAttribute('data-mr-injected', '1');
       headerEl.innerHTML =
-        '<span class="mr-folder-card-badge" data-mr-decorated="1" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
-        '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
-          '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
-          '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
+        '<span class="mr-folder-card-badge" data-mr-decorated="1" data-mr-injected="1" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
+        '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" data-mr-injected="1" style="display:block; min-width:0; width:100%;">' +
+          '<span class="mr-folder-card-icon" data-mr-decorated="1" data-mr-injected="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
+          '<span class="mr-folder-card-title" data-mr-decorated="1" data-mr-injected="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
             escapeHtml(cleanTitle) +
           '</span>' +
         '</div>';
@@ -1090,9 +1113,12 @@ function injectHierarchySupport(html: string): string {
       if (rawTitleEl && rawTitleEl.parentNode) {
         rawTitleEl.remove();
       }
-      card.insertBefore(headerEl, card.firstChild);
+      if (!card.querySelector('.mr-folder-card-header')) {
+        card.insertBefore(headerEl, card.firstChild);
+      }
     } else {
       headerEl.setAttribute('data-mr-decorated', '1');
+      headerEl.setAttribute('data-mr-injected', '1');
       if (headerEl.parentElement !== card) {
         card.insertBefore(headerEl, card.firstChild);
       }
@@ -1115,14 +1141,15 @@ function injectHierarchySupport(html: string): string {
       footerEl = document.createElement('div');
       footerEl.className = 'mr-folder-card-footer';
       footerEl.setAttribute('data-mr-decorated', '1');
+      footerEl.setAttribute('data-mr-injected', '1');
       footerEl.innerHTML =
-        '<div class="mr-folder-card-footer-left" data-mr-decorated="1">' +
-          '<span class="mr-folder-card-count-chip" data-mr-decorated="1">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
+        '<div class="mr-folder-card-footer-left" data-mr-decorated="1" data-mr-injected="1">' +
+          '<span class="mr-folder-card-count-chip" data-mr-decorated="1" data-mr-injected="1">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>' +
         '</div>' +
-        '<div class="mr-folder-card-actions" data-mr-decorated="1">' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" data-mr-decorated="1" title="Resetar progresso das cartas">🔄 Resetar</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" data-mr-decorated="1" title="Adicionar carta nesta pasta">+ Carta</button>' +
-          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" data-mr-decorated="1" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+        '<div class="mr-folder-card-actions" data-mr-decorated="1" data-mr-injected="1">' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" data-mr-decorated="1" data-mr-injected="1" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" data-mr-decorated="1" data-mr-injected="1" title="Adicionar carta nesta pasta">+ Carta</button>' +
+          '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" data-mr-decorated="1" data-mr-injected="1" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
         '</div>';
       const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
       if (resetBtn) {
@@ -5514,6 +5541,7 @@ function injectHierarchySupport(html: string): string {
           editBtnCard.title = 'Editar nome';
           editBtnCard.setAttribute('data-mr-folder-rename', '1');
           editBtnCard.setAttribute('data-mr-decorated', '1');
+          editBtnCard.setAttribute('data-mr-injected', '1');
           if (cardFolderId) editBtnCard.setAttribute('data-folder-id', cardFolderId);
           if (titleCardTxt) editBtnCard.setAttribute('data-folder-title', titleCardTxt);
           editBtnCard.style.cssText = 'position:absolute; top:14px; right:54px; width:34px; height:34px; min-width:34px; min-height:34px; box-sizing:border-box; z-index:10; pointer-events:auto; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0; font-size:15px; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 1px 3px rgba(37,99,235,0.12);';
@@ -5529,12 +5557,15 @@ function injectHierarchySupport(html: string): string {
               openFolderRenameModal(effId, effTitle, isSub);
             }
           };
-          card.appendChild(editBtnCard);
+          if (!card.querySelector('.mr-folder-card-top-rename')) {
+            card.appendChild(editBtnCard);
+          }
         } else {
           editBtnCard.innerHTML = '';
           editBtnCard.textContent = '✏️';
           editBtnCard.setAttribute('data-mr-decorated', '1');
           editBtnCard.setAttribute('data-mr-folder-rename', '1');
+          editBtnCard.setAttribute('data-mr-injected', '1');
           editBtnCard.style.pointerEvents = 'auto';
           editBtnCard.style.zIndex = '10';
           editBtnCard.style.overflow = 'hidden';
@@ -5563,6 +5594,7 @@ function injectHierarchySupport(html: string): string {
           delBtn.title = 'Excluir pasta';
           delBtn.setAttribute('data-mr-folder-delete', '1');
           delBtn.setAttribute('data-mr-decorated', '1');
+          delBtn.setAttribute('data-mr-injected', '1');
           if (cardFolderId) delBtn.setAttribute('data-folder-id', cardFolderId);
           if (titleCardTxt) delBtn.setAttribute('data-folder-title', titleCardTxt);
           delBtn.textContent = '🗑';
@@ -5577,14 +5609,17 @@ function injectHierarchySupport(html: string): string {
               openFolderDeleteModal(effId, effTitle);
             }
           };
-          card.appendChild(delBtn);
-          card.setAttribute('data-mr-folder-top-delete', '1');
+          if (!card.querySelector('.mr-folder-card-top-delete')) {
+            card.appendChild(delBtn);
+            card.setAttribute('data-mr-folder-top-delete', '1');
+          }
         } else {
           const existingDel = card.querySelector('.mr-folder-card-top-delete');
           if (existingDel) {
             existingDel.innerHTML = '';
             existingDel.textContent = '🗑';
             existingDel.setAttribute('data-mr-folder-delete', '1');
+            existingDel.setAttribute('data-mr-injected', '1');
             existingDel.style.pointerEvents = 'auto';
             existingDel.style.zIndex = '10';
             existingDel.style.overflow = 'hidden';
@@ -5596,7 +5631,7 @@ function injectHierarchySupport(html: string): string {
             existingDel.style.justifyContent = 'center';
           }
         }        // Guarda para não duplicar cabeçalho
-        const alreadyHasHeader = card.getAttribute('data-mr-folder-card-header') === '1';
+        const alreadyHasHeader = card.getAttribute('data-mr-folder-card-header') === '1' || !!card.querySelector('.mr-folder-card-header');
 
         card.classList.add('mr-folder-card');
         card.setAttribute('data-mr-folder-card', '1');
@@ -5795,7 +5830,7 @@ function injectHierarchySupport(html: string): string {
         const shouldUseStandardCard = true;
 
         // 4. CABEÇALHO PADRONIZADO (.mr-tutoria-header, chip no topo esquerdo, título com ícone)
-        if (!alreadyHasHeader) {
+        if (!alreadyHasHeader && !card.querySelector('.mr-folder-card-header')) {
           let headerEl = card.querySelector('.mr-folder-card-header');
           if (!headerEl) {
             const resolvedName = getEffectiveFolderDisplayName(effectiveFolderId, cleanTitle, titleText);
@@ -5805,35 +5840,39 @@ function injectHierarchySupport(html: string): string {
 
             headerEl = document.createElement('div');
             headerEl.setAttribute('data-mr-decorated', '1');
+            headerEl.setAttribute('data-mr-injected', '1');
             if (shouldUseStandardCard) {
               headerEl.className = 'mr-folder-card-header mr-tutoria-header';
               headerEl.innerHTML =
-                '<span class="mr-folder-card-badge" data-mr-decorated="1" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
-                '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
-                  '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
-                  '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
+                '<span class="mr-folder-card-badge" data-mr-decorated="1" data-mr-injected="1" style="align-self:flex-start; margin-bottom:0.15rem;">' + escapeHtml(categoryBadge) + '</span>' +
+                '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" data-mr-injected="1" style="display:block; min-width:0; width:100%;">' +
+                  '<span class="mr-folder-card-icon" data-mr-decorated="1" data-mr-injected="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
+                  '<span class="mr-folder-card-title" data-mr-decorated="1" data-mr-injected="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
                     escapeHtml(cleanTitle) +
                   '</span>' +
                 '</div>';
             } else {
               headerEl.className = 'mr-folder-card-header';
               headerEl.innerHTML =
-                '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" style="display:block; min-width:0; width:100%;">' +
-                  '<span class="mr-folder-card-icon" data-mr-decorated="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
-                  '<span class="mr-folder-card-title" data-mr-decorated="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
+                '<div class="mr-folder-card-title-wrap" data-mr-decorated="1" data-mr-injected="1" style="display:block; min-width:0; width:100%;">' +
+                  '<span class="mr-folder-card-icon" data-mr-decorated="1" data-mr-injected="1" style="font-size:1.2rem; line-height:1; display:inline-block; vertical-align:-0.1em; margin-right:0.45rem;">' + icon + '</span>' +
+                  '<span class="mr-folder-card-title" data-mr-decorated="1" data-mr-injected="1" style="white-space:normal; word-break:normal; overflow-wrap:break-word; overflow:visible; text-overflow:clip; font-size:1.15rem; font-weight:800; color:#14532d; line-height:1.35; display:inline; width:100%;">' +
                     escapeHtml(cleanTitle) +
                   '</span>' +
                 '</div>' +
-                '<span class="mr-folder-card-badge" data-mr-decorated="1">' + escapeHtml(categoryBadge) + '</span>';
+                '<span class="mr-folder-card-badge" data-mr-decorated="1" data-mr-injected="1">' + escapeHtml(categoryBadge) + '</span>';
             }
 
             if (rawTitleEl && rawTitleEl.parentNode) {
               rawTitleEl.remove();
             }
 
-            card.insertBefore(headerEl, card.firstChild);
+            if (!card.querySelector('.mr-folder-card-header')) {
+              card.insertBefore(headerEl, card.firstChild);
+            }
           } else {
             headerEl.setAttribute('data-mr-decorated', '1');
+            headerEl.setAttribute('data-mr-injected', '1');
           }
 
           card.setAttribute('data-mr-folder-card-header', '1');
@@ -5918,7 +5957,7 @@ function injectHierarchySupport(html: string): string {
         }
 
         // Injeção do RODAPÉ padronizado (.mr-folder-card-footer)
-        if (card.getAttribute('data-mr-folder-card-footer') !== '1') {
+        if (card.getAttribute('data-mr-folder-card-footer') !== '1' && !card.querySelector('.mr-folder-card-footer')) {
           const allFolderCards = effectiveFolderId ? getFolderAllCards(effectiveFolderId) : [];
           let totalCards = 0;
           if (effectiveFolderId && typeof getFolderAllCards === 'function') {
@@ -5946,16 +5985,17 @@ function injectHierarchySupport(html: string): string {
           const footerEl = document.createElement('div');
           footerEl.className = 'mr-folder-card-footer';
           footerEl.setAttribute('data-mr-decorated', '1');
-          const leftContent = '<span class="mr-folder-card-count-chip" data-mr-decorated="1">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>';
+          footerEl.setAttribute('data-mr-injected', '1');
+          const leftContent = '<span class="mr-folder-card-count-chip" data-mr-decorated="1" data-mr-injected="1">' + totalCards + ' ' + (totalCards === 1 ? 'carta' : 'cartas') + '</span>';
 
           footerEl.innerHTML =
-            '<div class="mr-folder-card-footer-left" data-mr-decorated="1">' +
+            '<div class="mr-folder-card-footer-left" data-mr-decorated="1" data-mr-injected="1">' +
               leftContent +
             '</div>' +
-            '<div class="mr-folder-card-actions" data-mr-decorated="1">' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" data-mr-decorated="1" title="Resetar progresso das cartas">🔄 Resetar</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" data-mr-decorated="1" title="Adicionar carta nesta pasta">+ Carta</button>' +
-              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" data-mr-decorated="1" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
+            '<div class="mr-folder-card-actions" data-mr-decorated="1" data-mr-injected="1">' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-reset" data-mr-decorated="1" data-mr-injected="1" title="Resetar progresso das cartas">🔄 Resetar</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-add" data-mr-decorated="1" data-mr-injected="1" title="Adicionar carta nesta pasta">+ Carta</button>' +
+              '<button type="button" class="mr-folder-card-btn-action mr-folder-card-btn-subfolder" data-mr-decorated="1" data-mr-injected="1" title="Acessar subpasta desta pasta">📁 Subpasta</button>' +
             '</div>';
 
           const resetBtn = footerEl.querySelector('.mr-folder-card-btn-reset');
