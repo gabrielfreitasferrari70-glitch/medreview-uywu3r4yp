@@ -1097,6 +1097,12 @@ div:has(> .folder-card) {
   display: none !important;
 }
 
+/* Ocultação não-destrutiva de avatares/iniciais nativos órfãos em visões de pasta (exclui .mr-subfolder-card e home) */
+.folder-view [data-mr-hidden-native]:not(.mr-subfolder-card):not(.mr-subfolder-card *),
+.deck-view [data-mr-hidden-native]:not(.mr-subfolder-card):not(.mr-subfolder-card *) {
+  display: none !important;
+}
+
 /* C) Cartões gêmeos */
 .mr-folder-card,
 .mr-tutoria-card,

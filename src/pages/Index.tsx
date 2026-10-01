@@ -1124,6 +1124,57 @@ function injectHierarchySupport(html: string): string {
       }
     }    card.setAttribute('data-mr-folder-card-header', '1');
 
+    // Ocultação não-destrutiva de elementos nativos de avatar/iniciais/prefixo órfãos (fora do header injetado)
+    if (!isHome && !card.classList.contains('mr-subfolder-card')) {
+      const isAvatarTextNode = function(txt) {
+        const t = (txt || '').trim();
+        return t.length >= 1 && t.length <= 3 && t === t.toUpperCase() && /^[A-ZÀ-Úa-z0-9]+$/.test(t);
+      };
+      const nativeAvatarCandidates = card.querySelectorAll('[class*="avatar"], [class*="initials"], [class*="prefix"], [data-avatar]');
+      nativeAvatarCandidates.forEach(function(el) {
+        if (!el || !(el instanceof HTMLElement)) return;
+        if (el.getAttribute('data-mr-injected') === '1' || el.closest('[data-mr-injected="1"]')) return;
+        if (el === rawTitleEl) return;
+        el.style.display = 'none';
+        el.setAttribute('data-mr-hidden-native', '1');
+        if (el.dataset) el.dataset.mrHiddenNative = '1';
+      });
+
+      // Irmãos de texto ou nós pequenos adjacentes (1 a 3 letras maiúsculas) fora do header/footer/botões injetados
+      card.querySelectorAll('div, span, p, small, b, strong, em, i, a').forEach(function(el) {
+        if (!el || !(el instanceof HTMLElement)) return;
+        if (el.getAttribute('data-mr-injected') === '1' || el.closest('[data-mr-injected="1"]')) return;
+        if (el.closest('.mr-folder-card-header') || el.closest('.mr-folder-card-footer')) return;
+        if (el.classList.contains('mr-folder-card-top-rename') || el.classList.contains('mr-folder-card-top-delete')) return;
+        if (el === rawTitleEl) return;
+
+        const elText = (el.textContent || '').trim();
+        if (isAvatarTextNode(elText) && el.children.length <= 1) {
+          el.style.display = 'none';
+          el.setAttribute('data-mr-hidden-native', '1');
+          if (el.dataset) el.dataset.mrHiddenNative = '1';
+        }
+      });
+
+      // Oculta também o WRAPPER do cabeçalho nativo se ele contiver apenas o avatar/iniciais (não o título movido/injetado)
+      card.querySelectorAll('header, [class*="header"]:not(.mr-folder-card-header), [class*="title-wrap"]:not(.mr-folder-card-title-wrap), [class*="card-head"]').forEach(function(wrapper) {
+        if (!wrapper || !(wrapper instanceof HTMLElement)) return;
+        if (wrapper.getAttribute('data-mr-injected') === '1' || wrapper.closest('[data-mr-injected="1"]')) return;
+        if (wrapper.closest('.mr-folder-card-header') || wrapper.closest('.mr-folder-card-footer')) return;
+
+        // Se o wrapper não contiver título visível nem nós injetados
+        const hasVisibleNonHidden = Array.from(wrapper.children).some(function(child) {
+          return child instanceof HTMLElement && child.getAttribute('data-mr-hidden-native') !== '1' && child.style.display !== 'none';
+        });
+        const wrapperText = (wrapper.textContent || '').trim();
+        if (!hasVisibleNonHidden || isAvatarTextNode(wrapperText) || wrapperText === '') {
+          wrapper.style.display = 'none';
+          wrapper.setAttribute('data-mr-hidden-native', '1');
+          if (wrapper.dataset) wrapper.dataset.mrHiddenNative = '1';
+        }
+      });
+    }
+
     // Rodapé padronizado como filho DIRETO no fundo (último filho)
     let footerEl = card.querySelector('.mr-folder-card-footer');
     const allFolderCards = effectiveFolderId && typeof getFolderAllCards === 'function' ? getFolderAllCards(effectiveFolderId) : [];
@@ -1981,6 +2032,12 @@ function injectHierarchySupport(html: string): string {
     .deck-view[data-current-folder="provas"] .mr-folder-card[data-mr-hidden-provas-root="1"],
     [data-mr-current-folder="provas"] [data-folder-id="provas"],
     [data-mr-current-folder="provas"] .mr-folder-card[data-mr-hidden-provas-root="1"] {
+      display: none !important;
+    }
+
+    /* Ocultação não-destrutiva de avatares/iniciais nativos órfãos em visões de pasta (exclui .mr-subfolder-card e home) */
+    .folder-view [data-mr-hidden-native]:not(.mr-subfolder-card):not(.mr-subfolder-card *),
+    .deck-view [data-mr-hidden-native]:not(.mr-subfolder-card):not(.mr-subfolder-card *) {
       display: none !important;
     }
 
@@ -5876,6 +5933,56 @@ function injectHierarchySupport(html: string): string {
           }
 
           card.setAttribute('data-mr-folder-card-header', '1');
+
+          // Ocultação não-destrutiva de elementos nativos de avatar/iniciais/prefixo órfãos (fora do header injetado)
+          if (!isHome && !card.classList.contains('mr-subfolder-card')) {
+            const isAvatarTextNodeScoped = function(txt) {
+              const t = (txt || '').trim();
+              return t.length >= 1 && t.length <= 3 && t === t.toUpperCase() && /^[A-ZÀ-Úa-z0-9]+$/.test(t);
+            };
+            const nativeAvatarCandidates = card.querySelectorAll('[class*="avatar"], [class*="initials"], [class*="prefix"], [data-avatar]');
+            nativeAvatarCandidates.forEach(function(el) {
+              if (!el || !(el instanceof HTMLElement)) return;
+              if (el.getAttribute('data-mr-injected') === '1' || el.closest('[data-mr-injected="1"]')) return;
+              if (el === rawTitleEl) return;
+              el.style.display = 'none';
+              el.setAttribute('data-mr-hidden-native', '1');
+              if (el.dataset) el.dataset.mrHiddenNative = '1';
+            });
+
+            // Irmãos de texto ou nós pequenos adjacentes (1 a 3 letras maiúsculas) fora do header/footer/botões injetados
+            card.querySelectorAll('div, span, p, small, b, strong, em, i, a').forEach(function(el) {
+              if (!el || !(el instanceof HTMLElement)) return;
+              if (el.getAttribute('data-mr-injected') === '1' || el.closest('[data-mr-injected="1"]')) return;
+              if (el.closest('.mr-folder-card-header') || el.closest('.mr-folder-card-footer')) return;
+              if (el.classList.contains('mr-folder-card-top-rename') || el.classList.contains('mr-folder-card-top-delete')) return;
+              if (el === rawTitleEl) return;
+
+              const elText = (el.textContent || '').trim();
+              if (isAvatarTextNodeScoped(elText) && el.children.length <= 1) {
+                el.style.display = 'none';
+                el.setAttribute('data-mr-hidden-native', '1');
+                if (el.dataset) el.dataset.mrHiddenNative = '1';
+              }
+            });
+
+            // Oculta também o WRAPPER do cabeçalho nativo se ele contiver apenas o avatar/iniciais (não o título movido/injetado)
+            card.querySelectorAll('header, [class*="header"]:not(.mr-folder-card-header), [class*="title-wrap"]:not(.mr-folder-card-title-wrap), [class*="card-head"]').forEach(function(wrapper) {
+              if (!wrapper || !(wrapper instanceof HTMLElement)) return;
+              if (wrapper.getAttribute('data-mr-injected') === '1' || wrapper.closest('[data-mr-injected="1"]')) return;
+              if (wrapper.closest('.mr-folder-card-header') || wrapper.closest('.mr-folder-card-footer')) return;
+
+              const hasVisibleNonHidden = Array.from(wrapper.children).some(function(child) {
+                return child instanceof HTMLElement && child.getAttribute('data-mr-hidden-native') !== '1' && child.style.display !== 'none';
+              });
+              const wrapperText = (wrapper.textContent || '').trim();
+              if (!hasVisibleNonHidden || isAvatarTextNodeScoped(wrapperText) || wrapperText === '') {
+                wrapper.style.display = 'none';
+                wrapper.setAttribute('data-mr-hidden-native', '1');
+                if (wrapper.dataset) wrapper.dataset.mrHiddenNative = '1';
+              }
+            });
+          }
         }
 
         // Captura da contagem nativa de cartas de QUALQUER cartão de pasta ANTES da limpeza
@@ -6555,6 +6662,15 @@ function injectHierarchySupport(html: string): string {
                 card.removeAttribute('data-mr-folder-card-footer');
                 card.removeAttribute('data-mr-folder-top-delete');
                 hasRelevantMutation = true;
+              } else if (!isHomeView() && !card.classList.contains('mr-subfolder-card')) {
+                // Em visões internas de pasta, garante a re-ocultação não-destrutiva de avatares/iniciais que surjam via mutação
+                card.querySelectorAll('[class*="avatar"], [class*="initials"], [class*="prefix"], [data-avatar]').forEach(function(el) {
+                  if (el.getAttribute('data-mr-injected') !== '1' && !el.closest('[data-mr-injected="1"]')) {
+                    el.style.display = 'none';
+                    el.setAttribute('data-mr-hidden-native', '1');
+                    if (el.dataset) el.dataset.mrHiddenNative = '1';
+                  }
+                });
               }
             });
           }
