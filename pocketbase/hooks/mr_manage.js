@@ -50,6 +50,57 @@ routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
     }))
     return e.json(200, { ok: true, decks })
   }
+  if (action === 'admin_cards') {
+    // Cartas da conta: vivas e apagadas, com o deck — para diagnosticar perdas.
+    const target = String(body.user_id || '')
+    const rows = $app.findRecordsByFilter('mr_cards', 'user_id = {:user}', '-created', 2000, 0, {
+      user: target,
+    })
+    const cards = rows.map((c) => ({
+      id: c.id,
+      deck: c.getString('deck'),
+      q: c.getString('q').slice(0, 60),
+      deleted: c.getBool('deleted'),
+    }))
+    return e.json(200, {
+      ok: true,
+      total: cards.length,
+      alive: cards.filter((c) => !c.deleted).length,
+      deleted: cards.filter((c) => c.deleted).length,
+      cards,
+    })
+  }
+  if (action === 'admin_restore_deck') {
+    // Restaurar (undelete) TODOS os decks soft-deletados da conta + suas cartas.
+    const target = String(body.user_id || '')
+    const rows = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+      user: target,
+    })
+    let restoredDecks = 0
+    let restoredCards = 0
+    for (const d of rows) {
+      if (!d.getBool('deleted')) continue
+      d.set('deleted', false)
+      $app.save(d)
+      restoredDecks++
+      const cards = $app.findRecordsByFilter(
+        'mr_cards',
+        'user_id = {:user} && deck = {:deck}',
+        '-created',
+        1000,
+        0,
+        { user: target, deck: d.id },
+      )
+      for (const c of cards) {
+        if (c.getBool('deleted')) {
+          c.set('deleted', false)
+          $app.save(c)
+          restoredCards++
+        }
+      }
+    }
+    return e.json(200, { ok: true, restoredDecks, restoredCards })
+  }
   if (action === 'admin_repair') {
     // Restaurar estado inicial de um kind (mesma lógica do deck_section_repair)
     const toRestoreKind = ['tutoria', 'prova', 'custom'].includes(body.restore_kind)
