@@ -1796,7 +1796,11 @@ export default function Index() {
         pb.collection('mr_cards').getFullList({ sort: '-created' }),
         pb.collection('mr_reviews').getFullList({ sort: 'reviewed_at' }),
       ])
-      setDecks((d as any[]).filter((row) => !row.deleted))
+      setDecks(
+        (d as any[])
+          .filter((row) => !row.deleted)
+          .map((row) => ({ ...row, description: row.description || '' })),
+      )
       setCards((c as any[]).filter((row) => !row.deleted))
       setReviews(r as any)
     } catch (e: any) {
@@ -2090,11 +2094,7 @@ export default function Index() {
     setDeckKind('custom')
     setDeckModal({ type: 'folder', deckId: '' })
   }
-  const openNewFolderIn = (kind: 'tutoria' | 'prova' | 'custom') => {
-    setDeckTitle('')
-    setDeckKind(kind)
-    setDeckModal({ type: 'folder', deckId: '' })
-  }
+
   const openDeckCardModal = (deckId: string) => {
     setDeckQ('')
     setDeckA('')
@@ -2156,12 +2156,12 @@ export default function Index() {
         await createDeck(deckTitle, deckKind, deckModal.deckId || undefined)
       } else if (deckModal.type === 'moveDeck') {
         if (!deckMoveTarget) throw new Error('Escolha a pasta de destino ou o nível inicial.')
-        const moving = decks.find((d) => d.id === deckModal.deckId)
-        const goingRoot = deckMoveTarget === '@root'
+        const goingRoot = deckMoveTarget.startsWith('@root:')
+        const rootKind = goingRoot ? deckMoveTarget.slice(6) : ''
         await moveDeck(
           deckModal.deckId,
           goingRoot ? '' : deckMoveTarget,
-          goingRoot ? moving?.kind : undefined,
+          goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
         )
       } else {
         if (!deckTitle.trim()) throw new Error('Informe o novo nome.')
@@ -2742,6 +2742,11 @@ export default function Index() {
   const tutorias = decks.filter((d) => d.kind === 'tutoria')
   const provas = decks.filter((d) => d.kind === 'prova')
   const customs = decks.filter((d) => d.kind === 'custom')
+  // Pastas criadas pela usuária (sem seed_key) — aparecem como cards no grid
+  // "Pastas de Estudo" da home, no mesmo estilo das seções.
+  const userDecks = decks
+    .filter((d) => !d.seed_key && !d.parent)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
   const categories = [
     {
       icon: '🩺',
@@ -2810,7 +2815,8 @@ export default function Index() {
         onDeckDelete={confirmDeckDelete}
         onDeckReset={confirmDeckReset}
         onDeckMove={openDeckMoveModal}
-        onNewFolderIn={openNewFolderIn}
+        onDeckClick={openDeck}
+        userDecks={userDecks}
       />
       {settingsOpen && (
         <SettingsModal
@@ -2915,7 +2921,9 @@ export default function Index() {
                 }}
               >
                 <option value="">Escolher pasta de destino…</option>
-                <option value="@root">⬆ Nível inicial da própria seção</option>
+                <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
+                <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
+                <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
                 {decks
                   .filter((d) => d.id !== deckModal.deckId)
                   .sort((a, b) => (a.order || 0) - (b.order || 0))

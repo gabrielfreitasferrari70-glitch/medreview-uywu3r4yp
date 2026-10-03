@@ -330,16 +330,15 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   const submitMoveDeck = async () => {
     if (modal.type !== 'moveDeck') return
     const deck = decks.find((d) => d.id === modal.deckId)
-    const goingRoot = moveDeckTarget === '@root'
+    const goingRoot = moveDeckTarget.startsWith('@root:')
+    const rootKind = goingRoot ? moveDeckTarget.slice(6) : ''
     if (!moveDeckTarget) return setError('Escolha a pasta de destino ou o nível inicial.')
-    if (goingRoot && deck && deck.kind === 'tutoria' && !deck.parent)
-      return setError('Essa pasta já está no nível inicial.')
     const done = await run(
       async () => {
         await moveDeck(
           modal.deckId,
           goingRoot ? '' : moveDeckTarget,
-          goingRoot ? deck?.kind : undefined,
+          goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
         )
         if (!goingRoot && moveDeckTarget) setExpanded((e) => ({ ...e, [moveDeckTarget]: true }))
       },
@@ -879,15 +878,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
               }}
             >
               <option value="">Escolher…</option>
-              <option value="@root">
-                ⬆ Nível inicial da própria seção ({' '}
-                {decks.find((d) => d.id === modal.deckId)?.kind === 'prova'
-                  ? 'Prova de Módulo'
-                  : decks.find((d) => d.id === modal.deckId)?.kind === 'custom'
-                    ? 'Minhas Pastas'
-                    : 'Tutoria'}
-                )
-              </option>
+              <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
+              <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
+              <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
               {allDecksSorted
                 .filter((d) => d.id !== modal.deckId)
                 .map((d) => (

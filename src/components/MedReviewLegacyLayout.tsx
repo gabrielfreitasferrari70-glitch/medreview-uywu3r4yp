@@ -6,6 +6,7 @@ export type LegacyDeck = {
   kind: string
   order?: number
   parent?: string
+  description?: string
 }
 export type LegacyCard = {
   id: string
@@ -159,7 +160,8 @@ type HomeProps = {
   onDeckDelete?: (deckId: string) => void
   onDeckReset?: (deckId: string) => void
   onDeckMove?: (deckId: string) => void
-  onNewFolderIn?: (kind: 'tutoria' | 'prova' | 'custom') => void
+  onDeckClick: (deckId: string) => void
+  userDecks: LegacyDeck[]
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -191,7 +193,8 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckDelete,
     onDeckReset,
     onDeckMove,
-    onNewFolderIn,
+    onDeckClick,
+    userDecks,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
   const title =
@@ -458,102 +461,85 @@ export function MedReviewLegacyHome(props: HomeProps) {
                     </div>
                   </button>
                 ))}
+                {userDecks.map((deck) => {
+                  const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
+                  const icon = deck.kind === 'prova' ? '📝' : '📁'
+                  const tag =
+                    deck.kind === 'prova'
+                      ? 'Módulos'
+                      : deck.kind === 'custom'
+                        ? 'Pasta livre'
+                        : 'PBL / Tutoria'
+                  return (
+                    <div
+                      key={deck.id}
+                      className="mr-legacy-category"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onDeckClick(deck.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') onDeckClick(deck.id)
+                      }}
+                    >
+                      <div className="mr-legacy-category-top">
+                        <span className="mr-legacy-category-icon">{icon}</span>
+                        <span className="mr-legacy-tag">{tag}</span>
+                      </div>
+                      <h3>{deck.title}</h3>
+                      <p>
+                        {deck.description ||
+                          'Pasta de revisão médica com repetição espaçada FSRS-5.'}
+                      </p>
+                      <div className="mr-legacy-category-foot">
+                        <span>{dc.length} cartas</span>
+                        <span className="mr-legacy-arrow">→</span>
+                      </div>
+                      <span
+                        className="mr-legacy-subdeck-actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          title="Criar carta nesta pasta"
+                          onClick={() => onDeckAddCard?.(deck.id)}
+                        >
+                          ＋ Carta
+                        </button>
+                        <button
+                          type="button"
+                          title="Criar subpasta"
+                          onClick={() => onDeckAddSubfolder?.(deck.id)}
+                        >
+                          🗂 Subpasta
+                        </button>
+                        <button
+                          type="button"
+                          title="Mover para dentro de outra pasta"
+                          onClick={() => onDeckMove?.(deck.id)}
+                        >
+                          ➡️
+                        </button>
+                        <button
+                          type="button"
+                          title="Renomear"
+                          onClick={() => onDeckRename?.(deck.id)}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          className="danger"
+                          title="Excluir pasta"
+                          onClick={() => onDeckDelete?.(deck.id)}
+                        >
+                          🗑️
+                        </button>
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </section>
-            {onNewFolderIn && (
-              <section style={{ marginTop: 26 }}>
-                <header className="mr-legacy-section-head">
-                  <div>
-                    <h2 className="mr-legacy-section-title">📁 Minhas pastas</h2>
-                    <p className="mr-legacy-section-sub">
-                      Pastas que você criou — crie, mova e organize tudo por aqui
-                    </p>
-                  </div>
-                  <button className="mr-legacy-button" onClick={() => onNewFolderIn('custom')}>
-                    ＋ Nova Pasta
-                  </button>
-                </header>
-                <div className="mr-legacy-subdecks">
-                  {decks
-                    .filter((d) => d.kind === 'custom' && !d.parent)
-                    .sort((a, b) => (a.order || 0) - (b.order || 0))
-                    .map((deck) => {
-                      const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
-                      return (
-                        <div
-                          key={deck.id}
-                          className="mr-legacy-subdeck"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => onOpenDeck(deck.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') onOpenDeck(deck.id)
-                          }}
-                        >
-                          <span className="mr-legacy-category-top" style={{ width: '100%' }}>
-                            <span className="mr-legacy-category-icon">📁</span>
-                            <span className="mr-legacy-tag">Pasta livre</span>
-                          </span>
-                          <h3>{deck.title}</h3>
-                          <span className="mr-legacy-subdeck-meta">
-                            <span className="mr-legacy-pill">📚 {dc.length} cartas</span>
-                          </span>
-                          <span
-                            className="mr-legacy-subdeck-actions"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              title="Criar carta nesta pasta"
-                              onClick={() => onDeckAddCard?.(deck.id)}
-                            >
-                              ＋ Carta
-                            </button>
-                            <button
-                              type="button"
-                              title="Criar subpasta"
-                              onClick={() => onDeckAddSubfolder?.(deck.id)}
-                            >
-                              🗂 Subpasta
-                            </button>
-                            <button
-                              type="button"
-                              title="Mover para dentro de outra pasta"
-                              onClick={() => onDeckMove?.(deck.id)}
-                            >
-                              ➡️
-                            </button>
-                            <button
-                              type="button"
-                              title="Renomear"
-                              onClick={() => onDeckRename?.(deck.id)}
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              title="Excluir pasta"
-                              onClick={() => onDeckDelete?.(deck.id)}
-                            >
-                              🗑️
-                            </button>
-                          </span>
-                        </div>
-                      )
-                    })}
-                  <button
-                    type="button"
-                    className="mr-legacy-subdeck mr-legacy-newfolder-card"
-                    onClick={() => onNewFolderIn('custom')}
-                  >
-                    <span style={{ fontSize: '2rem', lineHeight: 1 }}>＋</span>
-                    <h3 style={{ margin: '10px 0 0' }}>Nova pasta</h3>
-                    <p className="mr-legacy-section-sub">Criar agora, aqui na frente</p>
-                  </button>
-                </div>
-              </section>
-            )}
           </>
         )}
       </main>
