@@ -3,11 +3,11 @@
 // Nunca exposta ao frontend; remover após o reparo.
 routerAdd('POST', '/backend/v1/mr/admin', (e) => {
   const adminKey = $secrets.get('MR_ADMIN_KEY') || ''
-  const reqKey = String(
-    (e.requestInfo().headers && e.requestInfo().headers['X-Mr-Admin-Key']) ||
-      (e.requestInfo().headers && e.requestInfo().headers['x-mr-admin-key']) ||
-      '',
-  )
+  const info = e.requestInfo()
+  const rawHeaders = info.headers || {}
+  const lowerHeaders = {}
+  for (const k of Object.keys(rawHeaders)) lowerHeaders[String(k).toLowerCase()] = rawHeaders[k]
+  const reqKey = String(lowerHeaders['x-mr-admin-key'] || '')
   if (!adminKey || reqKey !== adminKey) {
     return e.json(403, { ok: false, error: 'chave inválida' })
   }
