@@ -308,9 +308,10 @@ routerAdd(
       }
 
       if (action === 'deck_section_repair') {
-        // Reparo de emergência: devolve TODAS as pastas raiz de um kind que estão
-        // em outro lugar (dentro de pasta ou kind errado) para o nível inicial do
-        // próprio kind. Usado para consertar movidas antigas sem desfazer manual.
+        // Restaurar estado inicial: devolve TODAS as pastas de um kind que estão
+        // em outro lugar (dentro de pasta/bloco ou kind errado) para o nível
+        // inicial do próprio kind — e APAGA os blocos de seção que ficarem vazios
+        // (fantasmas de movidas antigas, que duplicavam a home).
         const toRestoreKind = ['tutoria', 'prova', 'custom'].includes(body.restore_kind)
           ? body.restore_kind
           : ''
@@ -323,14 +324,45 @@ routerAdd(
           0,
           { user: userId },
         )
-        // candidatos: pastas cujo TÍTULO casa com o padrão da seção e que NÃO estão
-        // na raiz do próprio kind (ex.: "Tutoria N" fora da raiz tutoria)
+        const sectionNames =
+          toRestoreKind === 'tutoria'
+            ? ['Tutoria']
+            : toRestoreKind === 'prova'
+              ? ['Prova de Módulo', 'Prova']
+              : []
+        // PASSO 1: blocos de seção (pasta organizadora na raiz de OUTRO kind com o
+        // nome da seção) — devolve as pastas de dentro ao nível inicial e apaga o bloco.
+        let blocksDeleted = 0
+        if (sectionNames.length) {
+          for (const d of allDecks) {
+            if (d.getBool('deleted')) continue
+            const isBlock =
+              !d.getString('parent') &&
+              d.getString('mode') === 'organizer' &&
+              sectionNames.includes(d.getString('title')) &&
+              d.getString('kind') !== toRestoreKind
+            if (!isBlock) continue
+            for (const kid of allDecks) {
+              if (kid.getString('parent') === d.id && !kid.getBool('deleted')) {
+                kid.set('parent', '')
+                kid.set('kind', toRestoreKind)
+                $app.save(kid)
+              }
+            }
+            d.set('deleted', true)
+            $app.save(d)
+            blocksDeleted++
+          }
+        }
+        // PASSO 2: pastas soltas com o título da seção fora do lugar
         const pattern = body.title_pattern || ''
         let restored = 0
         for (const d of allDecks) {
           if (d.getBool('deleted')) continue
           const title = d.getString('title')
           if (pattern && !new RegExp(pattern, 'i').test(title)) continue
+          // não tratar bloco organizador como pasta solta (passo 1 já cuidou)
+          if (d.getString('mode') === 'organizer' && sectionNames.includes(title)) continue
           const isRootOfKind = !d.getString('parent') && d.getString('kind') === toRestoreKind
           if (isRootOfKind) continue
           d.set('parent', '')
@@ -338,7 +370,7 @@ routerAdd(
           $app.save(d)
           restored++
         }
-        return e.json(200, { ok: true, restored })
+        return e.json(200, { ok: true, restored, blocksDeleted })
       }
 
       if (action === 'deck_move_section_undo') {

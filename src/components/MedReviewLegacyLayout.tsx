@@ -218,6 +218,26 @@ export function MedReviewLegacyHome(props: HomeProps) {
       ? decks.filter((d) => d.kind === folderKind && !d.parent && !d.deleted)
       : []
   const openDeck = openDeckId ? decks.find((d) => d.id === openDeckId) : null
+  // Contador por SUBÁRVORE: pasta organizadora (bloco "Tutoria", view de seção)
+  // tem as cartas nas FILHAS — contar a árvore inteira, não só cartas diretas.
+  const subtreeIdsOf = (rootId: string): Set<string> => {
+    const seen = new Set<string>([rootId])
+    let grew = true
+    while (grew) {
+      grew = false
+      for (const d of decks) {
+        if (d.parent && seen.has(d.parent) && !seen.has(d.id) && !d.deleted) {
+          seen.add(d.id)
+          grew = true
+        }
+      }
+    }
+    return seen
+  }
+  const cardsInSubtree = (deckId: string) => {
+    const ids = subtreeIdsOf(deckId)
+    return cards.filter((c) => ids.has(c.deck) && !c.deleted).length
+  }
   const title = openDeck
     ? openDeck.title
     : folderKind === 'prova'
@@ -325,6 +345,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
               <div className="mr-legacy-subdecks">
                 {folderDecks.map((deck) => {
                   const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
+                  const total = cardsInSubtree(deck.id)
                   return (
                     <div
                       key={deck.id}
@@ -357,7 +378,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
                           : 'Pasta de estudo — clica e revisa os flashcards (FSRS-5).'}
                       </p>
                       <span className="mr-legacy-subdeck-meta">
-                        <span className="mr-legacy-pill">📚 {dc.length} cartas</span>
+                        <span className="mr-legacy-pill">📚 {total} cartas</span>
                       </span>
                       <span
                         className="mr-legacy-subdeck-actions"
@@ -541,6 +562,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 ))}
                 {userDecks.map((deck) => {
                   const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
+                  const total = cardsInSubtree(deck.id)
                   const icon = deck.kind === 'prova' ? '📝' : '📁'
                   const tag =
                     deck.kind === 'prova'
@@ -569,7 +591,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
                           'Pasta de revisão médica com repetição espaçada FSRS-5.'}
                       </p>
                       <div className="mr-legacy-category-foot">
-                        <span>{dc.length} cartas</span>
+                        <span>{total} cartas</span>
                         <span className="mr-legacy-arrow">→</span>
                       </div>
                       <span
