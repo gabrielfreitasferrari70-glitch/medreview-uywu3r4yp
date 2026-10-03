@@ -1,6 +1,9 @@
 // Rota administrativa (diagnóstico/reparo): SEM auth do PocketBase, protegida
 // APENAS pela chave X-MR-Admin-Key (secret do projeto). Nunca exposta ao frontend.
-routerAdd('POST', '/backend/v1/mr/admin', (e) => {
+// Path v2: a rota /backend/v1/mr/admin antiga pode ficar em memória no runtime
+// do PocketBase (rotas duplicadas = a primeira registrada responde); um path
+// novo garante que ESTA versão do hook atenda.
+routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
   const adminKey = $secrets.get('MR_ADMIN_KEY') || ''
   const info = e.requestInfo()
   const rawHeaders = info.headers || {}
