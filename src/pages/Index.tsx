@@ -165,7 +165,9 @@ function getRetention(): number {
   try {
     const v = parseFloat(localStorage.getItem(RETENTION_KEY) || '')
     if (!isNaN(v) && v >= 0.8 && v <= 0.97) return v
-  } catch (e) {}
+  } catch (e) {
+    // valor inválido no localStorage — usa o default
+  }
   return 0.9
 }
 
