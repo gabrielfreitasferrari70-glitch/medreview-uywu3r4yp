@@ -2956,7 +2956,7 @@ export default function Index() {
                   ? deckModal.deckId && deckModal.deckId !== '@frontline'
                     ? '＋ Nova subpasta'
                     : '＋ Nova pasta'
-                  : deckModal.type === 'moveDeck'
+                  : deckModal.type === 'moveDeck' || deckModal.type === 'moveSection'
                     ? '➡️ Mover pasta'
                     : '✏️ Renomear pasta'}
             </h3>
