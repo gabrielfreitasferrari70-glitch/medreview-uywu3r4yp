@@ -373,7 +373,8 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             .filter(Boolean),
           reverse: cardReverse,
         }
-        if (modal.card)
+        let createdIds: string[] = []
+        if (modal.card) {
           await updateCard({
             id: modal.card.id,
             q: cardQ,
@@ -382,27 +383,19 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             ref: cardRef,
             ...extras,
           })
-        else
-          await createCard(modal.deckId, {
+          if (cardFile) await uploadCardImage(modal.card.id, cardFile)
+        } else {
+          const res: any = await createCard(modal.deckId, {
             q: cardQ,
             a: cardA,
             group: cardGroup,
             ref: cardRef,
             ...extras,
           })
-        if (cardFile) {
-          if (modal.card) await uploadCardImage(modal.card.id, cardFile)
-          else {
-            const res: any = await createCard(modal.deckId, {
-              q: cardQ,
-              a: cardA,
-              group: cardGroup,
-              ref: cardRef,
-              ...extras,
-            })
-            if (res?.ids?.[0]) await uploadCardImage(res.ids[0], cardFile)
-          }
+          createdIds = res?.ids || []
+          if (cardFile && createdIds[0]) await uploadCardImage(createdIds[0], cardFile)
         }
+>>>>>>>
       },
       modal.card ? 'Cartão atualizado.' : 'Cartão criado.',
     )

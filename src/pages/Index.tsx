@@ -1951,18 +1951,14 @@ export default function Index() {
   }
 
   // ===== ⏱️ Quiz cronometrado =====
-  const quizSourceCards = useMemo(() => {
-    if (!quizOpen) return []
+  const startQuiz = (count: number, timerOn: boolean, kind: string) => {
     const pools: Record<string, string[]> = { all: [], tutoria: [], prova: [], custom: [] }
     for (const d of decks) {
       if (d.deleted) continue
       if (pools[d.kind]) pools[d.kind].push(d.id)
     }
-    const ids = quizKind === 'all' ? Object.values(pools).flat() : pools[quizKind]
-    return cards.filter((c) => !c.deleted && !c.suspended && ids.includes(c.deck))
-  }, [quizOpen, quizKind, decks, cards])
-  const startQuiz = (count: number, timerOn: boolean, kind: string) => {
-    const pool = quizSourceCards
+    const ids = kind === 'all' ? Object.values(pools).flat() : pools[kind]
+    const pool = cards.filter((c) => !c.deleted && !c.suspended && ids.includes(c.deck))
     if (pool.length < 3) {
       setMsg('Poucas cartas para o quiz — precisa de pelo menos 3.')
       setTimeout(() => setMsg(''), 3000)
@@ -2180,7 +2176,7 @@ export default function Index() {
     const fmt = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19)
     try {
       const created = await createReview({
-        card_ref: card.id,
+        card_ref: card.id.replace(/::rev$/, ''),
         rating: quality,
         stability: chosen.newS ?? fsrsInitialStability(chosen.g),
         difficulty: chosen.newD ?? fsrsInitialDifficulty(chosen.g),

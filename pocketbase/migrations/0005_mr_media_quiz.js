@@ -19,6 +19,7 @@ migrate(
       cards.fields.add(new BoolField({ name: 'reverse' }))
     }
     app.save(cards)
+    console.log('[mr-0005] campos image/choices/reverse garantidos em mr_cards')
   },
   (app) => {
     const cards = app.findCollectionByNameOrId('mr_cards')
