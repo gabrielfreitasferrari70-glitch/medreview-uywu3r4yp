@@ -130,6 +130,28 @@ routerAdd(
         .trim()
         .slice(0, max)
     try {
+      if (action === 'admin_fix_seedkeys') {
+        // Reparo de dados: pastas do catálogo (Tutoria N / Prova ...) sem seed_key
+        // viram "cards de usuário" na home (duplicando com o card da seção).
+        const target = String(body.user_id || '')
+        const rows = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+          user: target,
+        })
+        let fixed = 0
+        for (const d of rows) {
+          if (d.getBool('deleted')) continue
+          if (d.getString('seed_key')) continue
+          const title = d.getString('title')
+          const isSeed =
+            (d.getString('kind') === 'tutoria' && /^Tutoria \d+/.test(title)) ||
+            (d.getString('kind') === 'prova' && /^Prova /.test(title))
+          if (!isSeed) continue
+          d.set('seed_key', 'seed:' + d.id)
+          $app.save(d)
+          fixed++
+        }
+        return e.json(200, { ok: true, fixed })
+      }
       if (action === 'admin_list_users') {
         const rows = $app.findRecordsByFilter('users', '', '-created', 20, 0)
         return e.json(200, {
