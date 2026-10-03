@@ -198,6 +198,27 @@ routerAdd(
             card.set('diagram_svg', String(item.imageUrl).trim().slice(0, 2000))
             card.set('diagram_title', 'Imagem')
           }
+          if (item.choices !== undefined && item.choices !== null) {
+            let opts = item.choices
+            if (typeof opts === 'string') {
+              try {
+                opts = JSON.parse(opts)
+              } catch (_) {
+                opts = []
+              }
+            }
+            if (Array.isArray(opts)) {
+              const bad = opts
+                .map((o) =>
+                  String(o == null ? '' : o)
+                    .trim()
+                    .slice(0, 300),
+                )
+                .filter(Boolean)
+              card.set('choices', bad.slice(0, 6))
+            }
+          }
+          if (item.reverse !== undefined) card.set('reverse', !!item.reverse)
           $app.save(card)
           createdIds.push(card.id)
         }
@@ -219,6 +240,27 @@ routerAdd(
           card.set('diagram_svg', String(body.imageUrl).trim().slice(0, 2000))
           card.set('diagram_title', 'Imagem')
         }
+        if (body.choices !== undefined) {
+          let opts = body.choices
+          if (typeof opts === 'string') {
+            try {
+              opts = JSON.parse(opts)
+            } catch (_) {
+              opts = []
+            }
+          }
+          if (Array.isArray(opts)) {
+            const bad = opts
+              .map((o) =>
+                String(o == null ? '' : o)
+                  .trim()
+                  .slice(0, 300),
+              )
+              .filter(Boolean)
+            card.set('choices', bad.slice(0, 6))
+          } else card.set('choices', null)
+        }
+        if (body.reverse !== undefined) card.set('reverse', !!body.reverse)
         $app.save(card)
         return e.json(200, { id: card.id, ok: true })
       }

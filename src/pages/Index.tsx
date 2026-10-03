@@ -183,6 +183,10 @@ interface Card {
   deleted?: boolean
   diagram_svg?: string
   diagram_title?: string
+  image?: string
+  choices?: string[] | null
+  reverse?: boolean
+  __reverse?: boolean
 }
 interface Review {
   id: string
@@ -977,6 +981,447 @@ function CardStatsModal({
   )
 }
 
+// ===== ⏱️ Quiz cronometrado (treino — não grava revisões FSRS) =====
+type QuizQ = {
+  id: string
+  deckTitle: string
+  q: string
+  a: string
+  choices?: string[] | null
+  image?: string
+  diagram_svg?: string
+  diagram_title?: string
+}
+type QuizState = {
+  qs: QuizQ[]
+  i: number
+  picked: string | null
+  score: number
+  revealed: boolean
+  timerOn: boolean
+  endsMs: number
+  done: boolean
+  startedMs: number
+  kind: string
+  wrong: { q: QuizQ; picked: string | null }[]
+}
+const QUIZ_SECONDS = 30
+const quizOverlay = (z: number): React.CSSProperties => ({
+  position: 'fixed',
+  inset: 0,
+  zIndex: z,
+  background: 'rgba(15,23,42,.45)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 18,
+  fontFamily: 'Inter, system-ui, sans-serif',
+})
+const quizPanel: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 18,
+  padding: 24,
+  width: '100%',
+  maxWidth: 560,
+  maxHeight: '90vh',
+  overflow: 'auto',
+  boxSizing: 'border-box',
+  boxShadow: '0 20px 50px rgba(15,23,42,.25)',
+}
+const quizLabel: React.CSSProperties = {
+  display: 'block',
+  fontSize: '.8rem',
+  fontWeight: 700,
+  color: '#475569',
+  marginBottom: 4,
+}
+const quizInput: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '0.65rem 0.8rem',
+  borderRadius: 9,
+  border: '1.5px solid #cbd5e1',
+  font: 'inherit',
+  marginBottom: 10,
+  background: '#fff',
+}
+// Embaralhamento determinístico por carta (ordem estável entre renders)
+function seededShuffle(arr: string[], seedStr: string): string[] {
+  let seed = 0
+  for (let i = 0; i < seedStr.length; i++) seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0
+  const out = [...arr]
+  for (let i = out.length - 1; i > 0; i--) {
+    seed = (seed * 1103515245 + 12345) >>> 0
+    const j = seed % (i + 1)
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+function QuizSetupModal({
+  totalCards,
+  onClose,
+  onStart,
+}: {
+  totalCards: number
+  onClose: () => void
+  onStart: (count: number, timerOn: boolean, kind: string) => void
+}) {
+  const [count, setCount] = useState(10)
+  const [timerOn, setTimerOn] = useState(true)
+  const [kind, setKind] = useState('all')
+  return (
+    <div onClick={onClose} style={quizOverlay(80)}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...quizPanel, maxWidth: 430 }}>
+        <h3 style={{ margin: '0 0 4px', color: '#14532d', fontSize: '1.1rem', fontWeight: 900 }}>
+          ⏱️ Quiz cronometrado
+        </h3>
+        <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: '.83rem' }}>
+          Treino rápido contra o relógio — não altera seu agendamento FSRS.
+        </p>
+        <label style={quizLabel}>Quantidade de questões</label>
+        <input
+          type="number"
+          min={3}
+          max={50}
+          value={count}
+          onChange={(e) => setCount(Math.max(3, Math.min(50, parseInt(e.target.value) || 10)))}
+          style={quizInput}
+        />
+        <label style={quizLabel}>Escopo</label>
+        <select value={kind} onChange={(e) => setKind(e.target.value)} style={quizInput}>
+          <option value="all">📚 Todas as pastas ({totalCards} cartas)</option>
+          <option value="tutoria">🩺 Tutoria</option>
+          <option value="prova">📝 Prova de Módulo</option>
+          <option value="custom">📁 Minhas Pastas</option>
+        </select>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            font: '700 .8rem Inter, system-ui, sans-serif',
+            color: '#475569',
+            cursor: 'pointer',
+            marginBottom: 14,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={timerOn}
+            onChange={(e) => setTimerOn(e.target.checked)}
+            style={{ accentColor: '#16a34a', width: 16, height: 16 }}
+          />
+          Cronômetro de {QUIZ_SECONDS}s por questão
+        </label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => onStart(count, timerOn, kind)}
+            style={{
+              border: '1px solid #16a34a',
+              borderRadius: 9,
+              padding: '0.55rem 0.9rem',
+              cursor: 'pointer',
+              fontWeight: 700,
+              background: '#16a34a',
+              color: '#fff',
+            }}
+          >
+            Começar
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              border: '1px solid #cbd5e1',
+              borderRadius: 9,
+              padding: '0.55rem 0.9rem',
+              cursor: 'pointer',
+              fontWeight: 700,
+              background: '#fff',
+              color: '#334155',
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function QuizRunModal({
+  quiz,
+  onPick,
+  onReveal,
+  onNext,
+  onRedo,
+  onClose,
+}: {
+  quiz: QuizState
+  onPick: (opt: string) => void
+  onReveal: () => void
+  onNext: () => void
+  onRedo: () => void
+  onClose: () => void
+}) {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 500)
+    return () => clearInterval(t)
+  }, [])
+  if (quiz.done) {
+    const pct = quiz.qs.length ? Math.round((quiz.score * 100) / quiz.qs.length) : 0
+    const secs = Math.max(1, Math.round((Date.now() - quiz.startedMs) / 1000))
+    return (
+      <div onClick={onClose} style={quizOverlay(80)}>
+        <div onClick={(e) => e.stopPropagation()} style={quizPanel}>
+          <h3 style={{ margin: '0 0 10px', color: '#14532d', fontSize: '1.15rem', fontWeight: 900 }}>
+            🏁 Quiz concluído!
+          </h3>
+          <div
+            style={{
+              fontSize: '2rem',
+              fontWeight: 900,
+              color: pct >= 80 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626',
+            }}
+          >
+            {quiz.score}/{quiz.qs.length} · {pct}%
+          </div>
+          <p style={{ margin: '6px 0 14px', color: '#64748b', fontSize: '.85rem' }}>
+            ⏱️ {secs}s · {quiz.timerOn ? 'com cronômetro de 30s' : 'sem cronômetro'}
+          </p>
+          {quiz.wrong.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div
+                style={{
+                  fontSize: '.72rem',
+                  fontWeight: 900,
+                  color: '#15803d',
+                  letterSpacing: '.08em',
+                  marginBottom: 8,
+                }}
+              >
+                PARA REVISAR ({quiz.wrong.length} ERROS)
+              </div>
+              {quiz.wrong.map((w, i) => (
+                <div
+                  key={i}
+                  style={{
+                    border: '1px solid #fecaca',
+                    background: '#fef2f2',
+                    borderRadius: 10,
+                    padding: '0.55rem 0.8rem',
+                    marginBottom: 6,
+                    fontSize: '.84rem',
+                    color: '#7f1d1d',
+                  }}
+                >
+                  <strong>{w.q.q}</strong>
+                  <div style={{ marginTop: 3, color: '#166534' }}>✅ {w.q.a}</div>
+                  {w.picked && <div style={{ opacity: 0.8 }}>Você marcou: {w.picked}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={onRedo}
+              style={{
+                border: '1px solid #16a34a',
+                borderRadius: 9,
+                padding: '0.55rem 0.9rem',
+                cursor: 'pointer',
+                fontWeight: 700,
+                background: '#16a34a',
+                color: '#fff',
+              }}
+            >
+              🔁 Refazer
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                border: '1px solid #cbd5e1',
+                borderRadius: 9,
+                padding: '0.55rem 0.9rem',
+                cursor: 'pointer',
+                fontWeight: 700,
+                background: '#fff',
+                color: '#334155',
+              }}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  const cur = quiz.qs[quiz.i]
+  if (!cur) return null
+  const remaining =
+    quiz.timerOn && !quiz.revealed
+      ? Math.max(0, Math.ceil((quiz.endsMs - Date.now()) / 1000))
+      : 0
+  const opts = cur.choices && cur.choices.length ? seededShuffle([...cur.choices.slice(0, 5), cur.a], cur.id) : null
+  const imgSrc = cur.image
+    ? pb.files.getURL({ collectionId: 'pbc_709748442', id: cur.id }, cur.image)
+    : cur.diagram_svg
+      ? /^https?:\/\//i.test(cur.diagram_svg)
+        ? cur.diagram_svg
+        : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(cur.diagram_svg)}`
+      : ''
+  return (
+    <div onClick={onClose} style={quizOverlay(80)}>
+      <div onClick={(e) => e.stopPropagation()} style={quizPanel}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+            flexWrap: 'wrap',
+            gap: 6,
+          }}
+        >
+          <strong style={{ color: '#14532d', fontSize: '.95rem' }}>
+            Questão {quiz.i + 1}/{quiz.qs.length}
+          </strong>
+          <span style={{ color: '#64748b', fontSize: '.8rem' }}>
+            ✅ {quiz.score} acertos · {cur.deckTitle}
+          </span>
+        </div>
+        {quiz.timerOn && !quiz.revealed && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${(remaining * 100) / QUIZ_SECONDS}%`,
+                  height: '100%',
+                  background: remaining <= 5 ? '#dc2626' : remaining <= 10 ? '#d97706' : '#16a34a',
+                  borderRadius: 4,
+                  transition: 'width .4s linear',
+                }}
+              />
+            </div>
+            <div style={{ color: '#64748b', fontSize: '.74rem', marginTop: 3, textAlign: 'right' }}>
+              ⏱️ {remaining}s
+            </div>
+          </div>
+        )}
+        <div
+          className="mr-quiz-question"
+          dangerouslySetInnerHTML={{ __html: renderClozeHtml(cur.q, quiz.revealed) }}
+          style={{ fontSize: '1.02rem', color: '#1e293b', lineHeight: 1.55, marginBottom: 12 }}
+        />
+        {imgSrc && (
+          <img
+            src={imgSrc}
+            alt={cur.diagram_title || 'Imagem da questão'}
+            style={{ maxWidth: '100%', maxHeight: 260, display: 'block', margin: '0 auto 12px', objectFit: 'contain' }}
+          />
+        )}
+        {opts ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {opts.map((opt) => {
+              const isCorrect = opt === cur.a
+              const isPicked = opt === quiz.picked
+              return (
+                <button
+                  key={opt}
+                  disabled={quiz.revealed}
+                  onClick={() => onPick(opt)}
+                  style={{
+                    textAlign: 'left',
+                    border: `1.5px solid ${quiz.revealed ? (isCorrect ? '#16a34a' : isPicked ? '#dc2626' : '#e2e8f0') : '#cbd5e1'}`,
+                    background: quiz.revealed
+                      ? isCorrect
+                        ? '#f0fdf4'
+                        : isPicked
+                          ? '#fef2f2'
+                          : '#fff'
+                      : '#fff',
+                    borderRadius: 10,
+                    padding: '0.6rem 0.9rem',
+                    cursor: quiz.revealed ? 'default' : 'pointer',
+                    font: '500 .9rem Inter, system-ui, sans-serif',
+                    color: '#1e293b',
+                  }}
+                >
+                  {quiz.revealed ? (isCorrect ? '✅ ' : isPicked ? '❌ ' : '• ') : ''}
+                  {opt}
+                </button>
+              )
+            })}
+          </div>
+        ) : quiz.revealed ? (
+          <div
+            style={{
+              border: '1px solid #bbf7d0',
+              background: '#f0fdf4',
+              borderRadius: 10,
+              padding: '0.7rem 0.9rem',
+            }}
+          >
+            <strong style={{ display: 'block', color: '#15803d', fontSize: '.76rem', letterSpacing: '.1em', marginBottom: 6 }}>
+              GABARITO
+            </strong>
+            <div style={{ color: '#1e293b', lineHeight: 1.55 }}>{cur.a}</div>
+          </div>
+        ) : (
+          <button
+            onClick={onReveal}
+            style={{
+              width: '100%',
+              border: '1.5px dashed #cbd5e1',
+              borderRadius: 10,
+              padding: '0.7rem',
+              background: '#fff',
+              color: '#64748b',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            👀 Revelar resposta (conta como erro)
+          </button>
+        )}
+        {quiz.revealed && (
+          <button
+            onClick={onNext}
+            style={{
+              width: '100%',
+              marginTop: 12,
+              border: 'none',
+              borderRadius: 10,
+              padding: '0.75rem',
+              background: '#16a34a',
+              color: '#fff',
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            {quiz.i + 1 >= quiz.qs.length ? '🏁 Ver resultado' : 'Próxima →'}
+          </button>
+        )}
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%',
+            marginTop: 8,
+            border: 'none',
+            background: 'transparent',
+            color: '#94a3b8',
+            fontSize: '.78rem',
+            cursor: 'pointer',
+          }}
+        >
+          ✕ Abandonar quiz (sem registrar nada)
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ===== 📈 Dashboard FSRS (heatmap, carga futura, acerto por pasta) =====
 function FsrDashboardModal({
   decks,
@@ -1281,6 +1726,7 @@ export default function Index() {
   const [writeFeedback, setWriteFeedback] = useState<null | { ok: boolean; similarity: number }>(
     null,
   )
+  const [mcPicked, setMcPicked] = useState<string | null>(null)
   const [queue, setQueue] = useState<Card[]>([])
   const [qIdx, setQIdx] = useState(0)
   const [studySession, setStudySession] = useState({
@@ -1302,6 +1748,9 @@ export default function Index() {
   const [sessionBuilderOpen, setSessionBuilderOpen] = useState(false)
   const [cardStatsOpen, setCardStatsOpen] = useState(false)
   const [dashboardOpen, setDashboardOpen] = useState(false)
+  const [quizOpen, setQuizOpen] = useState(false)
+  const [quizKind, setQuizKind] = useState('all')
+  const [quiz, setQuiz] = useState<QuizState | null>(null)
   const [deckModal, setDeckModal] = useState<{
     type: 'card' | 'folder' | 'rename'
     deckId: string
@@ -1416,9 +1865,15 @@ export default function Index() {
     setRoute({ view: 'home' })
   }
 
-  // Fila FSRS: vencidas → novas → futuras.
+  // Fila FSRS: vencidas → novas → futuras. Cartas com "reverse" geram uma variante invertida (verso→frente) na fila.
   const startStudy = (candidateCards: Card[], deckId?: string, sessionTitle?: string) => {
-    const studyCards = candidateCards.filter((c) => !c.suspended && !c.deleted)
+    const withVariants: Card[] = []
+    for (const c of candidateCards) {
+      if (c.suspended || c.deleted) continue
+      withVariants.push(c)
+      if (c.reverse && c.q && c.a) withVariants.push({ ...c, id: c.id + '::rev', __reverse: true })
+    }
+    const studyCards = withVariants
     const states = new Map(
       studyCards.map((c) => [
         c.id,
@@ -1440,9 +1895,9 @@ export default function Index() {
     setFlipped(false)
     setTypedAnswer('')
     setWriteFeedback(null)
+    setMcPicked(null)
     setStudySession({ startMs: Date.now(), again: 0, hard: 0, good: 0, easy: 0 })
-    setRoute({ view: 'study', deckId, sessionTitle })
-  }
+    setRoute({ view: 'study', deckId, sessionTitle })  }
 
   // Normaliza texto para comparação no modo escrita (sem acentos/pontuação/caixa)
   const normalizeAnswer = (s: string) =>
@@ -1477,6 +1932,101 @@ export default function Index() {
     setFlipped(true)
   }
 
+  // ===== ⏱️ Quiz cronometrado =====
+  const quizSourceCards = useMemo(() => {
+    if (!quizOpen) return []
+    const pools: Record<string, string[]> = { all: [], tutoria: [], prova: [], custom: [] }
+    for (const d of decks) {
+      if (d.deleted) continue
+      if (pools[d.kind]) pools[d.kind].push(d.id)
+    }
+    const ids = quizKind === 'all' ? Object.values(pools).flat() : pools[quizKind]
+    return cards.filter((c) => !c.deleted && !c.suspended && ids.includes(c.deck))
+  }, [quizOpen, quizKind, decks, cards])
+  const startQuiz = (count: number, timerOn: boolean, kind: string) => {
+    const pool = quizSourceCards
+    if (pool.length < 3) {
+      setMsg('Poucas cartas para o quiz — precisa de pelo menos 3.')
+      setTimeout(() => setMsg(''), 3000)
+      return
+    }
+    const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(count, pool.length))
+    const qs: QuizQ[] = shuffled.map((c) => {
+      const deck = decks.find((d) => d.id === c.deck)
+      return {
+        id: c.id,
+        deckTitle: deck?.title || 'Carta',
+        q: c.q,
+        a: c.a,
+        choices: Array.isArray(c.choices) && c.choices.length ? c.choices : null,
+        image: c.image,
+        diagram_svg: c.diagram_svg,
+        diagram_title: c.diagram_title,
+      }
+    })
+    setQuizOpen(false)
+    setQuiz({
+      qs,
+      i: 0,
+      picked: null,
+      score: 0,
+      revealed: false,
+      timerOn,
+      endsMs: Date.now() + QUIZ_SECONDS * 1000,
+      done: false,
+      startedMs: Date.now(),
+      kind,
+      wrong: [],
+    })
+  }
+  const quizPick = (opt: string) => {
+    setQuiz((q) => {
+      if (!q || q.revealed) return q
+      const cur = q.qs[q.i]
+      const correct = opt === cur.a
+      return {
+        ...q,
+        picked: opt,
+        score: correct ? q.score + 1 : q.score,
+        revealed: true,
+        wrong: correct ? q.wrong : [...q.wrong, { q: cur, picked: opt }],
+      }
+    })
+  }
+  const quizReveal = () => {
+    setQuiz((q) => {
+      if (!q || q.revealed) return q
+      const cur = q.qs[q.i]
+      return { ...q, picked: null, revealed: true, wrong: [...q.wrong, { q: cur, picked: null }] }
+    })
+  }
+  const quizNext = () => {
+    setQuiz((q) => {
+      if (!q) return q
+      if (q.i + 1 >= q.qs.length) return { ...q, done: true }
+      return {
+        ...q,
+        i: q.i + 1,
+        picked: null,
+        revealed: false,
+        endsMs: Date.now() + QUIZ_SECONDS * 1000,
+      }
+    })
+  }
+  const quizRedo = () => startQuiz(quiz?.qs.length || 10, quiz?.timerOn !== false, quiz?.kind || 'all')
+  // Timer expira → revela como erro
+  useEffect(() => {
+    if (!quiz || quiz.done || quiz.revealed || !quiz.timerOn) return
+    const t = setTimeout(() => {
+      setQuiz((q) => {
+        if (!q || q.revealed || q.done) return q
+        const cur = q.qs[q.i]
+        return { ...q, picked: null, revealed: true, wrong: [...q.wrong, { q: cur, picked: null }] }
+      })
+    }, Math.max(0, quiz.endsMs - Date.now()))
+    return () => clearTimeout(t)
+  }, [quiz?.i, quiz?.revealed, quiz?.endsMs, quiz?.timerOn, quiz?.done])
+
   const openDeck = (deckId: string) => {
     const deck = decks.find((d) => d.id === deckId)
     startStudy(
@@ -1498,8 +2048,7 @@ export default function Index() {
       undefined,
       'Todas as cartas',
     )
-  }
-  const startClinicalMode = () => {
+  }  const startClinicalMode = () => {
     const clinicalCards = cards.filter((c) => /caso clínico|caso clinico/i.test(c.q))
     if (!clinicalCards.length) {
       setMsg('Ainda não há cartões de caso clínico nesta biblioteca.')
@@ -1622,6 +2171,7 @@ export default function Index() {
       setMsg(`Carta agendada para daqui ${chosen.label}`)
       setTimeout(() => setMsg(''), 2500)
       setFlipped(false)
+      setMcPicked(null)
       setQIdx((i) => i + 1)
     } catch (e: any) {
       setMsg('Erro ao salvar revisão: ' + (e?.message || e))
@@ -1831,19 +2381,54 @@ export default function Index() {
           </div>
           <article className="mr-legacy-study-card" onClick={() => setFlipped((f) => !f)}>
             <span className="mr-legacy-badge">
-              {isCloze(card.q)
-                ? `🧩 Cartão Cloze (${clozeCount(card.q)} lacuna${clozeCount(card.q) > 1 ? 's' : ''})`
-                : '🩺 Cartão de revisão'}
+              {card.__reverse
+                ? '🔁 Cartão reverso (verso → frente)'
+                : isCloze(card.q)
+                  ? `🧩 Cartão Cloze (${clozeCount(card.q)} lacuna${clozeCount(card.q) > 1 ? 's' : ''})`
+                  : '🩺 Cartão de revisão'}
             </span>
             <h1
               className="mr-legacy-question"
               dangerouslySetInnerHTML={{
-                __html:
-                  studyMode === 'reverse' && !flipped
+                __html: card.__reverse
+                  ? renderClozeHtml(card.a, flipped)
+                  : studyMode === 'reverse' && !flipped
                     ? renderClozeHtml(card.a, false)
                     : renderClozeHtml(card.q, flipped),
               }}
             />
+            {!flipped && studyMode === 'flip' && Array.isArray(card.choices) && card.choices.length > 0 && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginTop: 14, display: 'grid', gap: 8 }}
+              >
+                {seededShuffle([...card.choices.slice(0, 5), card.a], card.id).map((opt) => {
+                  const isCorrect = opt === card.a
+                  const isPicked = mcPicked === opt
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setMcPicked(opt)
+                        setFlipped(true)
+                      }}
+                      style={{
+                        textAlign: 'left',
+                        border: '1.5px solid #cbd5e1',
+                        background: '#fff',
+                        borderRadius: 10,
+                        padding: '0.6rem 0.9rem',
+                        cursor: 'pointer',
+                        font: '500 .9rem Inter, system-ui, sans-serif',
+                        color: '#1e293b',
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {!flipped && studyMode === 'write' && (
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -1938,9 +2523,35 @@ export default function Index() {
                     marginBottom: 8,
                   }}
                 >
-                  {studyMode === 'reverse' ? 'PERGUNTA' : 'GABARITO'}
+                  {card.__reverse ? 'CARTÃO REVERSO — PERGUNTA ORIGINAL' : studyMode === 'reverse' ? 'PERGUNTA' : 'GABARITO'}
                 </strong>
-                {studyMode === 'reverse' ? card.q : card.a}
+                {card.__reverse ? card.q : studyMode === 'reverse' ? card.q : card.a}
+                {card.__reverse && card.diagram_svg && (
+                  <figure style={{ margin: '18px 0 0' }}>
+                    {card.diagram_title && (
+                      <figcaption style={{ color: '#64748b', fontSize: '.8rem', marginBottom: 5 }}>
+                        {card.diagram_title}
+                      </figcaption>
+                    )}
+                    <img
+                      src={
+                        card.image
+                          ? pb.files.getURL({ collectionId: 'pbc_709748442', id: card.id }, card.image)
+                          : /^https?:\/\//i.test(card.diagram_svg)
+                            ? card.diagram_svg
+                            : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`
+                      }
+                      alt={card.diagram_title || 'Diagrama do cartão'}
+                      style={{
+                        display: 'block',
+                        maxWidth: '100%',
+                        maxHeight: 320,
+                        margin: '0 auto',
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </figure>
+                )}
                 {card.diagram_svg && (
                   <figure style={{ margin: '18px 0 0' }}>
                     {card.diagram_title && (
@@ -1950,9 +2561,11 @@ export default function Index() {
                     )}
                     <img
                       src={
-                        /^https?:\/\//i.test(card.diagram_svg)
-                          ? card.diagram_svg
-                          : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`
+                        card.image
+                          ? pb.files.getURL({ collectionId: 'pbc_709748442', id: card.id }, card.image)
+                          : /^https?:\/\//i.test(card.diagram_svg)
+                            ? card.diagram_svg
+                            : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`
                       }
                       alt={card.diagram_title || 'Diagrama do cartão'}
                       style={{
@@ -2060,6 +2673,10 @@ export default function Index() {
         onClinical={startClinicalMode}
         onStudyNow={startStudyNow}
         onSessionBuilder={() => setSessionBuilderOpen(true)}
+        onQuiz={() => {
+          setQuizKind('all')
+          setQuizOpen(true)
+        }}
         onNewFolder={openNewFolder}
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
@@ -2083,6 +2700,23 @@ export default function Index() {
           cards={cards}
           reviews={reviews}
           onClose={() => setDashboardOpen(false)}
+        />
+      )}
+      {quizOpen && (
+        <QuizSetupModal
+          totalCards={cards.filter((c) => !c.deleted && !c.suspended).length}
+          onClose={() => setQuizOpen(false)}
+          onStart={startQuiz}
+        />
+      )}
+      {quiz && (
+        <QuizRunModal
+          quiz={quiz}
+          onPick={quizPick}
+          onReveal={quizReveal}
+          onNext={quizNext}
+          onRedo={quizRedo}
+          onClose={() => setQuiz(null)}
         />
       )}
       {sessionBuilderOpen && (

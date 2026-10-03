@@ -145,6 +145,7 @@ type HomeProps = {
   onClinical: () => void
   onStudyNow: () => void
   onSessionBuilder: () => void
+  onQuiz: () => void
   onNewFolder: () => void
   onLibrary: () => void
   onLogout: () => void
@@ -174,6 +175,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onClinical,
     onStudyNow,
     onSessionBuilder,
+    onQuiz,
     onNewFolder,
     onLibrary,
     onLogout,
@@ -390,6 +392,9 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 </button>
                 <button className="mr-legacy-button" onClick={onSessionBuilder}>
                   🎛️ Montar sessão
+                </button>
+                <button className="mr-legacy-button" onClick={onQuiz}>
+                  ⏱️ Quiz
                 </button>
                 <button className="mr-legacy-button" onClick={onClinical}>
                   📋 Modo Caso Clínico

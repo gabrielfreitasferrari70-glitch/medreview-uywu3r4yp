@@ -45,17 +45,24 @@ export const renameDeck = (deckId: string, title: string) =>
 
 export const deleteDeck = (deckId: string) => manageLibrary('deck_delete', { deck_id: deckId })
 
-export const createCard = (deckId: string, card: ParsedCsvCard & { imageUrl?: string }) =>
+export interface CardExtras {
+  imageUrl?: string
+  choices?: string[]
+  reverse?: boolean
+}
+
+export const createCard = (deckId: string, card: ParsedCsvCard & CardExtras) =>
   manageLibrary('card_create', { deck_id: deckId, card })
 
-export const updateCard = (card: {
-  id: string
-  q: string
-  a: string
-  group: string
-  ref: string
-  imageUrl?: string
-}) =>
+export const updateCard = (
+  card: {
+    id: string
+    q: string
+    a: string
+    group: string
+    ref: string
+  } & CardExtras,
+) =>
   manageLibrary('card_update', {
     card_id: card.id,
     q: card.q,
@@ -63,7 +70,17 @@ export const updateCard = (card: {
     group: card.group,
     ref: card.ref,
     imageUrl: card.imageUrl || '',
+    choices: card.choices ?? [],
+    reverse: !!card.reverse,
   })
+
+// Upload de imagem do computador: campo file 'image' do mr_cards.
+// A updateRule da coleção já Garante que só o dono altera.
+export const uploadCardImage = (cardId: string, file: File) => {
+  const form = new FormData()
+  form.append('image', file)
+  return pb.collection('mr_cards').update(cardId, form)
+}
 
 export const setCardSuspended = (cardId: string, suspended: boolean) =>
   manageLibrary('card_suspend', { card_id: cardId, suspended })

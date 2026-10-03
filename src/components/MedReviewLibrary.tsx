@@ -12,6 +12,7 @@ import {
   resetDeck,
   setCardSuspended,
   updateCard,
+  uploadCardImage,
 } from '@/services/medreview'
 
 type Deck = { id: string; title: string; kind: string; order: number; parent?: string }
@@ -24,6 +25,9 @@ type Card = {
   ref: string
   suspended?: boolean
   diagram_svg?: string
+  image?: string
+  choices?: string[] | null
+  reverse?: boolean
 }
 type Props = {
   decks: Deck[]
@@ -172,6 +176,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   const [cardGroup, setCardGroup] = useState('')
   const [cardRef, setCardRef] = useState('')
   const [cardImg, setCardImg] = useState('')
+  const [cardFile, setCardFile] = useState<File | null>(null)
+  const [cardChoices, setCardChoices] = useState('')
+  const [cardReverse, setCardReverse] = useState(false)
   const [importText, setImportText] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -300,6 +307,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     setCardGroup(card?.group || '')
     setCardRef(card?.ref || '')
     setCardImg(card?.diagram_svg && /^https?:\/\//i.test(card.diagram_svg) ? card.diagram_svg : '')
+    setCardFile(null)
+    setCardChoices(Array.isArray(card?.choices) ? (card?.choices as string[]).join('\n') : '')
+    setCardReverse(!!card?.reverse)
     setModal({ type: 'card', deckId, card })
   }
   const openMoveModal = (card: Card) => setModal({ type: 'move', card })
@@ -352,6 +362,14 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     if (!cardQ.trim() || !cardA.trim()) return setError('Preencha frente e verso.')
     const done = await run(
       async () => {
+        const extras = {
+          imageUrl: cardImg.trim(),
+          choices: cardChoices
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean),
+          reverse: cardReverse,
+        }
         if (modal.card)
           await updateCard({
             id: modal.card.id,
@@ -359,8 +377,29 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             a: cardA,
             group: cardGroup,
             ref: cardRef,
+            ...extras,
           })
-        else await createCard(modal.deckId, { q: cardQ, a: cardA, group: cardGroup, ref: cardRef })
+        else
+          await createCard(modal.deckId, {
+            q: cardQ,
+            a: cardA,
+            group: cardGroup,
+            ref: cardRef,
+            ...extras,
+          })
+        if (cardFile) {
+          if (modal.card) await uploadCardImage(modal.card.id, cardFile)
+          else {
+            const res: any = await createCard(modal.deckId, {
+              q: cardQ,
+              a: cardA,
+              group: cardGroup,
+              ref: cardRef,
+              ...extras,
+            })
+            if (res?.ids?.[0]) await uploadCardImage(res.ids[0], cardFile)
+          }
+        }
       },
       modal.card ? 'Cartão atualizado.' : 'Cartão criado.',
     )
@@ -748,6 +787,43 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
               placeholder="https://…/imagem.png"
               onChange={(e) => setCardImg(e.target.value)}
             />
+            <label className="mr-lib-label">Ou envie do computador (JPG/PNG/WebP até 5 MB)</label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              style={fieldStyle}
+              onChange={(e) =>
+                setCardFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)
+              }
+            />
+            <label className="mr-lib-label">
+              Alternativas erradas (uma por linha — múltipla escolha)
+            </label>
+            <textarea
+              style={{ ...fieldStyle, minHeight: 56 }}
+              placeholder={'Opção errada A\nOpção errada B'}
+              value={cardChoices}
+              onChange={(e) => setCardChoices(e.target.value)}
+            />
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                margin: '10px 0 4px',
+                font: '700 .8rem Inter, system-ui, sans-serif',
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={cardReverse}
+                onChange={(e) => setCardReverse(e.target.checked)}
+                style={{ accentColor: '#16a34a', width: 16, height: 16 }}
+              />
+              Gerar carta reversa (também pergunta o verso → frente)
+            </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitCard}>
                 {busy ? 'Salvando…' : modal.card ? 'Salvar' : 'Criar carta'}
