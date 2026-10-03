@@ -726,6 +726,62 @@ export default function Index() {
   )
 }
 
+const center: React.CSSProperties = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: 'Inter, system-ui, sans-serif',
+}
+const loginBox: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  padding: '2rem',
+  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+  width: 340,
+  textAlign: 'center',
+}
+const input: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '0.7rem 0.9rem',
+  borderRadius: 10,
+  border: '1.5px solid #cbd5e1',
+  fontSize: '0.95rem',
+  marginBottom: '0.7rem',
+  outline: 'none',
+}
+const primaryBtn: React.CSSProperties = {
+  width: '100%',
+  padding: '0.8rem',
+  borderRadius: 10,
+  border: 'none',
+  background: '#16a34a',
+  color: '#fff',
+  fontWeight: 800,
+  fontSize: '0.95rem',
+  cursor: 'pointer',
+  marginTop: '0.4rem',
+}
+const errBox: React.CSSProperties = {
+  background: '#fef2f2',
+  color: '#b91c1c',
+  border: '1px solid #fecaca',
+  borderRadius: 8,
+  padding: '0.6rem',
+  fontSize: '0.82rem',
+  marginBottom: '0.6rem',
+}
+const tabBtn = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '0.55rem',
+  borderRadius: 8,
+  border: active ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+  background: active ? '#f0fdf4' : '#fff',
+  color: active ? '#14532d' : '#64748b',
+  fontWeight: 700,
+  cursor: 'pointer',
+})
 const qualityBtn = (q: Quality): React.CSSProperties => ({
   flex: 1,
   minWidth: 100,
