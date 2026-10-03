@@ -7,12 +7,7 @@ routerAdd('POST', '/backend/v1/mr/admin', (e) => {
   const rawHeaders = info.headers || {}
   const lowerHeaders = {}
   for (const k of Object.keys(rawHeaders)) lowerHeaders[String(k).toLowerCase()] = rawHeaders[k]
-  const reqKey = String(
-    lowerHeaders['x-mr-admin-key'] ||
-      (typeof info.get === 'function' ? info.get('x-mr-admin-key') : '') ||
-      rawHeaders['X-MR-Admin-Key'] ||
-      '',
-  )
+  const reqKey = String(lowerHeaders['x_mr_admin_key'] || '')
   console.log('mr-admin: headers keys=', Object.keys(rawHeaders).join(','))
   console.log('mr-admin: reqKey len=', reqKey.length, 'adminKey len=', adminKey.length)
   if (!adminKey || reqKey !== adminKey) {
