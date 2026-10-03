@@ -50,6 +50,12 @@
       "    function getNewCardsPerDay() { return _getSettingInt('medreview_new_per_day', 40); }\n    function setNewCardsPerDay(v) { _setSettingInt('medreview_new_per_day', v); renderRoute(); }",
       "    function isNewCardsUnlimited() {\n      try { return localStorage.getItem('medreview_new_unlimited') === '1'; } catch (e) { return false; }\n    }\n    function setNewCardsUnlimited(v) {\n      try { localStorage.setItem('medreview_new_unlimited', v ? '1' : '0'); } catch (e) {}\n      const sl = document.getElementById('set-newlimit');\n      if (sl) { sl.disabled = !!v; sl.style.opacity = v ? '0.45' : '1'; }\n      const val = document.getElementById('set-newlimit-val');\n      if (val) val.textContent = v ? '♾️' : String(_getSettingInt('medreview_new_per_day', 40));\n      renderRoute();\n    }\n    function getNewCardsPerDay() {\n      if (isNewCardsUnlimited()) return 0;\n      return _getSettingInt('medreview_new_per_day', 40);\n    }\n    function setNewCardsPerDay(v) { _setSettingInt('medreview_new_per_day', v); renderRoute(); }",
       false
+    ],
+    [
+      "t",
+      "      startSessionTimer();\n      renderStudyInterface();\n    }\n\n    // --- VIEW 5: FLASHCARD STUDY SESSION ---",
+      "      startSessionTimer();\n      updateStudySessionQueue();\n      renderStudyInterface();\n    }\n\n    // --- VIEW 5: FLASHCARD STUDY SESSION ---",
+      false
     ]
   ]
 }
