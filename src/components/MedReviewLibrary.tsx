@@ -224,7 +224,22 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     () => cards.filter((card) => card.deck === selectedDeckId),
     [cards, selectedDeckId],
   )
-  const countOf = (deckId: string) => cards.filter((c) => c.deck === deckId).length
+  // Contador por SUBÁRVORE: pasta organizadora tem as cartas nas filhas —
+  // contar a árvore inteira, não só cartas diretas.
+  const countOf = (deckId: string) => {
+    const seen = new Set<string>([deckId])
+    let grew = true
+    while (grew) {
+      grew = false
+      for (const d of decks) {
+        if (d.parent && seen.has(d.parent) && !seen.has(d.id) && !d.deleted) {
+          seen.add(d.id)
+          grew = true
+        }
+      }
+    }
+    return cards.filter((c) => seen.has(c.deck) && !c.deleted).length
+  }
   const childrenOf = (deckId: string) =>
     decks.filter((d) => d.parent === deckId).sort((a, b) => a.order - b.order)
   const sections: {
@@ -588,7 +603,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
       <div
         key={deck.id}
         className={`mr-lib-deck${isChild ? ' is-child' : ''}${dragDeckId === deck.id ? ' is-dragging' : ''}`}
-        style={isChild > 1 ? { paddingLeft: 44 + (Number(isChild) - 1) * 22 } : undefined}
+        style={isChild ? { paddingLeft: 44 + (Number(isChild) - 1) * 22 } : undefined}
         draggable
         onDragStart={(e) => {
           setDragDeckId(deck.id)
