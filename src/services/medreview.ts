@@ -68,6 +68,8 @@ export const setCardSuspended = (cardId: string, suspended: boolean) =>
 
 export const deleteCard = (cardId: string) => manageLibrary('card_delete', { card_id: cardId })
 
+export const resetDeck = (deckId: string) => manageLibrary('deck_reset', { deck_id: deckId })
+
 export const importCards = (deckId: string, cards: ParsedCsvCard[]) =>
   manageLibrary('card_import', {
     deck_id: deckId,

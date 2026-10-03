@@ -1,6 +1,14 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { applyInitialSeed, createReview } from '@/services/medreview'
+import {
+  applyInitialSeed,
+  createCard,
+  createDeck,
+  createReview,
+  deleteDeck,
+  renameDeck,
+  resetDeck,
+} from '@/services/medreview'
 import MedReviewLibrary from '@/components/MedReviewLibrary'
 import {
   MedReviewLegacyHome,
@@ -197,6 +205,120 @@ function getRetention(): number {
   return 0.9
 }
 
+// ===== Painel de configurações (⚙️) =====
+function SettingsModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [val, setVal] = useState(() => getRetention() * 100)
+  const [saving, setSaving] = useState(false)
+  const save = () => {
+    setSaving(true)
+    const v = Math.min(97, Math.max(80, val))
+    localStorage.setItem(RETENTION_KEY, String(v / 100))
+    setTimeout(() => {
+      onSaved()
+      onClose()
+    }, 250)
+  }
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15,23,42,.45)',
+        zIndex: 60,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 18,
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 18,
+          padding: 24,
+          width: '100%',
+          maxWidth: 430,
+          maxHeight: '88vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 50px rgba(15,23,42,.25)',
+        }}
+      >
+        <h3 style={{ margin: '0 0 4px', color: '#14532d', fontSize: '1.1rem', fontWeight: 900 }}>
+          ⚙️ Configurações
+        </h3>
+        <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: '.83rem' }}>
+          Ajuste o motor FSRS-5 ao seu ritmo de estudo.
+        </p>
+        <label
+          style={{
+            display: 'block',
+            fontSize: '.8rem',
+            fontWeight: 700,
+            color: '#475569',
+            marginBottom: 6,
+          }}
+        >
+          Retenção alvo: {Math.round(val)}% — quanto maior, mais cedo as cartas voltam
+        </label>
+        <input
+          type="range"
+          min={80}
+          max={97}
+          value={Math.round(val)}
+          onChange={(e) => setVal(parseInt(e.target.value))}
+          style={{ width: '100%', accentColor: '#16a34a', marginBottom: 6 }}
+        />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            color: '#64748b',
+            fontSize: '.72rem',
+            marginBottom: 14,
+          }}
+        >
+          <span>80% — menos cartas/dia</span>
+          <span>97% — revisão intensiva</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={save}
+            disabled={saving}
+            style={{
+              border: '1px solid #16a34a',
+              borderRadius: 9,
+              padding: '0.55rem 0.9rem',
+              cursor: 'pointer',
+              fontWeight: 700,
+              background: '#16a34a',
+              color: '#fff',
+            }}
+          >
+            {saving ? 'Salvando…' : 'Salvar'}
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              border: '1px solid #cbd5e1',
+              borderRadius: 9,
+              padding: '0.55rem 0.9rem',
+              cursor: 'pointer',
+              fontWeight: 700,
+              background: '#fff',
+              color: '#334155',
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== App ====================
 export default function Index() {
   const [auth, setAuth] = useState<'loading' | 'out' | 'in'>('loading')
@@ -227,8 +349,18 @@ export default function Index() {
   const [name, setName] = useState('')
   const [authErr, setAuthErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [retentionTick, setRetentionTick] = useState(0)
+  const [deckModal, setDeckModal] = useState<{
+    type: 'card' | 'folder' | 'rename'
+    deckId: string
+  } | null>(null)
+  const [deckQ, setDeckQ] = useState('')
+  const [deckA, setDeckA] = useState('')
+  const [deckTitle, setDeckTitle] = useState('')
+  const [deckKind, setDeckKind] = useState<'tutoria' | 'prova' | 'custom'>('custom')
 
-  const retention = useMemo(() => getRetention(), [route])
+  const retention = useMemo(() => getRetention(), [route, retentionTick])
 
   const ensureSeed = async () => {
     if (!pb.authStore.isValid) return
@@ -390,7 +522,85 @@ export default function Index() {
     }
     startStudy(clinicalCards, undefined, 'Modo Caso Clínico')
   }
-  const openNewFolder = () => setRoute({ view: 'library' })
+  const openNewFolder = () => {
+    setDeckTitle('')
+    setDeckKind('custom')
+    setDeckModal({ type: 'folder', deckId: '' })
+  }
+  const openDeckCardModal = (deckId: string) => {
+    setDeckQ('')
+    setDeckA('')
+    setDeckModal({ type: 'card', deckId })
+  }
+  const openDeckSubfolderModal = (deckId: string) => {
+    setDeckTitle('')
+    setDeckModal({ type: 'folder', deckId })
+  }
+  const openDeckRenameModal = (deckId: string) => {
+    setDeckTitle(decks.find((d) => d.id === deckId)?.title || '')
+    setDeckModal({ type: 'rename', deckId })
+  }
+  const confirmDeckDelete = (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId)
+    if (!deck) return
+    if (
+      !window.confirm(
+        `Excluir “${deck.title}”? As cartas desta pasta também saem da sua biblioteca.`,
+      )
+    )
+      return
+    deleteDeck(deckId)
+      .then(() => loadData())
+      .catch((e: any) => setMsg('Erro ao excluir: ' + (e?.message || e)))
+  }
+  const confirmDeckReset = (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId)
+    if (!deck) return
+    if (
+      !window.confirm(
+        `Resetar o progresso de “${deck.title}”? As cartas voltam a ser novas (não são apagadas).`,
+      )
+    )
+      return
+    resetDeck(deckId)
+      .then(() => {
+        loadData()
+        setMsg('Progresso resetado — cartas voltaram a ser novas.')
+        setTimeout(() => setMsg(''), 2500)
+      })
+      .catch((e: any) => setMsg('Erro ao resetar: ' + (e?.message || e)))
+  }
+  const submitDeckQuick = async () => {
+    if (!deckModal) return
+    setBusy(true)
+    try {
+      if (deckModal.type === 'card') {
+        if (!deckQ.trim() || !deckA.trim()) throw new Error('Preencha frente e verso.')
+        await createCard(deckModal.deckId, { q: deckQ, a: deckA, group: '', ref: '' })
+      } else if (deckModal.type === 'folder') {
+        if (!deckTitle.trim()) throw new Error('Informe o nome da pasta.')
+        await createDeck(deckTitle, deckKind, deckModal.deckId || undefined)
+      } else {
+        if (!deckTitle.trim()) throw new Error('Informe o novo nome.')
+        await renameDeck(deckModal.deckId, deckTitle)
+      }
+      await loadData()
+      setDeckModal(null)
+      setMsg(
+        deckModal.type === 'card'
+          ? 'Carta criada.'
+          : deckModal.type === 'folder'
+            ? 'Pasta criada.'
+            : 'Pasta renomeada.',
+      )
+      setTimeout(() => setMsg(''), 2500)
+    } catch (e: any) {
+      setMsg(e?.message || 'Não foi possível salvar.')
+      setTimeout(() => setMsg(''), 3000)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   // Avalia carta: grava review no banco e avança
   const rate = async (quality: Quality) => {
@@ -704,25 +914,186 @@ export default function Index() {
     },
   ]
   return (
-    <MedReviewLegacyHome
-      userEmail={user?.email}
-      totalCards={totalCards}
-      reviewTodayCount={reviewTodayCount}
-      masteredPercent={masteredPercent}
-      streakDays={streakDays}
-      categories={categories}
-      decks={decks}
-      cards={cards}
-      folderKind={route.folderKind}
-      onOpenGroup={openFolderGroup}
-      onHome={() => setRoute({ view: 'home' })}
-      onOpenDeck={openDeck}
-      onClinical={startClinicalMode}
-      onStudyNow={startStudyNow}
-      onNewFolder={openNewFolder}
-      onLibrary={() => setRoute({ view: 'library' })}
-      onLogout={logout}
-    />
+    <>
+      <MedReviewLegacyHome
+        userEmail={user?.email}
+        totalCards={totalCards}
+        reviewTodayCount={reviewTodayCount}
+        masteredPercent={masteredPercent}
+        streakDays={streakDays}
+        categories={categories}
+        decks={decks}
+        cards={cards}
+        folderKind={route.folderKind}
+        onOpenGroup={openFolderGroup}
+        onHome={() => setRoute({ view: 'home' })}
+        onOpenDeck={openDeck}
+        onClinical={startClinicalMode}
+        onStudyNow={startStudyNow}
+        onNewFolder={openNewFolder}
+        onLibrary={() => setRoute({ view: 'library' })}
+        onLogout={logout}
+        onSettings={() => setSettingsOpen(true)}
+        onDeckAddCard={openDeckCardModal}
+        onDeckAddSubfolder={openDeckSubfolderModal}
+        onDeckRename={openDeckRenameModal}
+        onDeckDelete={confirmDeckDelete}
+        onDeckReset={confirmDeckReset}
+      />
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onSaved={() => setRetentionTick((t) => t + 1)}
+        />
+      )}
+      {deckModal && (
+        <div
+          onClick={() => setDeckModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            background: 'rgba(15,23,42,.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 18,
+            fontFamily: 'Inter, system-ui, sans-serif',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: 18,
+              padding: 24,
+              width: '100%',
+              maxWidth: 430,
+              boxShadow: '0 20px 50px rgba(15,23,42,.25)',
+            }}
+          >
+            <h3
+              style={{ margin: '0 0 4px', color: '#14532d', fontSize: '1.1rem', fontWeight: 900 }}
+            >
+              {deckModal.type === 'card'
+                ? '＋ Nova carta'
+                : deckModal.type === 'folder'
+                  ? deckModal.deckId
+                    ? '＋ Nova subpasta'
+                    : '＋ Nova pasta'
+                  : '✏️ Renomear pasta'}
+            </h3>
+            <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
+              {deckModal.deckId
+                ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
+                : 'A pasta aparece na home, na seção do tipo escolhido.'}
+            </p>
+            {deckModal.type === 'card' ? (
+              <>
+                <textarea
+                  placeholder="Frente (pergunta)"
+                  value={deckQ}
+                  onChange={(e) => setDeckQ(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.65rem 0.8rem',
+                    borderRadius: 9,
+                    border: '1.5px solid #cbd5e1',
+                    font: 'inherit',
+                    marginBottom: 8,
+                    minHeight: 70,
+                  }}
+                />
+                <textarea
+                  placeholder="Verso (resposta)"
+                  value={deckA}
+                  onChange={(e) => setDeckA(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.65rem 0.8rem',
+                    borderRadius: 9,
+                    border: '1.5px solid #cbd5e1',
+                    font: 'inherit',
+                    marginBottom: 12,
+                    minHeight: 90,
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                {deckModal.type === 'folder' && !deckModal.deckId && (
+                  <select
+                    value={deckKind}
+                    onChange={(e) => setDeckKind(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '0.65rem 0.8rem',
+                      borderRadius: 9,
+                      border: '1.5px solid #cbd5e1',
+                      font: 'inherit',
+                      marginBottom: 8,
+                      background: '#fff',
+                    }}
+                  >
+                    <option value="custom">📁 Minhas Pastas</option>
+                    <option value="tutoria">🩺 Tutoria</option>
+                    <option value="prova">📝 Prova de Módulo</option>
+                  </select>
+                )}
+                <input
+                  placeholder="Nome da pasta"
+                  value={deckTitle}
+                  onChange={(e) => setDeckTitle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.65rem 0.8rem',
+                    borderRadius: 9,
+                    border: '1.5px solid #cbd5e1',
+                    font: 'inherit',
+                    marginBottom: 12,
+                  }}
+                />
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={submitDeckQuick}
+                disabled={busy}
+                style={{
+                  border: '1px solid #16a34a',
+                  borderRadius: 9,
+                  padding: '0.55rem 0.9rem',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  background: '#16a34a',
+                  color: '#fff',
+                }}
+              >
+                {busy ? 'Salvando…' : 'Salvar'}
+              </button>
+              <button
+                onClick={() => setDeckModal(null)}
+                style={{
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 9,
+                  padding: '0.55rem 0.9rem',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  background: '#fff',
+                  color: '#334155',
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

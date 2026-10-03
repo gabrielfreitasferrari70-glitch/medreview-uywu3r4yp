@@ -7,6 +7,7 @@ import {
   deleteDeck,
   importCards,
   renameDeck,
+  resetDeck,
   setCardSuspended,
   updateCard,
 } from '@/services/medreview'
@@ -274,6 +275,18 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
       if (selectedDeckId === deck.id) setSelectedDeckId('')
     }, 'Pasta excluída.')
   }
+  const resetDeckProgress = async (deck: Deck) => {
+    const count = countOf(deck.id)
+    if (
+      !window.confirm(
+        `Resetar o progresso de “${deck.title}”?${count ? ` As ${count} carta(s) desta pasta (e das subpastas) voltam ao estado inicial (novas, sem intervalos).` : ''} As cartas não são apagadas.`,
+      )
+    )
+      return
+    await run(async () => {
+      await resetDeck(deck.id)
+    }, 'Progresso resetado — cartas voltaram a ser novas.')
+  }
   const openCardModal = (deckId: string, card?: Card) => {
     setCardQ(card?.q || '')
     setCardA(card?.a || '')
@@ -387,6 +400,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             onClick={() => openFolderModal(deck.id, deck.kind as any)}
           >
             ＋ Subpasta
+          </button>
+          <button className="mr-lib-mini" onClick={() => resetDeckProgress(deck)}>
+            ↺ Resetar
           </button>
           <button
             className="mr-lib-mini"

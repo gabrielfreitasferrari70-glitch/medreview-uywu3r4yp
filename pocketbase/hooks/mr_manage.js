@@ -163,6 +163,67 @@ routerAdd(
         return e.json(200, { id: card.id, deleted: true })
       }
 
+      if (action === 'deck_reset') {
+        const root = ownDeck(body.deck_id)
+        const allDecks = $app.findRecordsByFilter(
+          'mr_decks',
+          'user_id = {:user}',
+          'order',
+          500,
+          0,
+          { user: userId },
+        )
+        const ids = {}
+        ids[root.id] = true
+        let changed = true
+        while (changed) {
+          changed = false
+          for (let i = 0; i < allDecks.length; i++) {
+            const parentId = allDecks[i].getString('parent')
+            if (parentId && ids[parentId] && !ids[allDecks[i].id]) {
+              ids[allDecks[i].id] = true
+              changed = true
+            }
+          }
+        }
+        const deckIds = Object.keys(ids)
+        let clearedCards = 0
+        for (let i = 0; i < deckIds.length; i++) {
+          const cards = $app.findRecordsByFilter(
+            'mr_cards',
+            'user_id = {:user} && deck = {:deck}',
+            '-created',
+            1000,
+            0,
+            { user: userId, deck: deckIds[i] },
+          )
+          for (let j = 0; j < cards.length; j++) {
+            const reviews = $app.findRecordsByFilter(
+              'mr_reviews',
+              'user_id = {:user} && card_ref = {:card}',
+              '-reviewed_at',
+              1000,
+              0,
+              { user: userId, card: cards[j].id },
+            )
+            for (let k = 0; k < reviews.length; k++) {
+              try {
+                $app.delete(reviews[k])
+              } catch (delErr) {
+                reviews[k].set('rating', 'again')
+                reviews[k].set('state', 'new')
+                reviews[k].set('stability', 0)
+                reviews[k].set('difficulty', 0)
+                reviews[k].set('due', new Date().toISOString().slice(0, 19).replace('T', ' '))
+                $app.save(reviews[k])
+              }
+            }
+            clearedCards++
+          }
+        }
+        return e.json(200, { ok: true, clearedCards })
+      }
+
       return e.badRequestError('Operação de gestão desconhecida.')
     } catch (err) {
       const message = err && err.message ? String(err.message) : String(err)

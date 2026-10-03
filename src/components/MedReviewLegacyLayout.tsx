@@ -76,6 +76,13 @@ const legacyCss = `
 .mr-legacy-subdeck:hover{transform:translateY(-3px);border-color:#86efac;box-shadow:0 12px 23px rgba(22,163,74,.12)}
 .mr-legacy-subdeck h3{margin:13px 0 8px;color:#14532d;font-size:1rem}
 .mr-legacy-subdeck-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:auto}
+.mr-legacy-subdeck-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%}
+.mr-legacy-subdeck-actions button{border:1px solid #bbf7d0;border-radius:8px;padding:5px 9px;background:#fff;color:#15803d;font:700 .72rem Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;transition:all .15s ease}
+.mr-legacy-subdeck-actions button:hover{background:#f0fdf4;border-color:#86efac}
+.mr-legacy-subdeck-actions button.danger{color:#b91c1c;border-color:#fecaca}
+.mr-legacy-subdeck-actions button.danger:hover{background:#fef2f2}
+@media(max-width:720px){.mr-legacy-subdecks{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-legacy-subdeck-actions button{padding:6px 8px}}
+@media(max-width:480px){.mr-legacy-subdecks{grid-template-columns:1fr}}
 .mr-legacy-pill{padding:5px 9px;border-radius:999px;background:#f0fdf4;color:#15803d;font-size:.73rem;font-weight:800}
 .mr-legacy-study-page{min-height:100vh;background:linear-gradient(180deg,#f0fdf4,#f8fafc 310px);font-family:Inter,system-ui,sans-serif}
 .mr-legacy-study-top{max-width:1120px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
@@ -136,6 +143,12 @@ type HomeProps = {
   onNewFolder: () => void
   onLibrary: () => void
   onLogout: () => void
+  onSettings: () => void
+  onDeckAddCard?: (deckId: string) => void
+  onDeckAddSubfolder?: (deckId: string) => void
+  onDeckRename?: (deckId: string) => void
+  onDeckDelete?: (deckId: string) => void
+  onDeckReset?: (deckId: string) => void
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -157,6 +170,12 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onNewFolder,
     onLibrary,
     onLogout,
+    onSettings,
+    onDeckAddCard,
+    onDeckAddSubfolder,
+    onDeckRename,
+    onDeckDelete,
+    onDeckReset,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
   const title = folderKind === 'prova' ? 'Prova de Módulo' : 'Tutoria'
@@ -183,6 +202,14 @@ export function MedReviewLegacyHome(props: HomeProps) {
             </button>
             <button className="mr-legacy-button primary" onClick={onNewFolder}>
               ＋ Nova Pasta
+            </button>
+            <button
+              className="mr-legacy-button logout"
+              onClick={onSettings}
+              aria-label="Configurações"
+              title="Configurações"
+            >
+              ⚙️
             </button>
             <button
               className="mr-legacy-button logout"
@@ -218,10 +245,15 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 {folderDecks.map((deck) => {
                   const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
                   return (
-                    <button
+                    <div
                       key={deck.id}
                       className="mr-legacy-subdeck"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => onOpenDeck(deck.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') onOpenDeck(deck.id)
+                      }}
                     >
                       <span className="mr-legacy-category-top" style={{ width: '100%' }}>
                         <span className="mr-legacy-category-icon">
@@ -242,10 +274,51 @@ export function MedReviewLegacyHome(props: HomeProps) {
                       <span className="mr-legacy-subdeck-meta">
                         <span className="mr-legacy-pill">📚 {dc.length} cartas</span>
                       </span>
+                      <span
+                        className="mr-legacy-subdeck-actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          title="Criar carta nesta pasta"
+                          onClick={() => onDeckAddCard?.(deck.id)}
+                        >
+                          ＋ Carta
+                        </button>
+                        <button
+                          type="button"
+                          title="Criar subpasta"
+                          onClick={() => onDeckAddSubfolder?.(deck.id)}
+                        >
+                          🗂 Subpasta
+                        </button>
+                        <button
+                          type="button"
+                          title="Resetar progresso FSRS desta pasta"
+                          onClick={() => onDeckReset?.(deck.id)}
+                        >
+                          ↺ Resetar
+                        </button>
+                        <button
+                          type="button"
+                          title="Renomear"
+                          onClick={() => onDeckRename?.(deck.id)}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          className="danger"
+                          title="Excluir pasta"
+                          onClick={() => onDeckDelete?.(deck.id)}
+                        >
+                          🗑️
+                        </button>
+                      </span>
                       <span className="mr-legacy-category-foot" style={{ width: '100%' }}>
                         Abrir pasta <span className="mr-legacy-arrow">→</span>
                       </span>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
