@@ -17,6 +17,7 @@ export interface ParsedCsvCard {
   group: string
   folder?: string
   clinical?: boolean
+  imageUrl?: string
 }
 
 export interface CsvParseResult {
@@ -207,6 +208,7 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
   let refIdx = -1
   let pastaIdx = -1
   let clinicoIdx = -1
+  let imgIdx = -1
 
   normalizedHeaders.forEach((nh, idx) => {
     if (nh === 'frente' || nh === 'pergunta' || nh === 'question' || nh === 'front') {
@@ -232,6 +234,8 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
       nh === 'clinical'
     ) {
       clinicoIdx = idx
+    } else if (nh === 'imagem' || nh === 'image' || nh === 'imagemurl' || nh === 'imageurl') {
+      imgIdx = idx
     }
   })
 
@@ -264,6 +268,7 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
     const rawRef = refIdx >= 0 && refIdx < row.length ? row[refIdx] : ''
     const rawPasta = pastaIdx >= 0 && pastaIdx < row.length ? row[pastaIdx] : ''
     const rawClinico = clinicoIdx >= 0 && clinicoIdx < row.length ? row[clinicoIdx] : ''
+    const rawImg = imgIdx >= 0 && imgIdx < row.length ? row[imgIdx] : ''
 
     const frenteDecoded = decodeHtmlEntities(rawFrente).trim()
     const versoDecoded = decodeHtmlEntities(rawVerso).trim()
@@ -288,6 +293,9 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
           clinicoRaw !== 'false' &&
           clinicoRaw !== 'normal'
 
+    const imgDecoded = decodeHtmlEntities(rawImg).trim()
+    const imgUrl = /^https?:\/\//i.test(imgDecoded) ? imgDecoded : ''
+
     cards.push({
       q: frenteDecoded,
       a: versoDecoded,
@@ -295,6 +303,7 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
       ref: refDecoded || 'Referência Médica',
       folder: pastaDecoded,
       clinical: isClinical,
+      imageUrl: imgUrl,
     })
   }
 

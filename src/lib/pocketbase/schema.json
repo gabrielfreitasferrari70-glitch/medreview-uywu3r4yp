@@ -29,19 +29,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -78,19 +73,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
@@ -124,11 +114,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "tutoria",
-            "prova",
-            "custom"
-          ]
+          "selectValues": ["tutoria", "prova", "custom"]
         },
         {
           "name": "order",
@@ -141,19 +127,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "seed_key",
@@ -179,10 +160,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "study",
-            "organizer"
-          ]
+          "selectValues": ["study", "organizer"]
         }
       ],
       "indexes": [
@@ -250,19 +228,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "seed_key",
@@ -348,12 +321,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "again",
-            "hard",
-            "good",
-            "easy"
-          ]
+          "selectValues": ["again", "hard", "good", "easy"]
         },
         {
           "name": "stability",
@@ -390,12 +358,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "new",
-            "learning",
-            "review",
-            "relearning"
-          ]
+          "selectValues": ["new", "learning", "review", "relearning"]
         },
         {
           "name": "due",
@@ -414,19 +377,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "card_ref",
@@ -468,24 +426,17 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": [
-        "CREATE UNIQUE INDEX idx_mr_seed_catalog_version ON mr_seed_catalog (version)"
-      ]
+      "indexes": ["CREATE UNIQUE INDEX idx_mr_seed_catalog_version ON mr_seed_catalog (version)"]
     }
   ]
 }

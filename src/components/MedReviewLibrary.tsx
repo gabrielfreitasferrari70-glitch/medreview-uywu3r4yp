@@ -154,12 +154,16 @@ function normalizeJsonCards(input: unknown): ParsedCsvCard[] {
             clinicoRaw !== 'não' &&
             clinicoRaw !== 'false' &&
             clinicoRaw !== 'normal'
+      const imgRaw = String(
+        row.imageUrl ?? row.image ?? row['imagem'] ?? row.imagem ?? row.img ?? '',
+      ).trim()
       return {
         q,
         a: String(row.a ?? row.answer ?? row.resposta ?? row.back ?? row.verso ?? '').trim(),
         group: String(row.group ?? row.grupo ?? row.category ?? row.categoria ?? '').trim(),
         ref: String(row.ref ?? row.referencia ?? row.source ?? row.fonte ?? '').trim(),
         clinical: clinicalFlag,
+        imageUrl: /^https?:\/\//i.test(imgRaw) ? imgRaw : '',
       }
     })
     .filter((row: ParsedCsvCard) => row.q && row.a)

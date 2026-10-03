@@ -107,6 +107,7 @@ export const importCards = (deckId: string, cards: ParsedCsvCard[]) =>
       group: card.group || '',
       ref: card.ref || '',
       clinical: !!card.clinical,
+      imageUrl: card.imageUrl || '',
     })),
   })
 
@@ -123,5 +124,6 @@ export const importCardsAuto = (
       ref: card.ref || '',
       folder_title: card.folder || '',
       clinical: !!card.clinical,
+      imageUrl: card.imageUrl || '',
     })),
   })

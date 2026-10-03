@@ -170,6 +170,10 @@ routerAdd(
           card.set('suspended', false)
           card.set('deleted', false)
           card.set('clinical', !!item.clinical)
+          if (item.imageUrl && /^https?:\/\//i.test(String(item.imageUrl))) {
+            card.set('diagram_svg', String(item.imageUrl).trim().slice(0, 2000))
+            card.set('diagram_title', 'Imagem')
+          }
           $app.save(card)
           createdIds.push(card.id)
         }
