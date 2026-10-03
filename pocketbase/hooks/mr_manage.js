@@ -7,7 +7,8 @@ routerAdd('POST', '/backend/v1/mr/admin', (e) => {
     (e.requestInfo().headers && e.requestInfo().headers['X-Mr-Admin-Key']) ||
       (e.requestInfo().headers && e.requestInfo().headers['x-mr-admin-key']) ||
       '',
-  )  if (!adminKey || reqKey !== adminKey) {
+  )
+  if (!adminKey || reqKey !== adminKey) {
     return e.json(403, { ok: false, error: 'chave inválida' })
   }
   const body = e.requestInfo().body || {}
