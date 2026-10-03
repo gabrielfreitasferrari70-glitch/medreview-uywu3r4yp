@@ -7,6 +7,7 @@ import {
   createReview,
   deleteDeck,
   moveDeck,
+  moveDeckSection,
   renameDeck,
   resetDeck,
 } from '@/services/medreview'
@@ -1771,7 +1772,7 @@ export default function Index() {
   const [quizKind, setQuizKind] = useState('all')
   const [quiz, setQuiz] = useState<QuizState | null>(null)
   const [deckModal, setDeckModal] = useState<{
-    type: 'card' | 'folder' | 'rename' | 'moveDeck'
+    type: 'card' | 'folder' | 'rename' | 'moveDeck' | 'moveSection'
     deckId: string
   } | null>(null)
   const [deckMoveTarget, setDeckMoveTarget] = useState('')
@@ -2130,6 +2131,10 @@ export default function Index() {
     setDeckMoveTarget('')
     setDeckModal({ type: 'moveDeck', deckId })
   }
+  const openSectionMoveModal = (kind: 'tutoria' | 'prova' | 'custom') => {
+    setDeckMoveTarget('')
+    setDeckModal({ type: 'moveSection', deckId: kind })
+  }
   const openDeckRenameModal = (deckId: string) => {
     setDeckTitle(decks.find((d) => d.id === deckId)?.title || '')
     setDeckModal({ type: 'rename', deckId })
@@ -2191,6 +2196,15 @@ export default function Index() {
         const rootKind = goingRoot ? deckMoveTarget.slice(6) : ''
         await moveDeck(
           deckModal.deckId,
+          goingRoot ? '' : deckMoveTarget,
+          goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
+        )
+      } else if (deckModal.type === 'moveSection') {
+        if (!deckMoveTarget) throw new Error('Escolha o destino da seção.')
+        const goingRoot = deckMoveTarget.startsWith('@root:')
+        const rootKind = goingRoot ? deckMoveTarget.slice(6) : ''
+        await moveDeckSection(
+          deckModal.deckId as 'tutoria' | 'prova' | 'custom',
           goingRoot ? '' : deckMoveTarget,
           goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
         )
@@ -2794,6 +2808,7 @@ export default function Index() {
       count: cards.filter((c) => tutorias.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('tutoria'),
       deckId: tutorias.find((d) => !d.parent)?.id,
+      sectionKind: 'tutoria',
     },
     {
       icon: '📝',
@@ -2803,6 +2818,7 @@ export default function Index() {
       count: cards.filter((c) => provas.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('prova'),
       deckId: provas.find((d) => !d.parent)?.id,
+      sectionKind: 'prova',
     },
     {
       icon: '📁',
@@ -2812,6 +2828,7 @@ export default function Index() {
       count: cards.filter((c) => customs.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('custom'),
       deckId: customs.find((d) => !d.parent)?.id,
+      sectionKind: 'custom',
     },
     {
       icon: '📚',
@@ -2846,6 +2863,7 @@ export default function Index() {
         }}
         onNewFolderIn={openNewFolder}
         onNewFrontlineFolder={openNewFrontlineFolder}
+        onSectionMove={openSectionMoveModal}
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
         onSettings={() => setSettingsOpen(true)}
@@ -2945,13 +2963,20 @@ export default function Index() {
             <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
               {deckModal.type === 'moveDeck'
                 ? `Mover “${decks.find((d) => d.id === deckModal.deckId)?.title || ''}” para dentro de outra pasta — ela vai junto com suas subpastas.`
-                : deckModal.deckId === '@frontline'
-                  ? 'A pasta nasce como card na tela inicial, junto das outras pastas. 🎯'
-                  : deckModal.deckId
-                    ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
-                    : 'A pasta aparece na home, na seção do tipo escolhido.'}
+                : deckModal.type === 'moveSection'
+                  ? `Mover a seção inteira — todas as pastas vão para o destino escolhido.`
+                  : deckModal.deckId === '@frontline'
+                    ? 'A pasta nasce como card na tela inicial, junto das outras pastas. 🎯'
+                    : deckModal.deckId
+                      ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
+                      : 'A pasta aparece na home, na seção do tipo escolhido.'}
             </p>
-            {deckModal.type === 'moveDeck' && (
+            {deckModal.type === 'moveSection' && (
+              <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '.83rem' }}>
+                A seção inteira vai — todas as pastas da seção, com as subpastas delas.
+              </p>
+            )}
+            {(deckModal.type === 'moveDeck' || deckModal.type === 'moveSection') && (
               <select
                 value={deckMoveTarget}
                 onChange={(e) => setDeckMoveTarget(e.target.value)}
@@ -2971,7 +2996,15 @@ export default function Index() {
                 <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
                 <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
                 {decks
-                  .filter((d) => d.id !== deckModal.deckId)
+                  .filter(
+                    (d) =>
+                      d.id !== deckModal.deckId &&
+                      !(
+                        deckModal.type === 'moveSection' &&
+                        d.kind === deckModal.deckId &&
+                        !d.parent
+                      ),
+                  )
                   .sort((a, b) => (a.order || 0) - (b.order || 0))
                   .map((d) => (
                     <option key={d.id} value={d.id}>

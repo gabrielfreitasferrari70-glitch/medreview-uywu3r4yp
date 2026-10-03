@@ -307,6 +307,74 @@ routerAdd(
         return e.json(200, { id: card.id, deck: deck.id })
       }
 
+      if (action === 'deck_move_section') {
+        // Mover uma SEÇÃO inteira (todas as pastas raiz de um kind) para outro
+        // destino: dentro de uma pasta, ou para o nível inicial de outro kind.
+        // As pastas vão com toda a subárvore; kind propagado ao destino.
+        const fromKind = ['tutoria', 'prova', 'custom'].includes(body.from_kind)
+          ? body.from_kind
+          : ''
+        if (!fromKind) return e.badRequestError('Seção de origem inválida.')
+        const allDecks = $app.findRecordsByFilter(
+          'mr_decks',
+          'user_id = {:user}',
+          'order',
+          500,
+          0,
+          { user: userId },
+        )
+        const roots = allDecks.filter(
+          (d) =>
+            !d.getString('parent') && d.getString('kind') === fromKind && !d.getBool('deleted'),
+        )
+        if (!roots.length) return e.badRequestError('Nenhuma pasta nesta seção.')
+        // valida destino antes de mover qualquer coisa
+        let target = null
+        let toKind = fromKind
+        if (body.parent_id) {
+          target = ownDeck(body.parent_id)
+          toKind = target.getString('kind')
+        } else if (['tutoria', 'prova', 'custom'].includes(body.kind)) {
+          toKind = body.kind
+        }
+        const ids = {}
+        for (const d of roots) ids[d.id] = true
+        if (target && ids[target.id]) return e.badRequestError('Destino inválido.')
+        let changed = 0
+        for (const root of roots) {
+          root.set('parent', target ? target.id : '')
+          root.set('kind', toKind)
+          root.set('order', allDecks.length + 1 + changed)
+          root.set('mode', target ? 'study' : root.getString('mode'))
+          $app.save(root)
+          changed++
+        }
+        // propaga o kind para toda a subárvore das raízes movidas
+        let propagated = 0
+        let grew = true
+        const marked = {}
+        for (const d of roots) marked[d.id] = true
+        while (grew) {
+          grew = false
+          for (let i = 0; i < allDecks.length; i++) {
+            const pid = allDecks[i].getString('parent')
+            if (pid && marked[pid] && !marked[allDecks[i].id]) {
+              marked[allDecks[i].id] = true
+              grew = true
+            }
+          }
+        }
+        for (let i = 0; i < allDecks.length; i++) {
+          const d = allDecks[i]
+          if (marked[d.id] && !ids[d.id] && d.getString('kind') !== toKind) {
+            d.set('kind', toKind)
+            $app.save(d)
+            propagated++
+          }
+        }
+        return e.json(200, { ok: true, moved: changed, propagated })
+      }
+
       if (action === 'deck_move') {
         // Mover pasta (e toda a subárvore) para dentro de outra pasta OU para o
         // nível inicial da própria seção (parent_id vazio).

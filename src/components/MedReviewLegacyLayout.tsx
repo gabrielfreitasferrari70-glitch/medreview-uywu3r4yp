@@ -133,6 +133,7 @@ type CategoryItem = {
   count: number
   onClick: () => void
   deckId?: string
+  sectionKind?: string
 }
 type HomeProps = {
   userEmail?: string
@@ -166,6 +167,7 @@ type HomeProps = {
   userDecks: LegacyDeck[]
   onNewFolderIn: (kind: 'tutoria' | 'prova' | 'custom') => void
   onNewFrontlineFolder: () => void
+  onSectionMove?: (kind: 'tutoria' | 'prova' | 'custom') => void
   openDeckId?: string
 }
 
@@ -202,6 +204,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     userDecks,
     onNewFolderIn,
     onNewFrontlineFolder,
+    onSectionMove,
     openDeckId,
   } = props
   // Quando um deck específico é aberto (pasta organizadora), mostra só a subárvore dele;
@@ -520,6 +523,15 @@ export function MedReviewLegacyHome(props: HomeProps) {
                         >
                           ＋ Carta
                         </button>
+                        {item.deckId && onSectionMove && item.sectionKind && (
+                          <button
+                            type="button"
+                            title="Mover a seção inteira (todas as pastas de dentro)"
+                            onClick={() => onSectionMove(item.sectionKind as any)}
+                          >
+                            ➡️
+                          </button>
+                        )}
                       </span>
                     )}
                   </div>

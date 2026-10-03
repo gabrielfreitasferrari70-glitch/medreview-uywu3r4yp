@@ -47,6 +47,17 @@ export const renameDeck = (deckId: string, title: string) =>
 export const moveDeck = (deckId: string, parentId: string, kind?: string) =>
   manageLibrary('deck_move', { deck_id: deckId, parent_id: parentId || '', kind: kind || '' })
 
+export const moveDeckSection = (
+  fromKind: 'tutoria' | 'prova' | 'custom',
+  parentId?: string,
+  kind?: 'tutoria' | 'prova' | 'custom',
+) =>
+  manageLibrary('deck_move_section', {
+    from_kind: fromKind,
+    parent_id: parentId || '',
+    kind: kind || '',
+  })
+
 export const deleteDeck = (deckId: string) => manageLibrary('deck_delete', { deck_id: deckId })
 
 export interface CardExtras {
