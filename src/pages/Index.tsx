@@ -3186,27 +3186,50 @@ export default function Index() {
                 <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
                 <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
                 <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
-                {decks
-                  .filter(
-                    (d) =>
-                      d.id !== deckModal.deckId &&
-                      !(
-                        deckModal.type === 'moveSection' &&
-                        d.kind === deckModal.deckId &&
-                        !d.parent
-                      ),
-                  )
-                  .sort((a, b) => (a.order || 0) - (b.order || 0))
-                  .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {(d.parent ? '↳ ' : '') + d.title}
-                      {d.kind === 'prova'
-                        ? ' (Prova)'
-                        : d.kind === 'custom'
-                          ? ' (Minhas Pastas)'
-                          : ''}
+                {(() => {
+                  // Árvore hierárquica REAL: indentação por profundidade (cadeia
+                  // de pais), sem sufixos de seção. Exclui a própria pasta e
+                  // TODOS os descendentes dela (não pode mover pra dentro de si).
+                  const byParent: Record<string, any[]> = {}
+                  for (const d of decks) {
+                    if (d.deleted) continue
+                    ;(byParent[d.parent || ''] ||= []).push(d)
+                  }
+                  const movingId = deckModal.deckId
+                  const subtreeIds = new Set<string>()
+                  if (movingId && deckModal.type === 'moveDeck') {
+                    subtreeIds.add(movingId)
+                    let grew = true
+                    while (grew) {
+                      grew = false
+                      for (const d of decks) {
+                        if (d.parent && subtreeIds.has(d.parent) && !subtreeIds.has(d.id)) {
+                          subtreeIds.add(d.id)
+                          grew = true
+                        }
+                      }
+                    }
+                  }
+                  const rows: { id: string; label: string; depth: number }[] = []
+                  const walk = (pid: string, depth: number) => {
+                    for (const d of (byParent[pid] || []).sort(
+                      (a, b) => (a.order || 0) - (b.order || 0),
+                    )) {
+                      if (subtreeIds.has(d.id)) continue
+                      if (deckModal.type === 'moveSection' && !d.parent) continue
+                      rows.push({ id: d.id, label: d.title, depth })
+                      walk(d.id, depth + 1)
+                    }
+                  }
+                  walk('', 0)
+                  return rows.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {'\u00A0'.repeat(r.depth * 4)}
+                      {r.depth > 0 ? '↳ ' : ''}
+                      {r.label}
                     </option>
-                  ))}
+                  ))
+                })()}
               </select>
             )}
             {deckModal.type === 'card' ? (
@@ -3272,6 +3295,10 @@ export default function Index() {
                         if (v === '@frontline') {
                           setDeckModal({ type: 'folder', deckId: '@frontline' })
                           setDeckKind('custom')
+                        } else if (v.startsWith('deck:')) {
+                          // criar DENTRO de uma pasta real (contexto dinâmico)
+                          setDeckModal({ type: 'folder', deckId: v.slice(5) })
+                          setDeckKind('custom')
                         } else {
                           setDeckModal({ type: 'folder', deckId: '' })
                           setDeckKind(v as any)
@@ -3291,9 +3318,34 @@ export default function Index() {
                       <option value="@frontline">
                         🎯 Na tela inicial (junto das outras pastas)
                       </option>
-                      <option value="custom">📁 Minhas Pastas</option>
-                      <option value="tutoria">🩺 Tutoria</option>
-                      <option value="prova">📝 Prova de Módulo</option>
+                      {(() => {
+                        // Dinâmico: mostra só as seções que EXISTEM na home agora
+                        // (com pastas em nível inicial) — seção movida não aparece.
+                        const hasRoots = (k: string) =>
+                          decks.some((d) => d.kind === k && !d.parent && !d.deleted)
+                        return (
+                          <>
+                            {hasRoots('custom') && <option value="custom">📁 Minhas Pastas</option>}
+                            {hasRoots('tutoria') && <option value="tutoria">🩺 Tutoria</option>}
+                            {hasRoots('prova') && <option value="prova">📝 Prova de Módulo</option>}
+                            {/* pastas reais da usuária (raiz custom) para criar DENTRO */}
+                            {decks
+                              .filter(
+                                (d) =>
+                                  d.kind === 'custom' &&
+                                  !d.parent &&
+                                  !d.deleted &&
+                                  d.id !== deckModal.deckId,
+                              )
+                              .sort((a, b) => (a.order || 0) - (b.order || 0))
+                              .map((d) => (
+                                <option key={d.id} value={`deck:${d.id}`}>
+                                  ↳ dentro de {d.title}
+                                </option>
+                              ))}
+                          </>
+                        )
+                      })()}
                     </select>
                   )}
                 {deckModal.type === 'folder' &&
