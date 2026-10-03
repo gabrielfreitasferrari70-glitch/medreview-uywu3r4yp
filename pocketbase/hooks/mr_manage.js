@@ -10,7 +10,6 @@ routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
   const lowerHeaders = {}
   for (const k of Object.keys(rawHeaders)) lowerHeaders[String(k).toLowerCase()] = rawHeaders[k]
   const reqKey = String(lowerHeaders['x_mr_admin_key'] || '')
-  console.log('mr-admin-v2: ping', Object.keys(rawHeaders).length, 'headers')
 
   if (!adminKey || reqKey !== adminKey) {
     return e.json(403, { ok: false, error: 'chave inválida' })
@@ -46,6 +45,7 @@ routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
       kind: d.getString('kind'),
       parent: d.getString('parent'),
       mode: d.getString('mode'),
+      seed_key: d.getString('seed_key'),
       deleted: d.getBool('deleted'),
     }))
     return e.json(200, { ok: true, decks })
