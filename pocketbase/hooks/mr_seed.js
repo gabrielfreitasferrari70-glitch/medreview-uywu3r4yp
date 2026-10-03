@@ -5,11 +5,18 @@ routerAdd(
   'GET',
   '/backend/v1/mr/seed',
   (e) => {
+    let stage = 'find-seed-record'
     try {
       const rec = $app.findRecordById('medreview_state', 'alw0c9r44hr44yl')
-      const raw = rec.getString('data')
-      let parsed = JSON.parse(raw)
+      stage = 'read-json-field'
+      let parsed = rec.get('data')
       if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+      if (!parsed || typeof parsed !== 'object') {
+        const raw = rec.getString('data')
+        parsed = JSON.parse(raw)
+      }
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+      stage = 'normalize-seed'
       const state = parsed && parsed.state ? parsed.state : parsed
       const tuts = (state && state.tutorias_numbered) || {}
       const provas = (state && state.provas) || {}
@@ -28,7 +35,7 @@ routerAdd(
       tutKeys.forEach((key) => {
         const deck = tuts[key]
         if (!deck || !Array.isArray(deck.cards)) return
-        const deckNumber = parseInt((String(key).match(/\\d+/) || ['0'])[0], 10)
+        const deckNumber = parseInt((String(key).match(/[0-9]+/) || ['0'])[0], 10)
         const seedKey = 'initial:tutoria:' + String(deckNumber).padStart(2, '0')
         decks.push({
           seed_key: seedKey,
@@ -69,6 +76,7 @@ routerAdd(
           })
         })
       const totalCards = decks.reduce((count, deck) => count + deck.cards.length, 0)
+      stage = 'validate-seed-count'
       if (totalCards !== 186) {
         $app
           .logger()
@@ -77,14 +85,20 @@ routerAdd(
       }
       return e.json(200, { schemaVersion: 1, decks, totalCards })
     } catch (err) {
+      const errorId = 'seed-' + Date.now().toString(36)
+      const errorText = err && err.message ? String(err.message) : String(err)
       $app
         .logger()
         .error(
           'MedReview seed route failed',
+          'errorId',
+          errorId,
+          'stage',
+          stage,
           'error',
-          err && err.message ? err.message : String(err),
+          errorText.slice(0, 220),
         )
-      return e.internalServerError('Não foi possível carregar os cartões iniciais.')
+      return e.json(500, { error: 'seed_failed', errorId, stage, code: errorText.slice(0, 120) })
     }
   },
   $apis.requireAuth(),
