@@ -297,9 +297,7 @@ export default function Index() {
       if (pb.authStore.isValid) {
         setUser(pb.authStore.record)
         setAuth('in')
-        try {
-          await loadData()
-        } catch (_) {}
+        await loadData()
         setMsg(
           e?.response?.data?.message || e?.message || 'Não foi possível iniciar sua biblioteca.',
         )
