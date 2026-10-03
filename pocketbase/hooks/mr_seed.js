@@ -78,10 +78,30 @@ routerAdd(
       const totalCards = decks.reduce((count, deck) => count + deck.cards.length, 0)
       stage = 'validate-seed-count'
       if (totalCards !== 186) {
+        const structure = {
+          parsedType: typeof parsed,
+          parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 30) : [],
+          stateKeys: state && typeof state === 'object' ? Object.keys(state).slice(0, 30) : [],
+          tutoriaKeys: Object.keys(tuts).slice(0, 30),
+          provaKeys: Object.keys(provas).slice(0, 20),
+          perDeckCounts: decks.map((deck) => ({
+            title: deck.title,
+            kind: deck.kind,
+            cards: deck.cards.length,
+          })),
+          decks: decks.length,
+          cards: totalCards,
+        }
         $app
           .logger()
-          .error('MedReview seed count mismatch', 'decks', decks.length, 'cards', totalCards)
-        return e.internalServerError('O pacote inicial de cartões está incompleto.')
+          .error(
+            'MedReview seed count mismatch',
+            'stage',
+            stage,
+            'structure',
+            JSON.stringify(structure),
+          )
+        return e.json(500, { error: 'seed_count_mismatch', structure })
       }
       return e.json(200, { schemaVersion: 1, decks, totalCards })
     } catch (err) {
