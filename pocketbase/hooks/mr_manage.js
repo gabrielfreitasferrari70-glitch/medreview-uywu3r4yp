@@ -9,7 +9,7 @@ routerAdd('POST', '/backend/v1/mr/admin', (e) => {
   for (const k of Object.keys(rawHeaders)) lowerHeaders[String(k).toLowerCase()] = rawHeaders[k]
   const reqKey = String(lowerHeaders['x_mr_admin_key'] || '')
   console.log('mr-admin: headers keys=', Object.keys(rawHeaders).join(','))
-  console.log('mr-admin: reqKey len=', reqKey.length, 'adminKey len=', adminKey.length)
+
   if (!adminKey || reqKey !== adminKey) {
     return e.json(403, { ok: false, error: 'chave inválida' })
   }

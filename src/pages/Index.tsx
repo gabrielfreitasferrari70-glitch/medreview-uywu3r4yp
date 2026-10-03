@@ -2990,20 +2990,17 @@ export default function Index() {
           },
         ]
       : []),
-    ...(sectionHasRoots('custom')
-      ? [
-          {
-            icon: '📁',
-            tag: 'Suas pastas livres',
-            title: 'Minhas Pastas',
-            description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
-            count: customs.reduce((n, d) => n + cardsInSubtree(d.id), 0),
-            onClick: () => openFolderGroup('custom'),
-            deckId: customs.find((d) => !d.parent)?.id,
-            sectionKind: 'custom' as const,
-          },
-        ]
-      : []),
+    // Minhas Pastas SEMPRE aparece (portal de navegação) — mesmo vazia.
+    {
+      icon: '📁',
+      tag: 'Suas pastas livres',
+      title: 'Minhas Pastas',
+      description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
+      count: customs.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+      onClick: () => openFolderGroup('custom'),
+      deckId: customs.find((d) => !d.parent)?.id,
+      sectionKind: 'custom' as const,
+    },
     {
       icon: '📚',
       tag: 'Biblioteca',
