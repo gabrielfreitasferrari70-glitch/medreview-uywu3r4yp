@@ -2284,7 +2284,6 @@ export default function Index() {
           fromKind,
           goingRoot ? '' : deckMoveTarget,
           goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
-          deckTitle.trim() || undefined,
         )
         setUndoInfo({ deckIds: snapshotIds, restoreKind: fromKind })
       } else {
@@ -3105,26 +3104,10 @@ export default function Index() {
                       : 'A pasta aparece na home, na seção do tipo escolhido.'}
             </p>
             {deckModal.type === 'moveSection' && (
-              <>
-                <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '.83rem' }}>
-                  A seção vai inteira, como um bloco: uma pasta nova no destino com todas as pastas
-                  dentro — nada fica separado.
-                </p>
-                <input
-                  placeholder="Nome da pasta-bloco (ex.: Tutoria)"
-                  value={deckTitle}
-                  onChange={(e) => setDeckTitle(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '0.65rem 0.8rem',
-                    borderRadius: 9,
-                    border: '1.5px solid #cbd5e1',
-                    font: 'inherit',
-                    marginBottom: 8,
-                  }}
-                />
-              </>
+              <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '.83rem' }}>
+                As pastas da seção vão para o destino como subcamadas — cada uma com suas subcamadas
+                intactas (estilo Anki).
+              </p>
             )}
             {(deckModal.type === 'moveDeck' || deckModal.type === 'moveSection') && (
               <select

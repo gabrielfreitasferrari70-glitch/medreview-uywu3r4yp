@@ -364,9 +364,9 @@ routerAdd(
       }
 
       if (action === 'deck_move_section') {
-        // Mover uma SEÇÃO inteira COMO BLOCO ÚNICO: cria uma pasta-bloco no destino
-        // (ou no nível inicial de outra seção) e pendura todas as pastas da seção
-        // DENTRO dela — nada fica separado, a subárvore vai intacta.
+        // Anki puro: a seção inteira vai para o destino — as pastas raiz viram
+        // filhas DIRETAS do destino (subcamadas), com as subcamadas delas intactas.
+        // Sem pasta-bloco criada magicamente. parent_id vazio = nível inicial de outro kind.
         const fromKind = ['tutoria', 'prova', 'custom'].includes(body.from_kind)
           ? body.from_kind
           : ''
@@ -396,35 +396,16 @@ routerAdd(
         const ids = {}
         for (const d of roots) ids[d.id] = true
         if (target && ids[target.id]) return e.badRequestError('Destino inválido.')
-        // nome do bloco (default: nome da seção de origem)
-        const blockName =
-          cleanText(body.block_title, 200) ||
-          (fromKind === 'tutoria'
-            ? 'Tutoria'
-            : fromKind === 'prova'
-              ? 'Prova de Módulo'
-              : 'Minhas Pastas')
-        // 1) cria a pasta-bloco no destino (organizer por natureza)
-        const col = $app.findCollectionByNameOrId('mr_decks')
-        const block = new Record(col)
-        block.set('user_id', userId)
-        block.set('title', blockName)
-        block.set('kind', toKind)
-        block.set('mode', 'organizer')
-        block.set('order', allDecks.length + 1)
-        if (target) block.set('parent', target.id)
-        $app.save(block)
-        // 2) pendura todas as raízes da seção DENTRO do bloco, preservando a subárvore
+        // 1) as raízes da seção viram filhas DIRETAS do destino (subcamada)
         let moved = 0
         for (const root of roots) {
-          root.set('parent', block.id)
+          root.set('parent', target ? target.id : '')
           root.set('kind', toKind)
           root.set('order', allDecks.length + 1 + moved)
-          root.set('mode', 'study')
           $app.save(root)
           moved++
         }
-        // 3) propaga o kind para toda a subárvore das raízes movidas (nada muda de lugar)
+        // 2) propaga o kind para toda a subárvore (subcamadas acompanham)
         let propagated = 0
         let grew = true
         const marked = {}
@@ -447,13 +428,7 @@ routerAdd(
             propagated++
           }
         }
-        return e.json(200, {
-          ok: true,
-          moved,
-          propagated,
-          blockId: block.id,
-          blockTitle: blockName,
-        })
+        return e.json(200, { ok: true, moved, propagated })
       }
 
       if (action === 'deck_move') {
