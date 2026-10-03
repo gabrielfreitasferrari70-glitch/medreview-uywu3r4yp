@@ -199,12 +199,16 @@ export default function Index() {
   const [decks, setDecks] = useState<Deck[]>([])
   const [cards, setCards] = useState<Card[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
-  const [route, setRoute] = useState<{ view: 'home' | 'study' | 'library'; deckId?: string }>({
+  const [route, setRoute] = useState<{ view: 'home' | 'study' | 'library'; deckId?: string; folderKind?: 'tutoria' | 'prova' }>({
     view: 'home',
   })
   const [flipped, setFlipped] = useState(false)
   const [queue, setQueue] = useState<Card[]>([])
   const [qIdx, setQIdx] = useState(0)
+  const [msg, setMsg] = useState('')
+=======
+  const [msg, setMsg] = useState('')
+=======
   const [msg, setMsg] = useState('')
   const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -318,20 +322,19 @@ export default function Index() {
     setRoute({ view: 'home' })
   }
 
-  // Fila de estudo: vencidas → novas → futuras
-  const openDeck = (deckId: string) => {
-    const deckCards = cards.filter((c) => c.deck === deckId && !c.suspended && !c.deleted)
+  // Fila de estudo: vencidas → novas → futuras; aceita filtros sem mudar a lógica FSRS.
+  const startStudy = (candidateCards: Card[], deckId?: string) => {
+    const studyCards = candidateCards.filter((c) => !c.suspended && !c.deleted)
     const states = new Map(
-      deckCards.map((c) => [
+      studyCards.map((c) => [
         c.id,
         cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)),
       ]),
     )
-    const now = Date.now()
-    const rank = (cs: CardState) => (cs.state === 'new' ? 2 : (cs.dueMs || 0) <= now ? 0 : 1)
-    const sorted = [...deckCards].sort((a, b) => {
-      const ra = rank(states.get(a.id)!),
-        rb = rank(states.get(b.id)!)
+    const currentTime = Date.now()
+    const rank = (cs: CardState) => (cs.state === 'new' ? 2 : (cs.dueMs || 0) <= currentTime ? 0 : 1)
+    const sorted = [...studyCards].sort((a, b) => {
+      const ra = rank(states.get(a.id)!), rb = rank(states.get(b.id)!)
       if (ra !== rb) return ra - rb
       if (ra === 0) return (states.get(a.id)!.dueMs || 0) - (states.get(b.id)!.dueMs || 0)
       return 0
@@ -339,8 +342,33 @@ export default function Index() {
     setQueue(sorted)
     setQIdx(0)
     setFlipped(false)
+    setStudySession({ startMs: Date.now(), again: 0, hard: 0, good: 0, easy: 0 })
     setRoute({ view: 'study', deckId })
   }
+
+  const openDeck = (deckId: string) => {
+    startStudy(cards.filter((c) => c.deck === deckId), deckId)
+  }
+
+  const openFolderGroup = (folderKind: 'tutoria' | 'prova') => {
+    setRoute({ view: 'home', folderKind })
+  }
+
+  const startStudyNow = () => {
+    const due = cards.filter((c) => {
+      if (c.suspended || c.deleted) return false
+      const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
+      return cs.state !== 'new' && (cs.dueMs || 0) <= Date.now()
+    })
+    startStudy(due.length ? due : cards.filter((c) => !c.suspended && !c.deleted))
+  }
+
+
+  // Avalia carta: grava review no banco e avança
+=======
+
+  // Avalia carta: grava review no banco e avança
+=======
 
   // Avalia carta: grava review no banco e avança
   const rate = async (quality: Quality) => {
@@ -372,6 +400,7 @@ export default function Index() {
         reviewed_at: fmt(now),
       })
       setReviews((rs) => [...rs, { ...(created as any), card_ref: card.id }])
+      setStudySession((session) => ({ ...session, [quality]: session[quality] + 1 }))
       setMsg(`Carta agendada para daqui ${chosen.label}`)
       setTimeout(() => setMsg(''), 2500)
       setFlipped(false)
@@ -441,10 +470,21 @@ export default function Index() {
     const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
     return cs.state !== 'new' && (cs.dueMs || 0) <= now
   }).length
-  const newCount = cards.filter(
-    (c) =>
-      cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)).state === 'new',
-  ).length
+  const cardStates = new Map(cards.map((c) => [c.id, cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))]))
+  const newCount = cards.filter((c) => cardStates.get(c.id)?.state === 'new').length
+  const masteredCount = cards.filter((c) => (cardStates.get(c.id)?.s || 0) >= 21).length
+  const masteredPct = totalCards ? Math.round((masteredCount / totalCards) * 100) : 0
+  const stalePages = decks
+  const sessionMinutes = Math.max(1, Math.round((Date.now() - studySession.startMs) / 60000))
+  const sessionTotal = studySession.again + studySession.hard + studySession.good + studySession.easy
+  const sessionRecall = sessionTotal ? Math.round(((studySession.good + studySession.easy) / sessionTotal) * 100) : 0
+  const sessionMessage = sessionRecall >= 85 ? 'Excelente evocação ativa! 🔥' : sessionRecall >= 60 ? 'Bom trabalho — revise os pontos cegos. 💪' : 'Sessão difícil: vale revisitar o conteúdo-fonte. 📖'
+
+  // ===== Tela: estudo =====
+=======
+
+  // ===== Tela: estudo =====
+=======
 
   // ===== Tela: estudo =====
   if (route.view === 'study') {
