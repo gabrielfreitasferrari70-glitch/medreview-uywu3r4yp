@@ -2950,6 +2950,10 @@ export default function Index() {
     const ids = deckSubtreeIds.get(deckId)
     return ids ? cards.filter((c) => ids.has(c.deck) && !c.deleted).length : 0
   }
+  // Contagem de SEÇÃO = soma das subárvores das pastas de NÍVEL INICIAL apenas.
+  // Somar todas as pastas do kind contava carta 2x (bloco + filhas dentro dele).
+  const rootsOfKind = (kind: string) =>
+    decks.filter((d) => d.kind === kind && !d.parent && !d.deleted)
   // Pastas criadas pela usuária (sem seed_key) — aparecem como cards no grid
   // "Pastas de Estudo" da home, no mesmo estilo das seções.
   const userDecks = decks
@@ -2969,7 +2973,7 @@ export default function Index() {
             title: 'Tutoria',
             description:
               'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
-            count: tutorias.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+            count: rootsOfKind('tutoria').reduce((n, d) => n + cardsInSubtree(d.id), 0),
             onClick: () => openFolderGroup('tutoria'),
             deckId: tutorias.find((d) => !d.parent)?.id,
             sectionKind: 'tutoria' as const,
@@ -2983,7 +2987,7 @@ export default function Index() {
             tag: 'Módulos',
             title: 'Prova de Módulo',
             description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
-            count: provas.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+            count: rootsOfKind('prova').reduce((n, d) => n + cardsInSubtree(d.id), 0),
             onClick: () => openFolderGroup('prova'),
             deckId: provas.find((d) => !d.parent)?.id,
             sectionKind: 'prova' as const,
@@ -2996,7 +3000,7 @@ export default function Index() {
       tag: 'Suas pastas livres',
       title: 'Minhas Pastas',
       description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
-      count: customs.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+      count: rootsOfKind('custom').reduce((n, d) => n + cardsInSubtree(d.id), 0),
       onClick: () => openFolderGroup('custom'),
       deckId: customs.find((d) => !d.parent)?.id,
       sectionKind: 'custom' as const,
