@@ -16,14 +16,22 @@ routerAdd('POST', '/backend/v1/mr/admin', (e) => {
   const body = e.requestInfo().body || {}
   const action = String(body.action || '')
   if (action === 'admin_find_user') {
-    const email = String(body.email || '').toLowerCase()
-    const rows = $app.findRecordsByFilter('users', 'email = {:email}', '-created', 5, 0, {
-      email,
-    })
-    return e.json(200, {
-      ok: true,
-      users: rows.map((u) => ({ id: u.id, email: u.email, name: u.getString('name') })),
-    })
+    try {
+      const email = String(body.email || '').toLowerCase()
+      const rows = $app.findRecordsByFilter('users', 'email = {:email}', '-created', 5, 0, {
+        email,
+      })
+      return e.json(200, {
+        ok: true,
+        users: rows.map((u) => ({
+          id: u.id,
+          email: u.getString('email'),
+          name: u.getString('name'),
+        })),
+      })
+    } catch (err) {
+      return e.json(500, { ok: false, error: String(err && err.message ? err.message : err) })
+    }
   }
   if (action === 'admin_inspect') {
     const target = String(body.user_id || '')
