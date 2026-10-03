@@ -224,14 +224,17 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
-      <style>{`@media (max-width: 720px) { .mr-library-grid { grid-template-columns: minmax(0, 1fr) !important; } .mr-library-grid > * { min-width: 0; } .mr-library-grid input, .mr-library-grid select, .mr-library-grid textarea { min-width: 0; max-width: 100%; } .mr-library-cards-panel, .mr-library-cards-panel article { min-width: 0; max-width: 100%; width: 100%; } .mr-library-grid article > div:first-child, .mr-library-cards-panel article > div:first-child { min-width: 0 !important; } }`}</style>
-      <div style={{ ...topbar, position: 'sticky', top: 0, zIndex: 3 }}>
-        <button style={ghostBtn} onClick={onBack}>
+      <style>
+        {libCss}
+        {`@media (max-width: 720px) { .mr-library-grid { grid-template-columns: minmax(0, 1fr) !important; } .mr-library-grid > * { min-width: 0; } .mr-library-grid input, .mr-library-grid select, .mr-library-grid textarea { min-width: 0; max-width: 100%; } .mr-library-cards-panel, .mr-library-cards-panel article { min-width: 0; max-width: 100%; width: 100%; } .mr-library-grid article > div:first-child, .mr-library-cards-panel article > div:first-child { min-width: 0 !important; } }`}
+      </style>
+      <div className="mr-lib-header">
+        <button className="mr-lib-back" onClick={onBack}>
           ← Início
         </button>
-        <strong style={{ color: '#fff' }}>📚 Biblioteca</strong>
-        <span style={{ flex: 1 }} />
-        <span style={{ color: '#d1fae5', fontSize: '0.85rem' }}>{cards.length} cartões</span>
+        <strong className="mr-lib-title">📚 Biblioteca</strong>
+        <span className="mr-lib-spacer" />
+        <span className="mr-lib-count">{cards.length} cartões</span>
       </div>
       <main style={{ maxWidth: 1080, margin: '0 auto', padding: '1.2rem 1rem 3rem' }}>
         {error && <div style={{ ...notice, background: '#fef2f2', color: '#991b1b' }}>{error}</div>}
@@ -428,6 +431,15 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   )
 }
 
+const libCss = `
+.mr-lib-header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid #d1fae5;box-shadow:0 4px 18px rgba(20,83,45,.06);display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 20px;font-family:Inter,system-ui,sans-serif}
+.mr-lib-back{border:1px solid #bbf7d0;border-radius:11px;padding:9px 14px;color:#15803d;background:#f0fdf4;font:700 .84rem Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;transition:all .18s ease}
+.mr-lib-back:hover{background:#dcfce7;border-color:#86efac}
+.mr-lib-title{color:#14532d;font-size:1rem;font-weight:900}
+.mr-lib-spacer{flex:1}
+.mr-lib-count{color:#64748b;font-size:.85rem;font-weight:700}
+@media(max-width:600px){.mr-lib-header{padding:9px 12px;gap:8px}.mr-lib-back{padding:8px 10px;font-size:.72rem}.mr-lib-title{font-size:.9rem}.mr-lib-count{font-size:.72rem}}
+`
 const topbar: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',

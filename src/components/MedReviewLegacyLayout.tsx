@@ -31,6 +31,8 @@ const legacyCss = `
 .mr-legacy-brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1;color:#14532d}
 .mr-legacy-brand-icon{width:42px;height:42px;flex:0 0 42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,#dcfce7,#bbf7d0);font-size:22px;box-shadow:inset 0 0 0 1px #a7f3d0}
 .mr-legacy-brand-title{font-size:.75rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;line-height:1.3}
+.mr-legacy-brand-short{display:none}
+@media(max-width:600px){.mr-legacy-brand-full{display:none}.mr-legacy-brand-short{display:inline}.mr-legacy-brand-sub{display:none}}
 .mr-legacy-brand-sub{display:block;margin-top:3px;color:#6b7280;font-size:.63rem;font-weight:700;letter-spacing:.1em}
 .mr-legacy-header-actions{display:flex;align-items:center;gap:8px}
 .mr-legacy-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;border:1px solid #bbf7d0;border-radius:11px;padding:9px 14px;color:#15803d;background:#f0fdf4;font:700 .84rem Inter,system-ui,sans-serif;text-decoration:none;cursor:pointer;white-space:nowrap;transition:all .18s ease}
