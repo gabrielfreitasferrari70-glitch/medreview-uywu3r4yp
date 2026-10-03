@@ -2563,7 +2563,7 @@ export default function Index() {
                       : 'GABARITO'}
                 </strong>
                 {card.__reverse ? card.q : studyMode === 'reverse' ? card.q : card.a}
-                {card.__reverse && card.diagram_svg && (
+                {card.__reverse && (card.diagram_svg || card.image) && (
                   <figure style={{ margin: '18px 0 0' }}>
                     {card.diagram_title && (
                       <figcaption style={{ color: '#64748b', fontSize: '.8rem', marginBottom: 5 }}>
@@ -2592,7 +2592,7 @@ export default function Index() {
                     />
                   </figure>
                 )}
-                {card.diagram_svg && !card.__reverse && (
+                {(card.diagram_svg || card.image) && !card.__reverse && (
                   <figure style={{ margin: '18px 0 0' }}>
                     {card.diagram_title && (
                       <figcaption style={{ color: '#64748b', fontSize: '.8rem', marginBottom: 5 }}>
