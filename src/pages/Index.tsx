@@ -71,6 +71,39 @@ function formatInterval(days: number): string {
   return `${(days / 365).toFixed(1)}a`
 }
 
+// ===== Cloze deletion ({{c1::texto}}) — formato padrão dos decks médicos =====
+const CLOZE_RE = /\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}/g
+function isCloze(text: string): boolean {
+  CLOZE_RE.lastIndex = 0
+  return CLOZE_RE.test(text || '')
+}
+function clozeCount(text: string): number {
+  const set = new Set<string>()
+  let m: RegExpExecArray | null
+  CLOZE_RE.lastIndex = 0
+  while ((m = CLOZE_RE.exec(text || ''))) set.add(m[1])
+  return set.size
+}
+// Renderiza o texto com as lacunas: antes de virar, oculta; depois, destaca.
+function renderClozeHtml(text: string, revealed: boolean): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  CLOZE_RE.lastIndex = 0
+  let out = ''
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = CLOZE_RE.exec(text || ''))) {
+    out += esc(text.slice(last, m.index))
+    if (revealed) {
+      out += `<span style="background:#d1fae5;color:#14532d;font-weight:800;border-radius:4px;padding:1px 5px">${esc(m[2])}</span>`
+    } else {
+      out += `<span style="background:#fef3c7;color:#b45309;font-weight:800;border-radius:4px;padding:1px 7px">[…c${m[1]}…]</span>`
+    }
+    last = m.index + m[0].length
+  }
+  out += esc(text.slice(last))
+  return out
+}
+
 type Quality = 'again' | 'hard' | 'good' | 'easy'
 interface CardState {
   s: number | null
@@ -958,6 +991,11 @@ export default function Index() {
     sessionTitle?: string
   }>({ view: 'home' })
   const [flipped, setFlipped] = useState(false)
+  const [studyMode, setStudyMode] = useState<'flip' | 'write' | 'reverse'>('flip')
+  const [typedAnswer, setTypedAnswer] = useState('')
+  const [writeFeedback, setWriteFeedback] = useState<null | { ok: boolean; similarity: number }>(
+    null,
+  )
   const [queue, setQueue] = useState<Card[]>([])
   const [qIdx, setQIdx] = useState(0)
   const [studySession, setStudySession] = useState({
@@ -1114,8 +1152,43 @@ export default function Index() {
     setQueue(sorted)
     setQIdx(0)
     setFlipped(false)
+    setTypedAnswer('')
+    setWriteFeedback(null)
     setStudySession({ startMs: Date.now(), again: 0, hard: 0, good: 0, easy: 0 })
     setRoute({ view: 'study', deckId, sessionTitle })
+  }
+
+  // Normaliza texto para comparação no modo escrita (sem acentos/pontuação/caixa)
+  const normalizeAnswer = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  const answerSimilarity = (typed: string, expected: string): number => {
+    const a = normalizeAnswer(typed)
+    const b = normalizeAnswer(expected)
+    if (!a || !b) return 0
+    if (a === b) return 1
+    const wa = new Set(a.split(' '))
+    const wb = new Set(b.split(' '))
+    let inter = 0
+    for (const w of wa) if (wb.has(w)) inter++
+    return (2 * inter) / (wa.size + wb.size)
+  }
+  const checkWritten = () => {
+    const card = queue[qIdx]
+    if (!card) return
+    const expected = studyMode === 'reverse' ? card.q : card.a
+    const sim = answerSimilarity(typedAnswer, expected)
+    setWriteFeedback({ ok: sim >= 0.7, similarity: sim })
+    setFlipped(true)
+  }
+  const skipWrite = () => {
+    setWriteFeedback(null)
+    setFlipped(true)
   }
 
   const openDeck = (deckId: string) => {
@@ -1417,6 +1490,28 @@ export default function Index() {
           </div>
         </header>
         <main className="mr-legacy-study-main">
+          <div className="mr-legacy-mode-row">
+            {(
+              [
+                ['flip', '🔄 Virar'],
+                ['write', '✍️ Escrever'],
+                ['reverse', '🔁 Invertido'],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                className={'mr-legacy-mode-btn' + (studyMode === mode ? ' active' : '')}
+                onClick={() => {
+                  setStudyMode(mode)
+                  setTypedAnswer('')
+                  setWriteFeedback(null)
+                  setFlipped(false)
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="mr-legacy-progress">
             <span>
               {cs.state === 'new'
@@ -1449,11 +1544,105 @@ export default function Index() {
             </span>
           </div>
           <article className="mr-legacy-study-card" onClick={() => setFlipped((f) => !f)}>
-            <span className="mr-legacy-badge">🩺 Cartão de revisão</span>
-            <h1 className="mr-legacy-question">{card.q}</h1>
-            {!flipped && <p className="mr-legacy-hint">Toque no cartão para revelar a resposta</p>}
+            <span className="mr-legacy-badge">
+              {isCloze(card.q)
+                ? `🧩 Cartão Cloze (${clozeCount(card.q)} lacuna${clozeCount(card.q) > 1 ? 's' : ''})`
+                : '🩺 Cartão de revisão'}
+            </span>
+            <h1
+              className="mr-legacy-question"
+              dangerouslySetInnerHTML={{
+                __html:
+                  studyMode === 'reverse' && !flipped
+                    ? renderClozeHtml(card.a, false)
+                    : renderClozeHtml(card.q, flipped),
+              }}
+            />
+            {!flipped && studyMode === 'write' && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}
+              >
+                <input
+                  value={typedAnswer}
+                  onChange={(e) => setTypedAnswer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') checkWritten()
+                  }}
+                  placeholder={
+                    studyMode === 'reverse'
+                      ? 'Digite a pergunta correspondente…'
+                      : 'Digite a resposta…'
+                  }
+                  autoFocus
+                  style={{
+                    flex: 1,
+                    minWidth: 220,
+                    boxSizing: 'border-box',
+                    padding: '0.7rem 0.9rem',
+                    borderRadius: 10,
+                    border: '1.5px solid #cbd5e1',
+                    font: 'inherit',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={checkWritten}
+                  style={{
+                    border: 'none',
+                    borderRadius: 10,
+                    padding: '0.7rem 1rem',
+                    background: '#16a34a',
+                    color: '#fff',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Conferir
+                </button>
+                <button
+                  onClick={skipWrite}
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 10,
+                    padding: '0.7rem 1rem',
+                    background: '#fff',
+                    color: '#475569',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Não sei
+                </button>
+              </div>
+            )}
+            {!flipped && studyMode !== 'write' && (
+              <p className="mr-legacy-hint">
+                {isCloze(card.q)
+                  ? 'Pense na lacuna e toque no cartão para conferir'
+                  : 'Toque no cartão para revelar a resposta'}
+              </p>
+            )}
             {flipped && (
               <div className="mr-legacy-answer">
+                {writeFeedback && (
+                  <div
+                    style={{
+                      marginBottom: 12,
+                      padding: '0.6rem 0.9rem',
+                      borderRadius: 10,
+                      background: writeFeedback.ok ? '#f0fdf4' : '#fef2f2',
+                      color: writeFeedback.ok ? '#166534' : '#991b1b',
+                      fontWeight: 700,
+                      fontSize: '.86rem',
+                    }}
+                  >
+                    {writeFeedback.ok ? '✅ Correto!' : '❌ Não exatamente —'}{' '}
+                    <span style={{ fontWeight: 600, opacity: 0.85 }}>
+                      semelhança {Math.round(writeFeedback.similarity * 100)}%
+                    </span>
+                  </div>
+                )}
                 <strong
                   style={{
                     display: 'block',
@@ -1463,9 +1652,9 @@ export default function Index() {
                     marginBottom: 8,
                   }}
                 >
-                  GABARITO
+                  {studyMode === 'reverse' ? 'PERGUNTA' : 'GABARITO'}
                 </strong>
-                {card.a}
+                {studyMode === 'reverse' ? card.q : card.a}
                 {card.diagram_svg && (
                   <figure style={{ margin: '18px 0 0' }}>
                     {card.diagram_title && (

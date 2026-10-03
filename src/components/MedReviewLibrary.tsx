@@ -6,6 +6,7 @@ import {
   deleteCard,
   deleteDeck,
   importCards,
+  importCardsAuto,
   moveCard,
   renameDeck,
   resetDeck,
@@ -36,6 +37,7 @@ type ModalState =
   | { type: 'rename'; deckId: string; title: string }
   | { type: 'card'; deckId: string; card?: Card }
   | { type: 'import'; deckId: string }
+  | { type: 'importAuto' }
   | { type: 'move'; card: Card }
   | { type: 'export' }
 
@@ -399,6 +401,36 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     }, `${parsed.length} cartões importados.`)
     if (done) setModal({ type: 'none' })
   }
+  const submitImportAuto = async () => {
+    if (modal.type !== 'importAuto') return
+    let parsed: (ParsedCsvCard & { folder?: string })[]
+    const trimmed = importText.trim()
+    try {
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        parsed = normalizeJsonCards(JSON.parse(trimmed))
+      } else {
+        const result = parseCardsFromCsv(trimmed)
+        if (result.error) return setError(result.error)
+        parsed = result.cards
+      }
+    } catch (e: any) {
+      return setError(e?.message || 'O arquivo JSON/CSV não pôde ser interpretado.')
+    }
+    if (!parsed.length) return setError('Nenhum cartão válido encontrado.')
+    const withFolder = parsed.filter((c) => c.folder?.trim())
+    if (!withFolder.length)
+      return setError(
+        'Nenhum cartão tem a coluna "pasta". Use o import por pasta, ou adicione a coluna pasta no arquivo.',
+      )
+    const done = await run(
+      async () => {
+        for (let i = 0; i < parsed.length; i += 250) await importCardsAuto(parsed.slice(i, i + 250))
+        setImportText('')
+      },
+      `${parsed.length} cartões importados${parsed.length - withFolder.length ? ` (${withFolder.length} criaram/foram para pastas)` : ''}.`,
+    )
+    if (done) setModal({ type: 'none' })
+  }
   const readFile = async (file?: File) => {
     if (!file) return
     try {
@@ -483,6 +515,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         </button>
         <strong className="mr-lib-title">📚 Biblioteca</strong>
         <span className="mr-lib-spacer" />
+        <button className="mr-lib-mini" onClick={() => setModal({ type: 'importAuto' })}>
+          📥 Importar
+        </button>
         <button className="mr-lib-mini" onClick={() => setModal({ type: 'export' })}>
           💾 Exportar backup
         </button>
@@ -736,6 +771,39 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitMove}>
                 {busy ? 'Movendo…' : 'Mover'}
+              </button>
+              <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
+                Cancelar
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {modal.type === 'importAuto' && (
+          <Modal
+            title="📥 Importar com pastas automáticas"
+            subtitle="CSV com colunas frente,verso,pasta (ou JSON com pergunta,resposta,categoria,pasta). As pastas da coluna pasta são criadas automaticamente se não existirem."
+            onClose={() => setModal({ type: 'none' })}
+          >
+            <input
+              type="file"
+              accept=".csv,.json,.txt"
+              style={{ ...fieldStyle, padding: '0.5rem' }}
+              onChange={(e) => readFile(e.target.files?.[0])}
+            />
+            <label className="mr-lib-label">Ou cole o conteúdo aqui</label>
+            <textarea
+              style={{ ...fieldStyle, minHeight: 120, fontFamily: 'monospace', fontSize: '.8rem' }}
+              value={importText}
+              placeholder={`frente,verso,grupo,pasta
+"O que é X?","É Y","Objetivo 1","Cardio"
+
+ou {"flashcards":[{"pergunta":"...","resposta":"...","categoria":"...","pasta":"Cardio"}]}`}
+              onChange={(e) => setImportText(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button style={actionStyle} disabled={busy} onClick={submitImportAuto}>
+                {busy ? 'Importando…' : 'Importar'}
               </button>
               <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
                 Cancelar

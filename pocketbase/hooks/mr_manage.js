@@ -100,6 +100,72 @@ routerAdd(
         return e.json(200, { ok: true, deletedDecks })
       }
 
+      if (action === 'card_import_auto') {
+        // Importação com pastas automáticas: cada item pode trazer folder_title;
+        // pastas inexistentes são criadas sob o deck pai informado (ou raiz custom).
+        const parentDeck = body.parent_deck_id ? ownDeck(body.parent_deck_id) : null
+        const inputCards = Array.isArray(body.cards) ? body.cards : []
+        if (!inputCards.length || inputCards.length > 250)
+          return e.badRequestError('Envie entre 1 e 250 cartões por lote.')
+        const allDecks = $app.findRecordsByFilter(
+          'mr_decks',
+          'user_id = {:user}',
+          'order',
+          500,
+          0,
+          { user: userId },
+        )
+        const byTitle = {}
+        for (const d of allDecks) {
+          if (!d.getBool('deleted')) byTitle[d.getString('title').toLowerCase()] = d
+        }
+        const createdDecks = {}
+        const getOrCreateDeck = (title) => {
+          const key = String(title).trim().toLowerCase()
+          if (!key) return parentDeck || null
+          if (byTitle[key]) return byTitle[key]
+          const col = $app.findCollectionByNameOrId('mr_decks')
+          const deck = new Record(col)
+          deck.set('user_id', userId)
+          deck.set('title', String(title).trim().slice(0, 200))
+          deck.set('kind', parentDeck ? parentDeck.getString('kind') : 'custom')
+          deck.set('order', allDecks.length + Object.keys(createdDecks).length + 1)
+          if (parentDeck) deck.set('parent', parentDeck.id)
+          $app.save(deck)
+          byTitle[key] = deck
+          createdDecks[deck.id] = true
+          return deck
+        }
+        const createdIds = []
+        for (let i = 0; i < inputCards.length; i++) {
+          const item = inputCards[i] || {}
+          const q = String(item.q == null ? '' : item.q).trim()
+          const a = String(item.a == null ? '' : item.a).trim()
+          if (!q || !a) return e.badRequestError('Cada cartão precisa ter frente e verso.')
+          if (q.length > 5000 || a.length > 20000)
+            return e.badRequestError('Frente ou verso excede o limite de caracteres.')
+          const deck = getOrCreateDeck(item.folder_title || '')
+          if (!deck) return e.badRequestError('Informe a pasta de destino ou a coluna pasta.')
+          const col = $app.findCollectionByNameOrId('mr_cards')
+          const card = new Record(col)
+          card.set('user_id', userId)
+          card.set('deck', deck.id)
+          card.set('q', q)
+          card.set('a', a)
+          card.set('group', cleanText(item.group, 200))
+          card.set('ref', cleanText(item.ref, 500))
+          card.set('suspended', false)
+          card.set('deleted', false)
+          $app.save(card)
+          createdIds.push(card.id)
+        }
+        return e.json(201, {
+          created: createdIds.length,
+          ids: createdIds,
+          createdDecks: Object.keys(createdDecks).length,
+        })
+      }
+
       if (action === 'card_create' || action === 'card_import') {
         const deck = ownDeck(body.deck_id)
         const inputCards = action === 'card_import' ? body.cards : [body.card || body]

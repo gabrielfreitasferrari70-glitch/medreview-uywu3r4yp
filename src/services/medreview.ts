@@ -83,3 +83,18 @@ export const importCards = (deckId: string, cards: ParsedCsvCard[]) =>
       ref: card.ref || '',
     })),
   })
+
+export const importCardsAuto = (
+  cards: (ParsedCsvCard & { folder?: string })[],
+  parentDeckId?: string,
+) =>
+  manageLibrary('card_import_auto', {
+    parent_deck_id: parentDeckId || '',
+    cards: cards.map((card) => ({
+      q: card.q,
+      a: card.a,
+      group: card.group || '',
+      ref: card.ref || '',
+      folder_title: card.folder || '',
+    })),
+  })
