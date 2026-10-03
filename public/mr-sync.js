@@ -184,7 +184,7 @@
         if (localData && localTouched > lastSync && localTouched > remoteUpdated) {
           log('local mais novo — push')
           pushNow(true)
-        } else if (remoteData && remoteData.state) {
+        } else if (remoteData && remoteData.state && remoteUpdated > lastSync) {
           log('remoto mais novo — aplicando estado do banco')
           try {
             localStorage.setItem('medreview_store_v1', JSON.stringify(remoteData.state))
@@ -198,9 +198,16 @@
             if (remoteData.retention)
               localStorage.setItem('medreview_fsrs_retention', String(remoteData.retention))
             localStorage.setItem(LAST_SYNC_KEY, String(Date.now()))
-            // Recarrega para o app reler o estado do localStorage
-            if (window.__mrSyncApplied) return
-            window.__mrSyncApplied = true
+            // Recarrega para o app reler o estado do localStorage (guard anti-loop)
+            var lastApply = 0
+            try {
+              lastApply = parseInt(sessionStorage.getItem('medreview_sync_applied_at') || '0', 10)
+              if (lastApply && Date.now() - lastApply < 15000) {
+                log('guard anti-loop: recarga recente, pulando')
+                return
+              }
+              sessionStorage.setItem('medreview_sync_applied_at', String(Date.now()))
+            } catch (e2) {}
             location.reload()
           } catch (e) {
             log('erro ao aplicar estado remoto', e)
