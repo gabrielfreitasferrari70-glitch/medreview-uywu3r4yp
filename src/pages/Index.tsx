@@ -91,6 +91,10 @@ if (typeof window !== 'undefined') {
 }
 
 // MedReview — loader FSRS-5
+// URL do backend Skip Cloud (PocketBase) para persistência real dos dados
+;(window as unknown as { __MR_PB_URL__?: string }).__MR_PB_URL__ =
+  import.meta.env.VITE_POCKETBASE_URL || ''
+
 const SNAPSHOT_URL =
   'https://skip-artifacts-snapshots.application.production.adapta.tools/user_3HTICEnYMM5WBBANnC92pS98buX/yisoxzvbrn3bl5lzd6jer67vtu/revisions/8307c45a-9eba-47b5-9ecf-ffa97e8a04a9/index.html'
 
