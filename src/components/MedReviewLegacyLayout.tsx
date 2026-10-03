@@ -209,10 +209,13 @@ export function MedReviewLegacyHome(props: HomeProps) {
   } = props
   // Quando um deck específico é aberto (pasta organizadora), mostra só a subárvore dele;
   // senão, a seção inteira (Tutoria/Prova/Minhas Pastas).
+  // HIERARQUIA DE VERDADE: a view da seção mostra só as pastas de nível inicial
+  // (sem parent). O que está DENTRO de uma pasta aparece abrindo a pasta —
+  // nunca achatado junto, senão parece que a seção "dissolveu".
   const folderDecks = openDeckId
     ? decks.filter((d) => d.parent === openDeckId && !d.deleted)
     : folderKind
-      ? decks.filter((d) => d.kind === folderKind)
+      ? decks.filter((d) => d.kind === folderKind && !d.parent && !d.deleted)
       : []
   const openDeck = openDeckId ? decks.find((d) => d.id === openDeckId) : null
   const title = openDeck
