@@ -1,23 +1,24 @@
 // MedReview v2 — seed de decks + cartas: replica o conteúdo original (186 cartas)
-// para cada usuário novo, copiando do snapshot medreview_state do usuário de referência
-// (mr-4l7na8wd9ivmurr22pr@medreview.local — dados já validados no banco).
+// para cada usuário novo, copiando do snapshot medreview_state do usuário de referência.
 onRecordAfterCreateSuccess((e) => {
   const user = e.record
   if (user.collection().name !== 'users') return e.next()
   try {
-    const existing = $app.findRecordsByFilter('mr_decks', 'user_id = {:uid}', '', 1, 0, {
-      uid: user.id,
-    })
-    if (existing && existing.length > 0) return e.next()
+    // Idempotência via API documentada: se já existe deck do usuário, não faz nada
+    try {
+      $app.findFirstRecordByData('mr_decks', 'user_id', user.id)
+      return e.next()
+    } catch (_) {
+      // nenhum deck — prossegue com o seed
+    }
 
-    // Usuário de referência com o estado completo (186 cartas) no medreview_state
     const refUser = $app.findAuthRecordByEmail('users', 'mr-4l7na8wd9ivmurr22pr@medreview.local')
     const refStates = $app.findRecordsByFilter(
       'medreview_state',
       'user_id = {:uid}',
       '-updated',
       1,
-      1,
+      0,
       { uid: refUser.id },
     )
     if (!refStates || refStates.length === 0) {
@@ -53,7 +54,6 @@ onRecordAfterCreateSuccess((e) => {
 
     let order = 1
     const tuts = src.tutorias_numbered || {}
-    // Ordena tutorias pelo número no título
     const tutKeys = Object.keys(tuts).sort((a, b) => {
       const na = parseInt((String((tuts[a] && tuts[a].title) || '').match(/\d+/) || ['999'])[0], 10)
       const nb = parseInt((String((tuts[b] && tuts[b].title) || '').match(/\d+/) || ['999'])[0], 10)
