@@ -2574,7 +2574,7 @@ export default function Index() {
                       src={
                         card.image
                           ? pb.files.getURL(
-                              { collectionId: 'pbc_709748442', id: card.id },
+                              { collectionId: 'pbc_709748442', id: card.id.replace(/::rev$/, '') },
                               card.image,
                             )
                           : /^https?:\/\//i.test(card.diagram_svg)
@@ -2592,7 +2592,7 @@ export default function Index() {
                     />
                   </figure>
                 )}
-                {card.diagram_svg && (
+                {card.diagram_svg && !card.__reverse && (
                   <figure style={{ margin: '18px 0 0' }}>
                     {card.diagram_title && (
                       <figcaption style={{ color: '#64748b', fontSize: '.8rem', marginBottom: 5 }}>
@@ -2649,7 +2649,11 @@ export default function Index() {
           )}
           {msg && <div style={toast}>{msg}</div>}
           {cardStatsOpen && (
-            <CardStatsModal card={card} reviews={reviews} onClose={() => setCardStatsOpen(false)} />
+            <CardStatsModal
+              card={{ ...card, id: card.id.replace(/::rev$/, '') }}
+              reviews={reviews}
+              onClose={() => setCardStatsOpen(false)}
+            />
           )}
         </main>
       </div>

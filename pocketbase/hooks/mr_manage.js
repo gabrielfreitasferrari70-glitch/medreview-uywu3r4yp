@@ -1,4 +1,5 @@
 // Operações de gestão MedReview; todas verificam ownership dentro do backend.
+// v0.0.242: choices/reverse (múltipla escolha e reversas) — requer migration 0005.
 routerAdd(
   'POST',
   '/backend/v1/mr/manage',
