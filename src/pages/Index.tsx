@@ -498,7 +498,7 @@ export default function Index() {
     return cs.state !== 'new' && (cs.dueMs || 0) <= Date.now()
   }).length
   const newCount = cards.filter((c) => cardStates.get(c.id)!.state === 'new').length
-  const reviewTodayCount = dueCount + newCount
+  const reviewTodayCount = dueCount
   const masteredCount = cards.filter((c) => (cardStates.get(c.id)!.s || 0) >= 21).length
   const masteredPercent = totalCards ? Math.round((masteredCount * 100) / totalCards) : 0
   const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
