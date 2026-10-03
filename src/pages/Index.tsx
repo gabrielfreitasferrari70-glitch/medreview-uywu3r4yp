@@ -2089,9 +2089,9 @@ export default function Index() {
     }
     startStudy(clinicalCards, undefined, 'Modo Caso Clínico')
   }
-  const openNewFolder = () => {
+  const openNewFolder = (kind: 'tutoria' | 'prova' | 'custom' = 'custom') => {
     setDeckTitle('')
-    setDeckKind('custom')
+    setDeckKind(kind)
     setDeckModal({ type: 'folder', deckId: '' })
   }
 
@@ -2756,6 +2756,7 @@ export default function Index() {
         'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
       count: cards.filter((c) => tutorias.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('tutoria'),
+      deckId: tutorias.find((d) => !d.parent)?.id,
     },
     {
       icon: '📝',
@@ -2764,6 +2765,7 @@ export default function Index() {
       description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
       count: cards.filter((c) => provas.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('prova'),
+      deckId: provas.find((d) => !d.parent)?.id,
     },
     {
       icon: '📁',
@@ -2772,6 +2774,7 @@ export default function Index() {
       description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
       count: cards.filter((c) => customs.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('custom'),
+      deckId: customs.find((d) => !d.parent)?.id,
     },
     {
       icon: '📚',
@@ -2804,7 +2807,7 @@ export default function Index() {
           setQuizKind('all')
           setQuizOpen(true)
         }}
-        onNewFolder={openNewFolder}
+        onNewFolderIn={openNewFolder}
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
         onSettings={() => setSettingsOpen(true)}

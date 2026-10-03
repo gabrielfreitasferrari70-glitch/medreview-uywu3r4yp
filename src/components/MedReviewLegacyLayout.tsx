@@ -131,6 +131,7 @@ type CategoryItem = {
   description: string
   count: number
   onClick: () => void
+  deckId?: string
 }
 type HomeProps = {
   userEmail?: string
@@ -162,6 +163,7 @@ type HomeProps = {
   onDeckMove?: (deckId: string) => void
   onDeckClick: (deckId: string) => void
   userDecks: LegacyDeck[]
+  onNewFolderIn: (kind: 'tutoria' | 'prova' | 'custom') => void
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -195,6 +197,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckMove,
     onDeckClick,
     userDecks,
+    onNewFolderIn,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
   const title =
@@ -226,7 +229,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
             <button className="mr-legacy-button" onClick={onClinical}>
               📋 Modo Caso Clínico
             </button>
-            <button className="mr-legacy-button primary" onClick={onNewFolder}>
+            <button className="mr-legacy-button primary" onClick={() => onNewFolderIn('custom')}>
               ＋ Nova Pasta
             </button>
             <button
@@ -270,7 +273,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 </h1>
                 <p>{description}</p>
               </div>
-              <button className="mr-legacy-button" onClick={onNewFolder}>
+              <button className="mr-legacy-button" onClick={() => onNewFolderIn(folderKind)}>
                 ＋ Nova Pasta
               </button>
             </div>
@@ -424,7 +427,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 <button className="mr-legacy-button" onClick={onClinical}>
                   📋 Modo Caso Clínico
                 </button>
-                <button className="mr-legacy-button" onClick={onNewFolder}>
+                <button className="mr-legacy-button" onClick={() => onNewFolderIn('custom')}>
                   ＋ Nova pasta
                 </button>
               </div>
@@ -437,17 +440,21 @@ export function MedReviewLegacyHome(props: HomeProps) {
                     Navegue pelas disciplinas, casos clínicos e bancos de revisão
                   </p>
                 </div>
-                <button className="mr-legacy-button" onClick={onNewFolder}>
+                <button className="mr-legacy-button" onClick={() => onNewFolderIn('custom')}>
                   ＋ Nova Pasta
                 </button>
               </header>
               <div className="mr-legacy-category-grid">
                 {categories.map((item) => (
-                  <button
-                    type="button"
+                  <div
                     key={item.title}
                     className="mr-legacy-category"
+                    role="button"
+                    tabIndex={0}
                     onClick={item.onClick}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') item.onClick()
+                    }}
                   >
                     <div className="mr-legacy-category-top">
                       <span className="mr-legacy-category-icon">{item.icon}</span>
@@ -459,7 +466,21 @@ export function MedReviewLegacyHome(props: HomeProps) {
                       <span>{item.count} cartas</span>
                       <span className="mr-legacy-arrow">→</span>
                     </div>
-                  </button>
+                    {item.deckId && (
+                      <span
+                        className="mr-legacy-subdeck-actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          title="Criar carta nesta pasta"
+                          onClick={() => onDeckAddCard?.(item.deckId)}
+                        >
+                          ＋ Carta
+                        </button>
+                      </span>
+                    )}
+                  </div>
                 ))}
                 {userDecks.map((deck) => {
                   const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
