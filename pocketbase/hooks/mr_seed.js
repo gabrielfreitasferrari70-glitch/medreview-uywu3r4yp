@@ -8,7 +8,7 @@ routerAdd('GET', '/backend/mr-seed', (e) => {
       'medreview_state',
       'user_id = {:uid}',
       '-updated',
-      0,
+      1,
       50,
       { uid: refUser.id },
     )
