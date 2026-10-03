@@ -289,13 +289,11 @@ routerAdd(
       }
 
       if (action === 'deck_move') {
-        // Mover pasta (e toda a subárvore) para dentro de outra pasta.
+        // Mover pasta (e toda a subárvore) para dentro de outra pasta OU para o
+        // nível inicial da própria seção (parent_id vazio).
         // Proteções: destino tem que ser próprio, não pode ser a própria pasta
         // nem nenhum descendente dela (evita ciclo na árvore).
         const moving = ownDeck(body.deck_id)
-        const target = ownDeck(body.parent_id)
-        if (moving.id === target.id)
-          return e.badRequestError('A pasta não pode ir para dentro dela mesma.')
         const allDecks = $app.findRecordsByFilter(
           'mr_decks',
           'user_id = {:user}',
@@ -317,18 +315,41 @@ routerAdd(
             }
           }
         }
-        if (subtree[target.id])
-          return e.badRequestError(
-            'Destino inválido: a pasta destino está dentro da pasta que está sendo movida.',
-          )
-        moving.set('parent', target.id)
-        moving.set('kind', target.getString('kind'))
+        let newKind = moving.getString('kind')
+        let newParent = ''
+        if (body.parent_id) {
+          const target = ownDeck(body.parent_id)
+          if (moving.id === target.id)
+            return e.badRequestError('A pasta não pode ir para dentro dela mesma.')
+          if (subtree[target.id])
+            return e.badRequestError(
+              'Destino inválido: a pasta destino está dentro da pasta que está sendo movida.',
+            )
+          newParent = target.id
+          newKind = target.getString('kind')
+        } else if (['tutoria', 'prova', 'custom'].includes(body.kind)) {
+          newKind = body.kind
+        }
+        moving.set('parent', newParent)
+        moving.set('kind', newKind)
         moving.set('order', allDecks.length + 1)
         $app.save(moving)
+        // A subárvore inteira acompanha a seção (kind) da pasta movida.
+        let movedKinds = 0
+        for (let i = 0; i < allDecks.length; i++) {
+          const id = allDecks[i].id
+          if (id === moving.id || !subtree[id]) continue
+          if (allDecks[i].getString('kind') !== newKind) {
+            allDecks[i].set('kind', newKind)
+            $app.save(allDecks[i])
+            movedKinds++
+          }
+        }
         return e.json(200, {
           id: moving.id,
-          parent: target.id,
+          parent: newParent,
           kind: moving.getString('kind'),
+          movedKinds,
         })
       }
 

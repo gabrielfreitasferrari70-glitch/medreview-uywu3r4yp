@@ -2090,6 +2090,11 @@ export default function Index() {
     setDeckKind('custom')
     setDeckModal({ type: 'folder', deckId: '' })
   }
+  const openNewFolderIn = (kind: 'tutoria' | 'prova' | 'custom') => {
+    setDeckTitle('')
+    setDeckKind(kind)
+    setDeckModal({ type: 'folder', deckId: '' })
+  }
   const openDeckCardModal = (deckId: string) => {
     setDeckQ('')
     setDeckA('')
@@ -2799,6 +2804,7 @@ export default function Index() {
         onDeckDelete={confirmDeckDelete}
         onDeckReset={confirmDeckReset}
         onDeckMove={openDeckMoveModal}
+        onNewFolderIn={openNewFolderIn}
       />
       {settingsOpen && (
         <SettingsModal

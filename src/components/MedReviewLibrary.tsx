@@ -94,6 +94,7 @@ const libCss = `
 .mr-lib-section-head p{margin:3px 0 0;color:#6b7280;font-size:.8rem}
 .mr-lib-deck{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
 .mr-lib-deck.is-dragging{opacity:.4}
+.mr-lib-section-over{outline:2px dashed #16a34a;outline-offset:-2px;background:#f0fdf4;border-radius:12px}
 .mr-lib-deck.drag-valid{outline:2px dashed #16a34a;outline-offset:-2px;background:#f0fdf4}
 .mr-lib-deck:last-child{border-bottom:0}
 .mr-lib-deck.is-child{padding-left:44px;background:#fafcfa}
@@ -328,16 +329,28 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   const [moveDeckTarget, setMoveDeckTarget] = useState('')
   const submitMoveDeck = async () => {
     if (modal.type !== 'moveDeck') return
-    if (!moveDeckTarget) return setError('Escolha a pasta de destino.')
-    const done = await run(async () => {
-      await moveDeck(modal.deckId, moveDeckTarget)
-      setExpanded((e) => ({ ...e, [moveDeckTarget]: true }))
-    }, 'Pasta movida.')
+    const deck = decks.find((d) => d.id === modal.deckId)
+    const goingRoot = moveDeckTarget === '@root'
+    if (!moveDeckTarget) return setError('Escolha a pasta de destino ou o nível inicial.')
+    if (goingRoot && deck && deck.kind === 'tutoria' && !deck.parent)
+      return setError('Essa pasta já está no nível inicial.')
+    const done = await run(
+      async () => {
+        await moveDeck(
+          modal.deckId,
+          goingRoot ? '' : moveDeckTarget,
+          goingRoot ? deck?.kind : undefined,
+        )
+        if (!goingRoot && moveDeckTarget) setExpanded((e) => ({ ...e, [moveDeckTarget]: true }))
+      },
+      goingRoot ? 'Pasta movida para o nível inicial.' : 'Pasta movida.',
+    )
     if (done) {
       setMoveDeckTarget('')
       setModal({ type: 'none' })
     }
   }
+  const [moveToRootKind, setMoveToRootKind] = useState('')
   // Arrastar e soltar de pastas: dragstart marca a pasta; dragover valida
   // destino (não pode ser a própria nem descendente); drop chama deck_move.
   const [dragDeckId, setDragDeckId] = useState('')
@@ -361,6 +374,23 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
       await moveDeck(from, targetId)
       setExpanded((e) => ({ ...e, [targetId]: true }))
     }, `"${deck.title}" movida para "${target.title}".`)
+  }
+  // Soltar na própria seção = voltar para o nível inicial (raiz da seção).
+  const submitDragToRoot = async (kind: 'tutoria' | 'prova' | 'custom') => {
+    const from = dragDeckId
+    setDragDeckId('')
+    const deck = decks.find((d) => d.id === from)
+    if (!deck) return
+    if (deck.kind === kind && !deck.parent) return
+    if (
+      !window.confirm(
+        `Mover "${deck.title}" para o nível inicial de ${kind === 'prova' ? 'Prova de Módulo' : kind === 'custom' ? 'Minhas Pastas' : 'Tutoria'}?`,
+      )
+    )
+      return
+    await run(async () => {
+      await moveDeck(from, '', kind)
+    }, `"${deck.title}" movida para o nível inicial.`)
   }
   const submitMove = async () => {
     if (modal.type !== 'move') return
@@ -724,7 +754,20 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         {sections.map((section) => {
           const roots = rootDecksOf(section.kind)
           return (
-            <section key={section.key} className="mr-lib-section">
+            <section
+              key={section.key}
+              className="mr-lib-section"
+              onDragOver={(e) => {
+                if (!dragDeckId || dragOverOk(section.key)) return
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+              }}
+              className={dragDeckId && dragOverOk(section.key) ? 'mr-lib-section-over' : ''}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragDeckId && dragOverOk(section.key)) submitDragToRoot(section.key)
+              }}
+            >
               <div className="mr-lib-section-head">
                 <div>
                   <h2>
@@ -827,9 +870,21 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             <select
               style={fieldStyle}
               value={moveDeckTarget}
-              onChange={(e) => setMoveDeckTarget(e.target.value)}
+              onChange={(e) => {
+                setMoveDeckTarget(e.target.value)
+                if (e.target.value) setMoveToRootKind('')
+              }}
             >
               <option value="">Escolher…</option>
+              <option value="@root">
+                ⬆ Nível inicial da própria seção ({' '}
+                {decks.find((d) => d.id === modal.deckId)?.kind === 'prova'
+                  ? 'Prova de Módulo'
+                  : decks.find((d) => d.id === modal.deckId)?.kind === 'custom'
+                    ? 'Minhas Pastas'
+                    : 'Tutoria'}
+                )
+              </option>
               {allDecksSorted
                 .filter((d) => d.id !== modal.deckId)
                 .map((d) => (

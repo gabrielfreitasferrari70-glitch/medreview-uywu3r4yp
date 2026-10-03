@@ -81,6 +81,8 @@ const legacyCss = `
 .mr-legacy-subdeck-actions button:hover{background:#f0fdf4;border-color:#86efac}
 .mr-legacy-subdeck-actions button.danger{color:#b91c1c;border-color:#fecaca}
 .mr-legacy-subdeck-actions button.danger:hover{background:#fef2f2}
+.mr-legacy-newfolder-card{justify-content:center;align-items:center;text-align:center;border-style:dashed;border-color:#86efac;color:#15803d;background:rgba(240,253,244,.6)}
+.mr-legacy-newfolder-card:hover{border-color:#16a34a;background:#f0fdf4}
 @media(max-width:720px){.mr-legacy-subdecks{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-legacy-subdeck-actions button{padding:6px 8px}}
 @media(max-width:480px){.mr-legacy-subdecks{grid-template-columns:1fr}}
 .mr-legacy-pill{padding:5px 9px;border-radius:999px;background:#f0fdf4;color:#15803d;font-size:.73rem;font-weight:800}
@@ -157,6 +159,7 @@ type HomeProps = {
   onDeckDelete?: (deckId: string) => void
   onDeckReset?: (deckId: string) => void
   onDeckMove?: (deckId: string) => void
+  onNewFolderIn?: (kind: 'tutoria' | 'prova' | 'custom') => void
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -188,6 +191,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckDelete,
     onDeckReset,
     onDeckMove,
+    onNewFolderIn,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
   const title =
@@ -456,6 +460,100 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 ))}
               </div>
             </section>
+            {onNewFolderIn && (
+              <section style={{ marginTop: 26 }}>
+                <header className="mr-legacy-section-head">
+                  <div>
+                    <h2 className="mr-legacy-section-title">📁 Minhas pastas</h2>
+                    <p className="mr-legacy-section-sub">
+                      Pastas que você criou — crie, mova e organize tudo por aqui
+                    </p>
+                  </div>
+                  <button className="mr-legacy-button" onClick={() => onNewFolderIn('custom')}>
+                    ＋ Nova Pasta
+                  </button>
+                </header>
+                <div className="mr-legacy-subdecks">
+                  {decks
+                    .filter((d) => d.kind === 'custom' && !d.parent)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .map((deck) => {
+                      const dc = cards.filter((c) => c.deck === deck.id && !c.deleted)
+                      return (
+                        <div
+                          key={deck.id}
+                          className="mr-legacy-subdeck"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => onOpenDeck(deck.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') onOpenDeck(deck.id)
+                          }}
+                        >
+                          <span className="mr-legacy-category-top" style={{ width: '100%' }}>
+                            <span className="mr-legacy-category-icon">📁</span>
+                            <span className="mr-legacy-tag">Pasta livre</span>
+                          </span>
+                          <h3>{deck.title}</h3>
+                          <span className="mr-legacy-subdeck-meta">
+                            <span className="mr-legacy-pill">📚 {dc.length} cartas</span>
+                          </span>
+                          <span
+                            className="mr-legacy-subdeck-actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              title="Criar carta nesta pasta"
+                              onClick={() => onDeckAddCard?.(deck.id)}
+                            >
+                              ＋ Carta
+                            </button>
+                            <button
+                              type="button"
+                              title="Criar subpasta"
+                              onClick={() => onDeckAddSubfolder?.(deck.id)}
+                            >
+                              🗂 Subpasta
+                            </button>
+                            <button
+                              type="button"
+                              title="Mover para dentro de outra pasta"
+                              onClick={() => onDeckMove?.(deck.id)}
+                            >
+                              ➡️
+                            </button>
+                            <button
+                              type="button"
+                              title="Renomear"
+                              onClick={() => onDeckRename?.(deck.id)}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              className="danger"
+                              title="Excluir pasta"
+                              onClick={() => onDeckDelete?.(deck.id)}
+                            >
+                              🗑️
+                            </button>
+                          </span>
+                        </div>
+                      )
+                    })}
+                  <button
+                    type="button"
+                    className="mr-legacy-subdeck mr-legacy-newfolder-card"
+                    onClick={() => onNewFolderIn('custom')}
+                  >
+                    <span style={{ fontSize: '2rem', lineHeight: 1 }}>＋</span>
+                    <h3 style={{ margin: '10px 0 0' }}>Nova pasta</h3>
+                    <p className="mr-legacy-section-sub">Criar agora, aqui na frente</p>
+                  </button>
+                </div>
+              </section>
+            )}
           </>
         )}
       </main>
