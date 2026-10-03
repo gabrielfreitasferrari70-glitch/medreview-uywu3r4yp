@@ -137,12 +137,31 @@ function normalizeJsonCards(input: unknown): ParsedCsvCard[] {
   if (!Array.isArray(rows))
     throw new Error('JSON deve conter uma lista em flashcards, cards ou cartoes.')
   return rows
-    .map((row: any) => ({
-      q: String(row.q ?? row.question ?? row.pergunta ?? row.front ?? row.frente ?? '').trim(),
-      a: String(row.a ?? row.answer ?? row.resposta ?? row.back ?? row.verso ?? '').trim(),
-      group: String(row.group ?? row.grupo ?? row.category ?? row.categoria ?? '').trim(),
-      ref: String(row.ref ?? row.referencia ?? row.source ?? row.fonte ?? '').trim(),
-    }))
+    .map((row: any) => {
+      const clinicoRaw = String(
+        row.clinical ?? row.clinico ?? row['modo_clinico'] ?? row.modoClinico ?? '',
+      )
+        .trim()
+        .toLowerCase()
+      const q = String(
+        row.q ?? row.question ?? row.pergunta ?? row.front ?? row.frente ?? '',
+      ).trim()
+      const clinicalFlag =
+        clinicoRaw === ''
+          ? /caso cl[ií]nico/i.test(q)
+          : clinicoRaw !== '0' &&
+            clinicoRaw !== 'nao' &&
+            clinicoRaw !== 'não' &&
+            clinicoRaw !== 'false' &&
+            clinicoRaw !== 'normal'
+      return {
+        q,
+        a: String(row.a ?? row.answer ?? row.resposta ?? row.back ?? row.verso ?? '').trim(),
+        group: String(row.group ?? row.grupo ?? row.category ?? row.categoria ?? '').trim(),
+        ref: String(row.ref ?? row.referencia ?? row.source ?? row.fonte ?? '').trim(),
+        clinical: clinicalFlag,
+      }
+    })
     .filter((row: ParsedCsvCard) => row.q && row.a)
 }
 
@@ -184,6 +203,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   const [cardFile, setCardFile] = useState<File | null>(null)
   const [cardChoices, setCardChoices] = useState('')
   const [cardReverse, setCardReverse] = useState(false)
+  const [cardClinical, setCardClinical] = useState(false)
   const [importText, setImportText] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -318,6 +338,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
       : []
     setCardChoices(existingChoices.join('\n'))
     setCardReverse(!!card?.reverse)
+    setCardClinical(!!card?.clinical)
     setModal({ type: 'card', deckId, card })
   }
   const openMoveModal = (card: Card) => setModal({ type: 'move', card })
@@ -446,6 +467,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             .map((s) => s.trim())
             .filter(Boolean),
           reverse: cardReverse,
+          clinical: cardClinical,
         }
         let createdIds: string[] = []
         if (modal.card) {
@@ -979,6 +1001,25 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
                 style={{ accentColor: '#16a34a', width: 16, height: 16 }}
               />
               Gerar carta reversa (também pergunta o verso → frente)
+            </label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                margin: '10px 0 4px',
+                font: '700 .8rem Inter, system-ui, sans-serif',
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={cardClinical}
+                onChange={(e) => setCardClinical(e.target.checked)}
+                style={{ accentColor: '#16a34a', width: 16, height: 16 }}
+              />
+              🩺 Carta de Modo Clínico (também entra no treino do Modo Caso Clínico)
             </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitCard}>

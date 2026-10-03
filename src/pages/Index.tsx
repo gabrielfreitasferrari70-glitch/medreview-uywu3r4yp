@@ -187,6 +187,7 @@ interface Card {
   image?: string
   choices?: string[] | null
   reverse?: boolean
+  clinical?: boolean
   __reverse?: boolean
 }
 interface Review {
@@ -1776,6 +1777,7 @@ export default function Index() {
   const [deckMoveTarget, setDeckMoveTarget] = useState('')
   const [deckQ, setDeckQ] = useState('')
   const [deckA, setDeckA] = useState('')
+  const [deckClinical, setDeckClinical] = useState(false)
   const [deckTitle, setDeckTitle] = useState('')
   const [deckKind, setDeckKind] = useState<'tutoria' | 'prova' | 'custom'>('custom')
   const [deckMode, setDeckMode] = useState<'study' | 'organizer'>('study')
@@ -2089,7 +2091,9 @@ export default function Index() {
     )
   }
   const startClinicalMode = () => {
-    const clinicalCards = cards.filter((c) => /caso clínico|caso clinico/i.test(c.q))
+    const clinicalCards = cards.filter(
+      (c) => !c.suspended && !c.deleted && (c.clinical || /caso clínico|caso clinico/i.test(c.q)),
+    )
     if (!clinicalCards.length) {
       setMsg('Ainda não há cartões de caso clínico nesta biblioteca.')
       window.setTimeout(() => setMsg(''), 3500)
@@ -2140,6 +2144,7 @@ export default function Index() {
   const openDeckCardModal = (deckId: string) => {
     setDeckQ('')
     setDeckA('')
+    setDeckClinical(false)
     setDeckModal({ type: 'card', deckId })
   }
   const openDeckSubfolderModal = (deckId: string) => {
@@ -2193,7 +2198,13 @@ export default function Index() {
     try {
       if (deckModal.type === 'card') {
         if (!deckQ.trim() || !deckA.trim()) throw new Error('Preencha frente e verso.')
-        await createCard(deckModal.deckId, { q: deckQ, a: deckA, group: '', ref: '' })
+        await createCard(deckModal.deckId, {
+          q: deckQ,
+          a: deckA,
+          group: '',
+          ref: '',
+          clinical: deckClinical,
+        })
       } else if (deckModal.type === 'folder') {
         if (!deckTitle.trim()) throw new Error('Informe o nome da pasta.')
         await createDeck(
@@ -2510,7 +2521,9 @@ export default function Index() {
                 ? '🔁 Cartão reverso (verso → frente)'
                 : isCloze(card.q)
                   ? `🧩 Cartão Cloze (${clozeCount(card.q)} lacuna${clozeCount(card.q) > 1 ? 's' : ''})`
-                  : '🩺 Cartão de revisão'}
+                  : card.clinical
+                    ? '🩺 Cartão de Modo Clínico'
+                    : '🩺 Cartão de revisão'}
             </span>
             <h1
               className="mr-legacy-question"
@@ -3033,6 +3046,25 @@ export default function Index() {
                     minHeight: 90,
                   }}
                 />
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '0 0 12px',
+                    font: '700 .8rem Inter, system-ui, sans-serif',
+                    color: '#475569',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={deckClinical}
+                    onChange={(e) => setDeckClinical(e.target.checked)}
+                    style={{ accentColor: '#16a34a', width: 16, height: 16 }}
+                  />
+                  🩺 Modo Clínico (também entra no treino do Modo Caso Clínico)
+                </label>
               </>
             ) : (
               <>

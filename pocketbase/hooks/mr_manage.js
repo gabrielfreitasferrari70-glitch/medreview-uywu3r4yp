@@ -169,6 +169,7 @@ routerAdd(
           card.set('ref', cleanText(item.ref, 500))
           card.set('suspended', false)
           card.set('deleted', false)
+          card.set('clinical', !!item.clinical)
           $app.save(card)
           createdIds.push(card.id)
         }
@@ -203,6 +204,7 @@ routerAdd(
           card.set('ref', cleanText(item.ref, 500))
           card.set('suspended', false)
           card.set('deleted', false)
+          card.set('clinical', !!item.clinical)
           if (item.diagramSvg) {
             card.set('diagram_svg', String(item.diagramSvg).slice(0, 20000))
             card.set('diagram_title', cleanText(item.diagramTitle, 200))
@@ -249,6 +251,7 @@ routerAdd(
         card.set('a', a)
         card.set('group', cleanText(body.group, 200))
         card.set('ref', cleanText(body.ref, 500))
+        if (body.clinical !== undefined) card.set('clinical', !!body.clinical)
         if (body.imageUrl && /^https?:\/\//i.test(String(body.imageUrl))) {
           card.set('diagram_svg', String(body.imageUrl).trim().slice(0, 2000))
           card.set('diagram_title', 'Imagem')

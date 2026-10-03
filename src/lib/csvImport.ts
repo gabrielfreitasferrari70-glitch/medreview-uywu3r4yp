@@ -16,6 +16,7 @@ export interface ParsedCsvCard {
   ref: string
   group: string
   folder?: string
+  clinical?: boolean
 }
 
 export interface CsvParseResult {
@@ -199,12 +200,13 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
   const normalizedHeaders = rawHeaders.map((h) => normalizeHeaderKey(h))
 
   // Mapeia índices das colunas
-  // Colunas esperadas: pasta, grupo, frente, verso, referencia
+  // Colunas esperadas: pasta, grupo, frente, verso, referencia, modo_clinico
   let frenteIdx = -1
   let versoIdx = -1
   let grupoIdx = -1
   let refIdx = -1
   let pastaIdx = -1
+  let clinicoIdx = -1
 
   normalizedHeaders.forEach((nh, idx) => {
     if (nh === 'frente' || nh === 'pergunta' || nh === 'question' || nh === 'front') {
@@ -223,6 +225,13 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
       refIdx = idx
     } else if (nh === 'pasta' || nh === 'folder' || nh === 'modulo' || nh === 'deck') {
       pastaIdx = idx
+    } else if (
+      nh === 'modoclinico' ||
+      nh === 'modoclinica' ||
+      nh === 'clinico' ||
+      nh === 'clinical'
+    ) {
+      clinicoIdx = idx
     }
   })
 
@@ -254,6 +263,7 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
     const rawGrupo = grupoIdx >= 0 && grupoIdx < row.length ? row[grupoIdx] : ''
     const rawRef = refIdx >= 0 && refIdx < row.length ? row[refIdx] : ''
     const rawPasta = pastaIdx >= 0 && pastaIdx < row.length ? row[pastaIdx] : ''
+    const rawClinico = clinicoIdx >= 0 && clinicoIdx < row.length ? row[clinicoIdx] : ''
 
     const frenteDecoded = decodeHtmlEntities(rawFrente).trim()
     const versoDecoded = decodeHtmlEntities(rawVerso).trim()
@@ -268,12 +278,23 @@ export function parseCardsFromCsv(csvText: string): CsvParseResult {
     const refDecoded = decodeHtmlEntities(rawRef).trim()
     const pastaDecoded = decodeHtmlEntities(rawPasta).trim()
 
+    const clinicoRaw = decodeHtmlEntities(rawClinico).trim().toLowerCase()
+    const isClinical =
+      clinicoRaw === ''
+        ? /caso cl[ií]nico/i.test(frenteDecoded)
+        : clinicoRaw !== '0' &&
+          clinicoRaw !== 'nao' &&
+          clinicoRaw !== 'não' &&
+          clinicoRaw !== 'false' &&
+          clinicoRaw !== 'normal'
+
     cards.push({
       q: frenteDecoded,
       a: versoDecoded,
       group: grupoDecoded,
       ref: refDecoded || 'Referência Médica',
       folder: pastaDecoded,
+      clinical: isClinical,
     })
   }
 

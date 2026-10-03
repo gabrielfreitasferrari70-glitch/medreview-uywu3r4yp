@@ -53,6 +53,7 @@ export interface CardExtras {
   imageUrl?: string
   choices?: string[]
   reverse?: boolean
+  clinical?: boolean
 }
 
 export const createCard = (deckId: string, card: ParsedCsvCard & CardExtras) =>
@@ -76,6 +77,7 @@ export const updateCard = (
     imageUrl: card.imageUrl || '',
     choices: card.choices ?? [],
     reverse: !!card.reverse,
+    clinical: !!card.clinical,
   })
 
 // Upload de imagem do computador: campo file 'image' do mr_cards.
@@ -104,6 +106,7 @@ export const importCards = (deckId: string, cards: ParsedCsvCard[]) =>
       a: card.a,
       group: card.group || '',
       ref: card.ref || '',
+      clinical: !!card.clinical,
     })),
   })
 
@@ -119,5 +122,6 @@ export const importCardsAuto = (
       group: card.group || '',
       ref: card.ref || '',
       folder_title: card.folder || '',
+      clinical: !!card.clinical,
     })),
   })
