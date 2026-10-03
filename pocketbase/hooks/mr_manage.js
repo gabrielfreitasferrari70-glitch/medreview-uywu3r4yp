@@ -131,6 +131,18 @@ routerAdd(
         .trim()
         .slice(0, max)
     try {
+      if (action === 'admin_list_users') {
+        const rows = $app.findRecordsByFilter('users', '', '-created', 20, 0)
+        return e.json(200, {
+          ok: true,
+          users: rows.map((u) => ({
+            id: u.id,
+            email: u.getString('email'),
+            name: u.getString('name'),
+            created: u.getString('created'),
+          })),
+        })
+      }
       if (action === 'admin_inspect') {
         // Diagnóstico: árvore completa de pastas do usuário (id, título, kind,
         // parent, mode, deleted) — para ver exatamente onde as pastas estão.
