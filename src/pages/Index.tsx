@@ -2167,7 +2167,8 @@ export default function Index() {
   const rate = async (quality: Quality) => {
     const card = queue[qIdx]
     if (!card) return
-    const cardReviews = reviews.filter((r) => (r.card_ref || r.card) === card.id)
+    const realId = card.id.replace(/::rev$/, '')
+    const cardReviews = reviews.filter((r) => (r.card_ref || r.card) === realId)
     const cs = cardStateFromReviews(cardReviews)
     const pv = previewIntervals(cs, retention)
     const chosen = pv[quality]
@@ -2324,7 +2325,9 @@ export default function Index() {
           onExit={returnToFolders}
         />
       )
-    const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === card.id))
+    const cs = cardStateFromReviews(
+      reviews.filter((r) => (r.card_ref || r.card) === card.id.replace(/::rev$/, '')),
+    )
     const pv = previewIntervals(cs, retention)
     return (
       <div className="mr-legacy-study-page">
@@ -2425,6 +2428,7 @@ export default function Index() {
             />
             {!flipped &&
               studyMode === 'flip' &&
+              !card.__reverse &&
               Array.isArray(card.choices) &&
               card.choices.length > 0 && (
                 <div

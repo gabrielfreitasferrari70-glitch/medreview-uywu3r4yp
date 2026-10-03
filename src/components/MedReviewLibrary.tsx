@@ -395,7 +395,6 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
           createdIds = res?.ids || []
           if (cardFile && createdIds[0]) await uploadCardImage(createdIds[0], cardFile)
         }
->>>>>>>
       },
       modal.card ? 'Cartão atualizado.' : 'Cartão criado.',
     )
