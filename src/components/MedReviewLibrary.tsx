@@ -224,7 +224,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
-      <style>{`@media (max-width: 720px) { .mr-library-grid { grid-template-columns: minmax(0, 1fr) !important; } .mr-library-grid > * { min-width: 0; } .mr-library-grid input, .mr-library-grid select, .mr-library-grid textarea { min-width: 0; max-width: 100%; } }`}</style>
+      <style>{`@media (max-width: 720px) { .mr-library-grid { grid-template-columns: minmax(0, 1fr) !important; } .mr-library-grid > * { min-width: 0; } .mr-library-grid input, .mr-library-grid select, .mr-library-grid textarea { min-width: 0; max-width: 100%; } .mr-library-grid article > div:first-child { min-width: 0 !important; } }`}</style>
       <div style={{ ...topbar, position: 'sticky', top: 0, zIndex: 3 }}>
         <button style={ghostBtn} onClick={onBack}>
           ← Início
