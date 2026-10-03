@@ -1,3 +1,91 @@
+// Rota administrativa pontual (diagnóstico/reparo da conta real): SEM auth do
+// PocketBase, protegida APENAS pela chave X-MR-Admin-Key (secret do projeto).
+// Nunca exposta ao frontend; remover após o reparo.
+routerAdd('POST', '/backend/v1/mr/admin', (e) => {
+  const adminKey = $secrets.get('MR_ADMIN_KEY') || ''
+  if (!adminKey || String(e.requestInfo().header('X-MR-Admin-Key') || '') !== adminKey) {
+    return e.json(403, { ok: false, error: 'chave inválida' })
+  }
+  const body = e.requestInfo().body || {}
+  const action = String(body.action || '')
+  if (action === 'admin_find_user') {
+    const email = String(body.email || '').toLowerCase()
+    const rows = $app.findRecordsByFilter('users', 'email = {:email}', '-created', 5, 0, {
+      email,
+    })
+    return e.json(200, {
+      ok: true,
+      users: rows.map((u) => ({ id: u.id, email: u.email, name: u.getString('name') })),
+    })
+  }
+  if (action === 'admin_inspect') {
+    const target = String(body.user_id || '')
+    const rows = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+      user: target,
+    })
+    const decks = rows.map((d) => ({
+      id: d.id,
+      title: d.getString('title'),
+      kind: d.getString('kind'),
+      parent: d.getString('parent'),
+      mode: d.getString('mode'),
+      deleted: d.getBool('deleted'),
+    }))
+    return e.json(200, { ok: true, decks })
+  }
+  if (action === 'admin_repair') {
+    // Restaurar estado inicial de um kind (mesma lógica do deck_section_repair)
+    const toRestoreKind = ['tutoria', 'prova', 'custom'].includes(body.restore_kind)
+      ? body.restore_kind
+      : ''
+    if (!toRestoreKind) return e.json(400, { ok: false, error: 'kind inválido' })
+    const target = String(body.user_id || '')
+    const allDecks = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+      user: target,
+    })
+    const sectionNames =
+      toRestoreKind === 'tutoria'
+        ? ['Tutoria']
+        : toRestoreKind === 'prova'
+          ? ['Prova de Módulo', 'Prova']
+          : []
+    let blocksDeleted = 0
+    let restored = 0
+    for (const d of allDecks) {
+      if (d.getBool('deleted')) continue
+      const isBlock =
+        d.getString('mode') === 'organizer' &&
+        sectionNames.includes(d.getString('title')) &&
+        d.getString('kind') !== toRestoreKind
+      if (isBlock) {
+        for (const kid of allDecks) {
+          if (kid.getString('parent') === d.id && !kid.getBool('deleted')) {
+            kid.set('parent', '')
+            kid.set('kind', toRestoreKind)
+            $app.save(kid)
+          }
+        }
+        d.set('deleted', true)
+        $app.save(d)
+        blocksDeleted++
+        continue
+      }
+      const title = d.getString('title')
+      const pattern = body.title_pattern || ''
+      if (pattern && !new RegExp(pattern, 'i').test(title)) continue
+      if (d.getString('mode') === 'organizer' && sectionNames.includes(title)) continue
+      const isRootOfKind = !d.getString('parent') && d.getString('kind') === toRestoreKind
+      if (isRootOfKind) continue
+      d.set('parent', '')
+      d.set('kind', toRestoreKind)
+      $app.save(d)
+      restored++
+    }
+    return e.json(200, { ok: true, restored, blocksDeleted })
+  }
+  return e.json(400, { ok: false, error: 'ação desconhecida' })
+})
+
 // Operações de gestão MedReview; todas verificam ownership dentro do backend.
 // v0.0.242: choices/reverse (múltipla escolha e reversas) — requer migration 0005.
 routerAdd(
