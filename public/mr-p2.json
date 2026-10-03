@@ -62,6 +62,24 @@
       "    const detailedStatsModalEl = document.getElementById('detailed-stats-modal');",
       "    const detailedStatsModalEl = document.getElementById('detailed-stats-modal') || (function () {\n      const d = document.createElement('div');\n      d.id = 'detailed-stats-modal';\n      d.className = 'modal-overlay';\n      d.style.display = 'none';\n      d.innerHTML = '<div class=\"detailed-stats-dialog\"><div class=\"modal-header\" style=\"border-bottom:1.5px solid #a7f3d0; padding-bottom:0.85rem;\"><h3 style=\"color:#065f46; display:flex; align-items:center; gap:0.45rem; font-size:1.25rem; font-weight:800; margin:0;\"><span>📊</span> Estatísticas Detalhadas de Desempenho</h3><button type=\"button\" onclick=\"closeDetailedStatsModal()\" class=\"btn btn-sm\" style=\"background:none; border:none; font-size:1.5rem; cursor:pointer; color:#047857;\" title=\"Fechar\">&times;</button></div><div id=\"detailed-stats-content\" style=\"margin-top:1rem;\"></div></div>';\n      document.body.appendChild(d);\n      return d;\n    })();",
       false
+    ],
+    [
+      "t",
+      "for (const [tId, t] of Object.entries(state.tutorias_numbered)) {",
+      "for (const [tId, t] of Object.entries(state.tutorias_numbered).sort((a, b) => {\n          const na = parseInt((((a[1] && a[1].title) || '').match(/\\d+/) || ['9999'])[0], 10);\n          const nb = parseInt((((b[1] && b[1].title) || '').match(/\\d+/) || ['9999'])[0], 10);\n          return na - nb;\n        })) {",
+      false
+    ],
+    [
+      "t",
+      "for (const [fId, f] of Object.entries(state.custom_tutoria_folders)) {",
+      "for (const [fId, f] of Object.entries(state.custom_tutoria_folders).sort((a, b) => String((a[1] && a[1].title) || '').localeCompare(String((b[1] && b[1].title) || ''), 'pt-BR'))) {",
+      false
+    ],
+    [
+      "t",
+      "</body>",
+      "<script>\n  (function () {\n    function fixIcons() {\n      document.querySelectorAll('.mr-folder-card-icon').forEach(function (ic) {\n        var t = (ic.textContent || '').trim();\n        if (/^[A-Za-z]{1,2}$/.test(t)) ic.textContent = '\\ud83d\\udcc1';\n      });\n    }\n    function folderKey(c) {\n      var t = ((c.querySelector('.mr-folder-card-title') || {}).textContent || '').trim();\n      var m = t.match(/\\d+/);\n      return m ? [0, parseInt(m[0], 10), t] : [1, 0, t.toLowerCase()];\n    }\n    function sortFolders() {\n      var grids = new Map();\n      document.querySelectorAll('.small-folder-card').forEach(function (c) {\n        var p = c.parentElement;\n        if (!p) return;\n        if (!grids.has(p)) grids.set(p, []);\n        grids.get(p).push(c);\n      });\n      grids.forEach(function (cards, p) {\n        var cur = cards.map(function (c) { return c; });\n        var sorted = cur.slice().sort(function (a, b) {\n          var ka = folderKey(a), kb = folderKey(b);\n          return ka[0] - kb[0] || ka[1] - kb[1] || (ka[2] < kb[2] ? -1 : ka[2] > kb[2] ? 1 : 0);\n        });\n        for (var i = 0; i < sorted.length; i++) {\n          if (cur[i] !== sorted[i]) { p.appendChild(sorted[i]); }\n        }\n      });\n    }\n    function rewireStats() {\n      document.querySelectorAll('button[onclick]').forEach(function (b) {\n        var oc = b.getAttribute('onclick') || '';\n        if (oc.indexOf('openGlobalStatsModal') !== -1) {\n          b.setAttribute('onclick', \"try{openDetailedStatsModal()}catch(e){openGlobalStatsModal()}\");\n        }\n      });\n    }\n    function tick() { fixIcons(); sortFolders(); rewireStats(); }\n    setInterval(tick, 900);\n    if (document.readyState !== 'loading') tick(); else document.addEventListener('DOMContentLoaded', tick);\n  })();\n</script>\n</body>",
+      false
     ]
   ]
 }
