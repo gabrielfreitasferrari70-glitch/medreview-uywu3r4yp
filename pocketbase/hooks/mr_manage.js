@@ -307,6 +307,28 @@ routerAdd(
         return e.json(200, { id: card.id, deck: deck.id })
       }
 
+      if (action === 'deck_move_section_undo') {
+        // Desfazer: devolve TODAS as pastas raiz que estão no toKind mas vieram
+        // de outro kind (marcadas no undo) para o kind/raiz original.
+        // Estratégia: o frontend guarda os ids movidos; aqui só aceita ids próprios.
+        const ids = Array.isArray(body.deck_ids) ? body.deck_ids : []
+        const toRestoreKind = ['tutoria', 'prova', 'custom'].includes(body.restore_kind)
+          ? body.restore_kind
+          : ''
+        if (!ids.length || !toRestoreKind) return e.badRequestError('Nada para desfazer.')
+        let restored = 0
+        for (let i = 0; i < ids.length; i++) {
+          const d = ownDeck(String(ids[i]))
+          if (d.getString('kind') === toRestoreKind && !d.getString('parent')) continue
+          d.set('parent', '')
+          d.set('kind', toRestoreKind)
+          d.set('mode', d.getString('mode'))
+          $app.save(d)
+          restored++
+        }
+        return e.json(200, { ok: true, restored })
+      }
+
       if (action === 'deck_move_section') {
         // Mover uma SEÇÃO inteira (todas as pastas raiz de um kind) para outro
         // destino: dentro de uma pasta, ou para o nível inicial de outro kind.

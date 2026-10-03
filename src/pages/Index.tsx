@@ -10,6 +10,7 @@ import {
   moveDeckSection,
   renameDeck,
   resetDeck,
+  undoMoveSection,
 } from '@/services/medreview'
 import MedReviewLibrary from '@/components/MedReviewLibrary'
 import {
@@ -1757,6 +1758,10 @@ export default function Index() {
     easy: 0,
   })
   const [msg, setMsg] = useState('')
+  const [undoInfo, setUndoInfo] = useState<{
+    deckIds: string[]
+    restoreKind: 'tutoria' | 'prova' | 'custom'
+  } | null>(null)
   const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
@@ -2203,11 +2208,15 @@ export default function Index() {
         if (!deckMoveTarget) throw new Error('Escolha o destino da seção.')
         const goingRoot = deckMoveTarget.startsWith('@root:')
         const rootKind = goingRoot ? deckMoveTarget.slice(6) : ''
+        const fromKind = deckModal.deckId as 'tutoria' | 'prova' | 'custom'
+        // snapshot para o desfazer: ids das raízes atuais da seção
+        const snapshotIds = decks.filter((d) => d.kind === fromKind && !d.parent).map((d) => d.id)
         await moveDeckSection(
-          deckModal.deckId as 'tutoria' | 'prova' | 'custom',
+          fromKind,
           goingRoot ? '' : deckMoveTarget,
           goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
         )
+        setUndoInfo({ deckIds: snapshotIds, restoreKind: fromKind })
       } else {
         if (!deckTitle.trim()) throw new Error('Informe o novo nome.')
         await renameDeck(deckModal.deckId, deckTitle)
@@ -2236,9 +2245,14 @@ export default function Index() {
             ? `Pasta criada${createdIn}.`
             : deckModal.type === 'moveDeck'
               ? 'Pasta movida.'
-              : 'Pasta renomeada.',
+              : deckModal.type === 'moveSection'
+                ? 'Seção movida.'
+                : 'Pasta renomeada.',
       )
       setTimeout(() => setMsg(''), 4000)
+      if (deckModal.type === 'moveSection') {
+        window.setTimeout(() => setUndoInfo(null), 8000)
+      }
     } catch (e: any) {
       setMsg(e?.message || 'Não foi possível salvar.')
       setTimeout(() => setMsg(''), 3000)
@@ -2764,7 +2778,42 @@ export default function Index() {
               ))}
             </div>
           )}
-          {msg && <div style={toast}>{msg}</div>}
+          {msg && (
+            <div style={toast}>
+              {msg}
+              {undoInfo && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const info = undoInfo
+                    setUndoInfo(null)
+                    setMsg('')
+                    try {
+                      await undoMoveSection(info.deckIds, info.restoreKind)
+                      await loadData()
+                      setMsg('Desfeito — pastas de volta no lugar original.')
+                    } catch (e: any) {
+                      setMsg(e?.message || 'Não foi possível desfazer.')
+                    }
+                    window.setTimeout(() => setMsg(''), 4000)
+                  }}
+                  style={{
+                    marginLeft: 10,
+                    border: '1px solid #86efac',
+                    borderRadius: 999,
+                    padding: '0.25rem 0.7rem',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                    fontSize: '.78rem',
+                    background: '#16a34a',
+                    color: '#fff',
+                  }}
+                >
+                  ↩️ Desfazer
+                </button>
+              )}
+            </div>
+          )}
           {cardStatsOpen && (
             <CardStatsModal
               card={{ ...card, id: card.id.replace(/::rev$/, '') }}

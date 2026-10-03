@@ -58,6 +58,9 @@ export const moveDeckSection = (
     kind: kind || '',
   })
 
+export const undoMoveSection = (deckIds: string[], restoreKind: 'tutoria' | 'prova' | 'custom') =>
+  manageLibrary('deck_move_section_undo', { deck_ids: deckIds, restore_kind: restoreKind })
+
 export const deleteDeck = (deckId: string) => manageLibrary('deck_delete', { deck_id: deckId })
 
 export interface CardExtras {
