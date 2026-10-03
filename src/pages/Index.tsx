@@ -1778,6 +1778,7 @@ export default function Index() {
   const [deckA, setDeckA] = useState('')
   const [deckTitle, setDeckTitle] = useState('')
   const [deckKind, setDeckKind] = useState<'tutoria' | 'prova' | 'custom'>('custom')
+  const [deckMode, setDeckMode] = useState<'study' | 'organizer'>('study')
 
   const retention = useMemo(() => getRetention(), [route, retentionTick])
 
@@ -2060,6 +2061,12 @@ export default function Index() {
 
   const openDeck = (deckId: string) => {
     const deck = decks.find((d) => d.id === deckId)
+    // Pasta organizadora: abre a view com as pastas dentro (como a Tutoria).
+    // Pasta de estudo: inicia a sessão de flashcards direto.
+    if (deck && (deck as any).mode === 'organizer') {
+      setRoute({ view: 'home', folderKind: 'custom', deckId })
+      return
+    }
     startStudy(
       cards.filter((c) => c.deck === deckId),
       deckId,
@@ -2092,11 +2099,13 @@ export default function Index() {
   const openNewFolder = (kind: 'tutoria' | 'prova' | 'custom' = 'custom') => {
     setDeckTitle('')
     setDeckKind(kind)
+    setDeckMode('study')
     setDeckModal({ type: 'folder', deckId: '' })
   }
   const openNewFrontlineFolder = () => {
     setDeckTitle('')
     setDeckKind('custom')
+    setDeckMode('study')
     setDeckModal({ type: 'folder', deckId: '@frontline' })
   }
   const renameRootDeck = (deckId: string) => {
@@ -2136,6 +2145,7 @@ export default function Index() {
     setDeckTitle('')
     const parent = decks.find((d) => d.id === deckId)
     setDeckKind((parent?.kind as 'tutoria' | 'prova' | 'custom') || 'custom')
+    setDeckMode('study')
     setDeckModal({ type: 'folder', deckId })
   }
   const openDeckMoveModal = (deckId: string) => {
@@ -2189,6 +2199,7 @@ export default function Index() {
           deckTitle,
           deckKind,
           deckModal.deckId === '@frontline' ? undefined : deckModal.deckId || undefined,
+          deckMode,
         )
       } else if (deckModal.type === 'moveDeck') {
         if (!deckMoveTarget) throw new Error('Escolha a pasta de destino ou o nível inicial.')
@@ -2864,6 +2875,7 @@ export default function Index() {
         onDeckMove={openDeckMoveModal}
         onDeckClick={openDeck}
         userDecks={userDecks}
+        openDeckId={route.deckId}
       />
       {settingsOpen && (
         <SettingsModal
@@ -3056,6 +3068,51 @@ export default function Index() {
                       <option value="prova">📝 Prova de Módulo</option>
                     </select>
                   )}
+                {deckModal.type === 'folder' && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <button
+                      type="button"
+                      onClick={() => setDeckMode('study')}
+                      style={{
+                        flex: 1,
+                        border: deckMode === 'study' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                        borderRadius: 9,
+                        padding: '0.55rem 0.7rem',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '.78rem',
+                        background: deckMode === 'study' ? '#f0fdf4' : '#fff',
+                        color: deckMode === 'study' ? '#166534' : '#64748b',
+                      }}
+                    >
+                      ⚡ Estudo
+                      <span style={{ display: 'block', fontWeight: 500, fontSize: '.68rem' }}>
+                        clica e estuda os flashcards
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeckMode('organizer')}
+                      style={{
+                        flex: 1,
+                        border:
+                          deckMode === 'organizer' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                        borderRadius: 9,
+                        padding: '0.55rem 0.7rem',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '.78rem',
+                        background: deckMode === 'organizer' ? '#f0fdf4' : '#fff',
+                        color: deckMode === 'organizer' ? '#166534' : '#64748b',
+                      }}
+                    >
+                      📂 Organizadora
+                      <span style={{ display: 'block', fontWeight: 500, fontSize: '.68rem' }}>
+                        abre e mostra as pastas dentro
+                      </span>
+                    </button>
+                  </div>
+                )}
                 <input
                   placeholder="Nome da pasta"
                   value={deckTitle}

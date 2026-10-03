@@ -7,6 +7,7 @@ export type LegacyDeck = {
   order?: number
   parent?: string
   description?: string
+  mode?: string
 }
 export type LegacyCard = {
   id: string
@@ -168,6 +169,7 @@ type HomeProps = {
   onDeckRenameRoot?: (deckId: string) => void
   onDeckDeleteRoot?: (deckId: string) => boolean | void
   onDeckMoveRoot?: (deckId: string) => void
+  openDeckId?: string
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -206,10 +208,19 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckRenameRoot,
     onDeckDeleteRoot,
     onDeckMoveRoot,
+    openDeckId,
   } = props
-  const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
-  const title =
-    folderKind === 'prova'
+  // Quando um deck específico é aberto (pasta organizadora), mostra só a subárvore dele;
+  // senão, a seção inteira (Tutoria/Prova/Minhas Pastas).
+  const folderDecks = openDeckId
+    ? decks.filter((d) => d.parent === openDeckId && !d.deleted)
+    : folderKind
+      ? decks.filter((d) => d.kind === folderKind)
+      : []
+  const openDeck = openDeckId ? decks.find((d) => d.id === openDeckId) : null
+  const title = openDeck
+    ? openDeck.title
+    : folderKind === 'prova'
       ? 'Prova de Módulo'
       : folderKind === 'custom'
         ? 'Minhas Pastas'
@@ -281,7 +292,12 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 </h1>
                 <p>{description}</p>
               </div>
-              <button className="mr-legacy-button" onClick={() => onNewFolderIn(folderKind)}>
+              <button
+                className="mr-legacy-button"
+                onClick={() =>
+                  openDeckId ? onDeckAddSubfolder?.(openDeckId) : onNewFolderIn(folderKind)
+                }
+              >
                 ＋ Nova Pasta
               </button>
             </div>
@@ -316,7 +332,9 @@ export function MedReviewLegacyHome(props: HomeProps) {
                       </span>
                       <h3>{deck.title}</h3>
                       <p className="mr-legacy-section-sub">
-                        Pasta de revisão médica com repetição espaçada FSRS-5.
+                        {deck.mode === 'organizer'
+                          ? 'Pasta organizadora — abre e mostra as pastas dentro.'
+                          : 'Pasta de estudo — clica e revisa os flashcards (FSRS-5).'}
                       </p>
                       <span className="mr-legacy-subdeck-meta">
                         <span className="mr-legacy-pill">📚 {dc.length} cartas</span>
@@ -378,7 +396,9 @@ export function MedReviewLegacyHome(props: HomeProps) {
               </div>
             ) : (
               <div className="mr-legacy-empty">
-                Nenhuma pasta nesta seção ainda. Crie uma pasta na Biblioteca para começar.
+                {openDeckId
+                  ? 'Nenhuma pasta dentro desta ainda — use "＋ Nova Pasta" para criar uma.'
+                  : 'Nenhuma pasta nesta seção ainda. Crie uma pasta na Biblioteca para começar.'}
               </div>
             )}
           </>

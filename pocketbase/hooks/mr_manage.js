@@ -28,6 +28,7 @@ routerAdd(
       if (action === 'deck_create') {
         const title = cleanText(body.title, 200)
         const kind = ['tutoria', 'prova', 'custom'].includes(body.kind) ? body.kind : 'custom'
+        const mode = ['study', 'organizer'].includes(body.mode) ? body.mode : 'study'
         if (!title) return e.badRequestError('O nome da pasta é obrigatório.')
         let parent = null
         if (body.parent_id) parent = ownDeck(body.parent_id)
@@ -39,10 +40,11 @@ routerAdd(
         deck.set('user_id', userId)
         deck.set('title', title)
         deck.set('kind', kind)
+        deck.set('mode', mode)
         deck.set('order', rows.length + 1)
         if (parent) deck.set('parent', parent.id)
         $app.save(deck)
-        return e.json(201, { id: deck.id, title, kind, parent: parent ? parent.id : '' })
+        return e.json(201, { id: deck.id, title, kind, mode, parent: parent ? parent.id : '' })
       }
 
       if (action === 'deck_rename') {
@@ -133,6 +135,11 @@ routerAdd(
           deck.set('order', allDecks.length + Object.keys(createdDecks).length + 1)
           if (parentDeck) deck.set('parent', parentDeck.id)
           $app.save(deck)
+          // A pasta que recebeu o import com pastas automáticas vira organizadora.
+          if (parentDeck && parentDeck.getString('mode') !== 'organizer') {
+            parentDeck.set('mode', 'organizer')
+            $app.save(parentDeck)
+          }
           byTitle[key] = deck
           createdDecks[deck.id] = true
           return deck
@@ -333,6 +340,9 @@ routerAdd(
         moving.set('parent', newParent)
         moving.set('kind', newKind)
         moving.set('order', allDecks.length + 1)
+        // Mover para DENTRO de outra pasta = a pasta movida passa a ser uma
+        // "subpasta" da destino: modo organizador não faz sentido aqui.
+        if (newParent) moving.set('mode', 'study')
         $app.save(moving)
         // A subárvore inteira acompanha a seção (kind) da pasta movida.
         let movedKinds = 0

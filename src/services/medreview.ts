@@ -38,7 +38,8 @@ export const createDeck = (
   title: string,
   kind: 'tutoria' | 'prova' | 'custom',
   parentId?: string,
-) => manageLibrary('deck_create', { title, kind, parent_id: parentId || '' })
+  mode?: 'study' | 'organizer',
+) => manageLibrary('deck_create', { title, kind, parent_id: parentId || '', mode: mode || 'study' })
 
 export const renameDeck = (deckId: string, title: string) =>
   manageLibrary('deck_rename', { deck_id: deckId, title })
