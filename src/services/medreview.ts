@@ -51,11 +51,13 @@ export const moveDeckSection = (
   fromKind: 'tutoria' | 'prova' | 'custom',
   parentId?: string,
   kind?: 'tutoria' | 'prova' | 'custom',
+  blockTitle?: string,
 ) =>
   manageLibrary('deck_move_section', {
     from_kind: fromKind,
     parent_id: parentId || '',
     kind: kind || '',
+    block_title: blockTitle || '',
   })
 
 export const undoMoveSection = (deckIds: string[], restoreKind: 'tutoria' | 'prova' | 'custom') =>

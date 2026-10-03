@@ -364,9 +364,10 @@ routerAdd(
       }
 
       if (action === 'deck_move_section') {
-        // Anki puro: a seção inteira vai para o destino — as pastas raiz viram
-        // filhas DIRETAS do destino (subcamadas), com as subcamadas delas intactas.
-        // Sem pasta-bloco criada magicamente. parent_id vazio = nível inicial de outro kind.
+        // Mover a seção como UMA PASTA (modelo da Nathalia): a seção vira uma
+        // pasta única no destino — "Tutoria" — e as pastas da seção ficam DENTRO
+        // dela, cada uma com suas subpastas intactas. Nada solto, nada apagado.
+        // No destino aparece SÓ a pasta da seção; abrir ela mostra as outras.
         const fromKind = ['tutoria', 'prova', 'custom'].includes(body.from_kind)
           ? body.from_kind
           : ''
@@ -396,16 +397,34 @@ routerAdd(
         const ids = {}
         for (const d of roots) ids[d.id] = true
         if (target && ids[target.id]) return e.badRequestError('Destino inválido.')
-        // 1) as raízes da seção viram filhas DIRETAS do destino (subcamada)
+        // nome da pasta da seção (default: nome da seção de origem)
+        const blockName =
+          cleanText(body.block_title, 200) ||
+          (fromKind === 'tutoria'
+            ? 'Tutoria'
+            : fromKind === 'prova'
+              ? 'Prova de Módulo'
+              : 'Minhas Pastas')
+        // 1) a pasta da seção nasce no destino
+        const col = $app.findCollectionByNameOrId('mr_decks')
+        const block = new Record(col)
+        block.set('user_id', userId)
+        block.set('title', blockName)
+        block.set('kind', toKind)
+        block.set('mode', 'organizer')
+        block.set('order', allDecks.length + 1)
+        if (target) block.set('parent', target.id)
+        $app.save(block)
+        // 2) as pastas da seção entram DENTRO dela (subpastas intactas)
         let moved = 0
         for (const root of roots) {
-          root.set('parent', target ? target.id : '')
+          root.set('parent', block.id)
           root.set('kind', toKind)
           root.set('order', allDecks.length + 1 + moved)
           $app.save(root)
           moved++
         }
-        // 2) propaga o kind para toda a subárvore (subcamadas acompanham)
+        // 3) propaga o kind para toda a subárvore
         let propagated = 0
         let grew = true
         const marked = {}
@@ -428,7 +447,13 @@ routerAdd(
             propagated++
           }
         }
-        return e.json(200, { ok: true, moved, propagated })
+        return e.json(200, {
+          ok: true,
+          moved,
+          propagated,
+          blockId: block.id,
+          blockTitle: blockName,
+        })
       }
 
       if (action === 'deck_move') {
