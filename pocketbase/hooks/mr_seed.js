@@ -8,16 +8,36 @@ routerAdd('GET', '/backend/mr-seed', (e) => {
       'medreview_state',
       'user_id = {:uid}',
       '-updated',
-      1,
-      1,
+      0,
+      50,
       { uid: refUser.id },
     )
     if (!refStates || refStates.length === 0) {
       return e.json(404, { error: 'seed indisponivel' })
     }
-    const snapshot = refStates[0].get('data')
-    const state = typeof snapshot === 'string' ? JSON.parse(snapshot) : snapshot
-    const src = state.state || state
+    // Escolhe o snapshot com mais cartas (o mais completo)
+    let best = null
+    let bestCount = -1
+    refStates.forEach((rec) => {
+      try {
+        const raw = rec.get('data')
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        const s = parsed.state || parsed
+        const tuts = s.tutorias_numbered || {}
+        let n = 0
+        Object.keys(tuts).forEach((k) => {
+          if (tuts[k] && Array.isArray(tuts[k].cards)) n += tuts[k].cards.length
+        })
+        if (n > bestCount) {
+          bestCount = n
+          best = s
+        }
+      } catch (_) {}
+    })
+    if (!best || bestCount <= 0) {
+      return e.json(404, { error: 'seed vazio' })
+    }
+    const src = best
 
     const tuts = src.tutorias_numbered || {}
     const provas = src.provas || {}
