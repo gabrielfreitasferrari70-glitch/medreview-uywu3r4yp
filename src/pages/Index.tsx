@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { parseCardsFromCsv } from '@/lib/csvImport'
+import { applyInitialSeed, createReview } from '@/services/medreview'
+import MedReviewLibrary from '@/components/MedReviewLibrary'
 
 // ==================== Motor FSRS-5 (portado do MedReview original) ====================
 const FSRS_W = [
@@ -198,7 +199,9 @@ export default function Index() {
   const [decks, setDecks] = useState<Deck[]>([])
   const [cards, setCards] = useState<Card[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
-  const [route, setRoute] = useState<{ view: 'home' | 'study'; deckId?: string }>({ view: 'home' })
+  const [route, setRoute] = useState<{ view: 'home' | 'study' | 'library'; deckId?: string }>({
+    view: 'home',
+  })
   const [flipped, setFlipped] = useState(false)
   const [queue, setQueue] = useState<Card[]>([])
   const [qIdx, setQIdx] = useState(0)
@@ -209,70 +212,71 @@ export default function Index() {
   const [name, setName] = useState('')
   const [authErr, setAuthErr] = useState('')
   const [busy, setBusy] = useState(false)
+
   const retention = useMemo(() => getRetention(), [route])
 
-  // Boot: sessão existente?
-  useEffect(() => {
-    if (pb.authStore.isValid) {
-      setUser(pb.authStore.record)
-      setAuth('in')
-    } else setAuth('out')
-  }, [])
+  const ensureSeed = async () => {
+    if (!pb.authStore.isValid) return
+    const result = await applyInitialSeed()
+    if (!result?.ok || result.totalCards < 186)
+      throw new Error('A inicialização não foi concluída.')
+  }
 
-  // Carrega dados quando autenticado
   const loadData = useCallback(async () => {
     if (!pb.authStore.isValid) return
     try {
       const [d, c, r] = await Promise.all([
         pb.collection('mr_decks').getFullList({ sort: 'order' }),
-        pb.collection('mr_cards').getFullList({ sort: '-created', requestKey: null }),
-        pb.collection('mr_reviews').getFullList({ sort: 'reviewed_at', requestKey: null }),
+        pb.collection('mr_cards').getFullList({ sort: '-created' }),
+        pb.collection('mr_reviews').getFullList({ sort: 'reviewed_at' }),
       ])
-      setDecks(d as any)
-      setCards(c as any)
+      setDecks((d as any[]).filter((row) => !row.deleted))
+      setCards((c as any[]).filter((row) => !row.deleted))
       setReviews(r as any)
     } catch (e: any) {
       setMsg('Erro ao carregar dados: ' + (e?.message || e))
     }
   }, [])
 
+  // Boot: restaura sessão e inicializa biblioteca vazia; seed é idempotente por seed_key.
   useEffect(() => {
-    if (auth === 'in') loadData()
-  }, [auth, loadData])
-
-  // Seed no primeiro login: busca os decks/cartas originais e popula o banco do usuário
-  const ensureSeed = async () => {
-    try {
-      const existing = await pb.collection('mr_decks').getList(1, 1)
-      if ((existing?.totalItems || 0) > 0) return
-      const res = await fetch(pb.baseURL + '/backend/mr-seed')
-      if (!res.ok) return
-      const data = await res.json()
-      const uid = pb.authStore.record?.id
-      if (!uid) return
-      let order = 1
-      for (const d of data?.decks || []) {
-        const deck = await pb
-          .collection('mr_decks')
-          .create({ user_id: uid, title: d.title, kind: d.kind, order: order++ })
-        const payloads = (d.cards || []).map((c: any) => ({
-          user_id: uid,
-          deck: deck.id,
-          q: c.q,
-          a: c.a,
-          group: c.group || '',
-          ref: c.ref || 'Referência Médica',
-        }))
-        for (let i = 0; i < payloads.length; i += 25) {
-          await Promise.all(
-            payloads.slice(i, i + 25).map((p: any) => pb.collection('mr_cards').create(p)),
+    let active = true
+    const boot = async () => {
+      if (!pb.authStore.isValid) {
+        if (active) setAuth('out')
+        return
+      }
+      try {
+        await pb.collection('users').authRefresh()
+        if (!pb.authStore.isValid) throw new Error('Sessão expirada. Entre novamente.')
+        await ensureSeed()
+        await loadData()
+        if (active) {
+          setUser(pb.authStore.record)
+          setAuth('in')
+        }
+      } catch (e: any) {
+        if (!active) return
+        if (!pb.authStore.isValid) {
+          pb.authStore.clear()
+          setAuth('out')
+        } else {
+          setUser(pb.authStore.record)
+          await loadData()
+          setAuth('in')
+          setMsg(
+            e?.response?.data?.message ||
+              e?.message ||
+              'Não foi possível inicializar os cartões. Sua biblioteca existente foi carregada.',
           )
         }
       }
-    } catch (e) {
-      // seed é best-effort: o app funciona mesmo sem ele
     }
-  }
+    boot()
+    return () => {
+      active = false
+    }
+  }, [loadData])
 
   // Login / signup
   const doAuth = async () => {
@@ -285,12 +289,23 @@ export default function Index() {
           .create({ email, password: pass, passwordConfirm: pass, name: name || 'Estudante' })
       }
       await pb.collection('users').authWithPassword(email, pass)
-      setUser(pb.authStore.record)
-      setAuth('in')
       await ensureSeed()
       await loadData()
+      setUser(pb.authStore.record)
+      setAuth('in')
     } catch (e: any) {
-      setAuthErr(e?.message || 'Falha na autenticação')
+      if (pb.authStore.isValid) {
+        setUser(pb.authStore.record)
+        setAuth('in')
+        try {
+          await loadData()
+        } catch (_) {}
+        setMsg(
+          e?.response?.data?.message || e?.message || 'Não foi possível iniciar sua biblioteca.',
+        )
+      } else {
+        setAuthErr(e?.message || 'Falha na autenticação')
+      }
     } finally {
       setBusy(false)
     }
@@ -307,9 +322,12 @@ export default function Index() {
 
   // Fila de estudo: vencidas → novas → futuras
   const openDeck = (deckId: string) => {
-    const deckCards = cards.filter((c) => c.deck === deckId && !c.suspended)
+    const deckCards = cards.filter((c) => c.deck === deckId && !c.suspended && !c.deleted)
     const states = new Map(
-      deckCards.map((c) => [c.id, cardStateFromReviews(reviews.filter((r) => r.card === c.id))]),
+      deckCards.map((c) => [
+        c.id,
+        cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)),
+      ]),
     )
     const now = Date.now()
     const rank = (cs: CardState) => (cs.state === 'new' ? 2 : (cs.dueMs || 0) <= now ? 0 : 1)
@@ -330,7 +348,7 @@ export default function Index() {
   const rate = async (quality: Quality) => {
     const card = queue[qIdx]
     if (!card) return
-    const cardReviews = reviews.filter((r) => r.card === card.id)
+    const cardReviews = reviews.filter((r) => (r.card_ref || r.card) === card.id)
     const cs = cardStateFromReviews(cardReviews)
     const pv = previewIntervals(cs, retention)
     const chosen = pv[quality]
@@ -338,9 +356,8 @@ export default function Index() {
     const dueDate = new Date(now.getTime() + chosen.value * 86400000)
     const fmt = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19)
     try {
-      const created = await pb.collection('mr_reviews').create({
-        user_id: user.id,
-        card: card.id,
+      const created = await createReview({
+        card_ref: card.id,
         rating: quality,
         stability: chosen.newS ?? fsrsInitialStability(chosen.g),
         difficulty: chosen.newD ?? fsrsInitialDifficulty(chosen.g),
@@ -356,7 +373,7 @@ export default function Index() {
         due: fmt(dueDate),
         reviewed_at: fmt(now),
       })
-      setReviews((rs) => [...rs, created as any])
+      setReviews((rs) => [...rs, { ...(created as any), card_ref: card.id }])
       setMsg(`Carta agendada para daqui ${chosen.label}`)
       setTimeout(() => setMsg(''), 2500)
       setFlipped(false)
@@ -423,11 +440,12 @@ export default function Index() {
   const totalCards = cards.length
   const now = Date.now()
   const dueCount = cards.filter((c) => {
-    const cs = cardStateFromReviews(reviews.filter((r) => r.card === c.id))
+    const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
     return cs.state !== 'new' && (cs.dueMs || 0) <= now
   }).length
   const newCount = cards.filter(
-    (c) => cardStateFromReviews(reviews.filter((r) => r.card === c.id)).state === 'new',
+    (c) =>
+      cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)).state === 'new',
   ).length
 
   // ===== Tela: estudo =====
@@ -447,7 +465,7 @@ export default function Index() {
         </div>
       )
     }
-    const cs = cardStateFromReviews(reviews.filter((r) => r.card === card.id))
+    const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === card.id))
     const pv = previewIntervals(cs, retention)
     return (
       <div
@@ -501,6 +519,26 @@ export default function Index() {
                 >
                   {card.a}
                 </div>
+                {card.diagram_svg && (
+                  <div style={{ marginTop: '0.8rem' }}>
+                    {card.diagram_title && (
+                      <div style={{ fontSize: '0.78rem', color: '#475569', marginBottom: 4 }}>
+                        {card.diagram_title}
+                      </div>
+                    )}
+                    <img
+                      src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`}
+                      alt={card.diagram_title || 'Diagrama do cartão'}
+                      style={{
+                        display: 'block',
+                        maxWidth: '100%',
+                        maxHeight: 320,
+                        margin: '0 auto',
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </div>
+                )}
                 {card.ref && (
                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.6rem' }}>
                     📚 {card.ref}
@@ -546,6 +584,18 @@ export default function Index() {
   }
 
   // ===== Tela: home =====
+  if (route.view === 'library') {
+    return (
+      <MedReviewLibrary
+        decks={decks}
+        cards={cards}
+        onBack={() => setRoute({ view: 'home' })}
+        onRefresh={loadData}
+        onStudy={openDeck}
+      />
+    )
+  }
+
   const tutorias = decks.filter((d) => d.kind === 'tutoria')
   const provas = decks.filter((d) => d.kind === 'prova')
   return (
@@ -562,6 +612,9 @@ export default function Index() {
         <span style={{ color: '#d1fae5', fontSize: '0.85rem', marginRight: '0.8rem' }}>
           {user?.email}
         </span>
+        <button style={ghostBtn} onClick={() => setRoute({ view: 'library' })}>
+          📚 Biblioteca
+        </button>
         <button style={ghostBtn} onClick={logout}>
           Sair
         </button>
@@ -617,13 +670,15 @@ function DeckCard({
   const deckCards = cards.filter((c) => c.deck === deck.id)
   const now = Date.now()
   const due = deckCards.filter((c) => {
-    const rs = reviews.filter((r) => r.card === c.id)
+    const rs = reviews.filter((r) => (r.card_ref || r.card) === c.id)
     if (rs.length === 0) return false
     const last = rs[rs.length - 1]
     const dueMs = last.due ? new Date(last.due.replace(' ', 'T') + 'Z').getTime() : 0
     return dueMs <= now
   }).length
-  const isNew = deckCards.every((c) => reviews.filter((r) => r.card === c.id).length === 0)
+  const isNew = deckCards.every(
+    (c) => reviews.filter((r) => (r.card_ref || r.card) === c.id).length === 0,
+  )
   return (
     <div style={deckCardBox} onClick={() => onOpen(deck.id)}>
       <div style={{ fontSize: '1.4rem' }}>{deck.kind === 'prova' ? '📝' : '📁'}</div>

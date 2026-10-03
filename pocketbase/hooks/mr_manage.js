@@ -1,0 +1,194 @@
+// Operações de gestão MedReview; todas verificam ownership dentro do backend.
+routerAdd(
+  'POST',
+  '/backend/v1/mr/manage',
+  (e) => {
+    const userId = e.auth && e.auth.id ? e.auth.id : ''
+    if (!userId) return e.unauthorizedError('Faça login para alterar sua biblioteca.')
+    const body = e.requestInfo().body || {}
+    const action = String(body.action || '')
+    const ownDeck = (id) => {
+      const deck = $app.findRecordById('mr_decks', String(id || ''))
+      if (deck.getString('user_id') !== userId || deck.getBool('deleted'))
+        throw new Error('deck_not_owned')
+      return deck
+    }
+    const ownCard = (id) => {
+      const card = $app.findRecordById('mr_cards', String(id || ''))
+      if (card.getString('user_id') !== userId || card.getBool('deleted'))
+        throw new Error('card_not_owned')
+      return card
+    }
+    const cleanText = (value, max) =>
+      String(value == null ? '' : value)
+        .trim()
+        .slice(0, max)
+    try {
+      if (action === 'deck_create') {
+        const title = cleanText(body.title, 200)
+        const kind = ['tutoria', 'prova', 'custom'].includes(body.kind) ? body.kind : 'custom'
+        if (!title) return e.badRequestError('O nome da pasta é obrigatório.')
+        let parent = null
+        if (body.parent_id) parent = ownDeck(body.parent_id)
+        const rows = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+          user: userId,
+        })
+        const col = $app.findCollectionByNameOrId('mr_decks')
+        const deck = new Record(col)
+        deck.set('user_id', userId)
+        deck.set('title', title)
+        deck.set('kind', kind)
+        deck.set('order', rows.length + 1)
+        if (parent) deck.set('parent', parent.id)
+        $app.save(deck)
+        return e.json(201, { id: deck.id, title, kind, parent: parent ? parent.id : '' })
+      }
+
+      if (action === 'deck_rename') {
+        const deck = ownDeck(body.deck_id)
+        const title = cleanText(body.title, 200)
+        if (!title) return e.badRequestError('O nome da pasta é obrigatório.')
+        deck.set('title', title)
+        $app.save(deck)
+        return e.json(200, { id: deck.id, title })
+      }
+
+      if (action === 'deck_delete') {
+        const root = ownDeck(body.deck_id)
+        const allDecks = $app.findRecordsByFilter(
+          'mr_decks',
+          'user_id = {:user}',
+          'order',
+          500,
+          0,
+          { user: userId },
+        )
+        const ids = {}
+        ids[root.id] = true
+        let changed = true
+        while (changed) {
+          changed = false
+          for (let i = 0; i < allDecks.length; i++) {
+            const parentId = allDecks[i].getString('parent')
+            if (parentId && ids[parentId] && !ids[allDecks[i].id]) {
+              ids[allDecks[i].id] = true
+              changed = true
+            }
+          }
+        }
+        let deletedDecks = 0
+        for (let i = 0; i < allDecks.length; i++) {
+          if (!ids[allDecks[i].id]) continue
+          allDecks[i].set('deleted', true)
+          $app.save(allDecks[i])
+          deletedDecks++
+          const cards = $app.findRecordsByFilter(
+            'mr_cards',
+            'user_id = {:user} && deck = {:deck}',
+            '-created',
+            1000,
+            0,
+            { user: userId, deck: allDecks[i].id },
+          )
+          for (let j = 0; j < cards.length; j++) {
+            if (!cards[j].getBool('deleted')) {
+              cards[j].set('deleted', true)
+              $app.save(cards[j])
+            }
+          }
+        }
+        return e.json(200, { ok: true, deletedDecks })
+      }
+
+      if (action === 'card_create' || action === 'card_import') {
+        const deck = ownDeck(body.deck_id)
+        const inputCards = action === 'card_import' ? body.cards : [body.card || body]
+        if (!Array.isArray(inputCards) || inputCards.length < 1 || inputCards.length > 250) {
+          return e.badRequestError('Envie entre 1 e 250 cartões por lote.')
+        }
+        const createdIds = []
+        for (let i = 0; i < inputCards.length; i++) {
+          const item = inputCards[i] || {}
+          const q = String(item.q == null ? '' : item.q).trim()
+          const a = String(item.a == null ? '' : item.a).trim()
+          if (!q || !a) return e.badRequestError('Cada cartão precisa ter frente e verso.')
+          if (q.length > 5000 || a.length > 20000)
+            return e.badRequestError('Frente ou verso excede o limite de caracteres.')
+          const col = $app.findCollectionByNameOrId('mr_cards')
+          const card = new Record(col)
+          card.set('user_id', userId)
+          card.set('deck', deck.id)
+          card.set('q', q)
+          card.set('a', a)
+          card.set('group', cleanText(item.group, 200))
+          card.set('ref', cleanText(item.ref, 500))
+          card.set('suspended', false)
+          card.set('deleted', false)
+          if (item.diagramSvg) {
+            card.set('diagram_svg', String(item.diagramSvg).slice(0, 20000))
+            card.set('diagram_title', cleanText(item.diagramTitle, 200))
+          }
+          $app.save(card)
+          createdIds.push(card.id)
+        }
+        return e.json(201, { created: createdIds.length, ids: createdIds })
+      }
+
+      if (action === 'card_update') {
+        const card = ownCard(body.card_id)
+        const q = String(body.q == null ? '' : body.q).trim()
+        const a = String(body.a == null ? '' : body.a).trim()
+        if (!q || !a) return e.badRequestError('Frente e verso são obrigatórios.')
+        if (q.length > 5000 || a.length > 20000)
+          return e.badRequestError('Frente ou verso excede o limite de caracteres.')
+        card.set('q', q)
+        card.set('a', a)
+        card.set('group', cleanText(body.group, 200))
+        card.set('ref', cleanText(body.ref, 500))
+        $app.save(card)
+        return e.json(200, { id: card.id, ok: true })
+      }
+
+      if (action === 'card_suspend') {
+        const card = ownCard(body.card_id)
+        card.set('suspended', !!body.suspended)
+        $app.save(card)
+        return e.json(200, { id: card.id, suspended: card.getBool('suspended') })
+      }
+
+      if (action === 'card_delete') {
+        const card = ownCard(body.card_id)
+        card.set('deleted', true)
+        $app.save(card)
+        return e.json(200, { id: card.id, deleted: true })
+      }
+
+      return e.badRequestError('Operação de gestão desconhecida.')
+    } catch (err) {
+      const message = err && err.message ? String(err.message) : String(err)
+      if (message === 'deck_not_owned' || message === 'card_not_owned') {
+        return e.forbiddenError('A pasta ou o cartão não pertence à sua conta.')
+      }
+      const errorId = 'manage-' + Date.now().toString(36)
+      $app
+        .logger()
+        .error(
+          'MedReview management failed',
+          'errorId',
+          errorId,
+          'userId',
+          userId,
+          'action',
+          action,
+          'error',
+          message.slice(0, 180),
+        )
+      return e.json(500, {
+        error: 'manage_failed',
+        errorId,
+        message: 'Não foi possível salvar. Confira os dados e tente novamente.',
+      })
+    }
+  },
+  $apis.requireAuth(),
+)
