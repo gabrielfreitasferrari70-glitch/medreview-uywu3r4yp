@@ -547,6 +547,38 @@ export function MedReviewLegacyHome(props: HomeProps) {
                         >
                           ＋ Carta
                         </button>
+                        {/* ✏️/🗑️ só quando a seção tem UMA pasta na raiz (pasta real
+                            — ex.: seção movida de volta): aí o card É a pasta. Com
+                            várias raízes (catálogo), a gestão é dentro da view. */}
+                        {item.deckId &&
+                          item.sectionKind &&
+                          onDeckRename &&
+                          decks.filter(
+                            (d) => d.kind === item.sectionKind && !d.parent && !d.deleted,
+                          ).length === 1 && (
+                            <button
+                              type="button"
+                              title="Renomear esta pasta"
+                              onClick={() => onDeckRename(item.deckId as string)}
+                            >
+                              ✏️
+                            </button>
+                          )}
+                        {item.deckId &&
+                          item.sectionKind &&
+                          onDeckDelete &&
+                          decks.filter(
+                            (d) => d.kind === item.sectionKind && !d.parent && !d.deleted,
+                          ).length === 1 && (
+                            <button
+                              type="button"
+                              className="danger"
+                              title="Excluir esta pasta (com tudo dentro)"
+                              onClick={() => onDeckDelete(item.deckId as string)}
+                            >
+                              🗑️
+                            </button>
+                          )}
                         {item.deckId && onSectionMove && item.sectionKind && (
                           <button
                             type="button"

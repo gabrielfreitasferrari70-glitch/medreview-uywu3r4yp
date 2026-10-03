@@ -174,6 +174,8 @@ interface Deck {
   seed_key?: string
   parent?: string
   deleted?: boolean
+  frontline?: boolean
+  mode?: string
 }
 interface Card {
   id: string
@@ -2265,6 +2267,7 @@ export default function Index() {
           deckKind,
           deckModal.deckId === '@frontline' ? undefined : deckModal.deckId || undefined,
           deckMode,
+          deckModal.deckId === '@frontline',
         )
       } else if (deckModal.type === 'moveDeck') {
         if (!deckMoveTarget) throw new Error('Escolha a pasta de destino ou o nível inicial.')
@@ -2956,10 +2959,12 @@ export default function Index() {
     decks.filter((d) => d.kind === kind && !d.parent && !d.deleted)
   // Pastas criadas pela usuária (sem seed_key) — aparecem como cards no grid
   // "Pastas de Estudo" da home, no mesmo estilo das seções.
-  // Pastas da usuária NÃO viram cards no grid da home — "Minhas Pastas" é o
-  // portal delas (feedback: pasta criada dentro de Minhas Pastas aparecia
-  // duplicada na tela inicial). O grid mostra só os cards fixos das seções.
-  const userDecks: Deck[] = []
+  // Cards do grid da home = pastas "🎯 Na tela inicial" (frontline). As demais
+  // ficam no portal Minhas Pastas (feedback: pasta criada lá dentro aparecia
+  // duplicada na tela inicial).
+  const userDecks = decks
+    .filter((d) => d.kind === 'custom' && !d.parent && d.frontline)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
   // Card fixo da seção SÓ aparece se ela tem pastas em nível inicial — se a
   // seção foi movida (Anki: mover = some da origem), o card some da home.
   // Sem card vazio duplicado com a pasta movida.
@@ -2971,7 +2976,7 @@ export default function Index() {
           {
             icon: '🩺',
             tag: 'PBL / Tutoria',
-            title: 'Tutoria',
+            title: tutorias.find((d) => !d.parent)?.title || 'Tutoria',
             description:
               'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
             count: rootsOfKind('tutoria').reduce((n, d) => n + cardsInSubtree(d.id), 0),
@@ -2986,7 +2991,7 @@ export default function Index() {
           {
             icon: '📝',
             tag: 'Módulos',
-            title: 'Prova de Módulo',
+            title: provas.find((d) => !d.parent)?.title || 'Prova de Módulo',
             description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
             count: rootsOfKind('prova').reduce((n, d) => n + cardsInSubtree(d.id), 0),
             onClick: () => openFolderGroup('prova'),
@@ -2999,7 +3004,7 @@ export default function Index() {
     {
       icon: '📁',
       tag: 'Suas pastas livres',
-      title: 'Minhas Pastas',
+      title: customs.find((d) => !d.parent)?.title || 'Minhas Pastas',
       description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
       count: rootsOfKind('custom').reduce((n, d) => n + cardsInSubtree(d.id), 0),
       onClick: () => openFolderGroup('custom'),

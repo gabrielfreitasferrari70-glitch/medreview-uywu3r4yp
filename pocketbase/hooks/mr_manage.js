@@ -316,6 +316,7 @@ routerAdd(
         deck.set('mode', mode)
         deck.set('order', rows.length + 1)
         if (parent) deck.set('parent', parent.id)
+        if (body.frontline === true) deck.set('frontline', true)
         $app.save(deck)
         // A pasta que ganhou uma subpasta passa a ser organizadora.
         if (parent && parent.getString('mode') !== 'organizer') {
