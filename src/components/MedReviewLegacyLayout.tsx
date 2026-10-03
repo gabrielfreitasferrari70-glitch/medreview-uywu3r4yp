@@ -161,9 +161,13 @@ type HomeProps = {
   onDeckDelete?: (deckId: string) => void
   onDeckReset?: (deckId: string) => void
   onDeckMove?: (deckId: string) => void
-  onDeckClick: (deckId: string) => void
+  onDeckClick: (deckId: string) => void | boolean | Promise<void | boolean>
   userDecks: LegacyDeck[]
   onNewFolderIn: (kind: 'tutoria' | 'prova' | 'custom') => void
+  onNewFrontlineFolder: () => void
+  onDeckRenameRoot?: (deckId: string) => void
+  onDeckDeleteRoot?: (deckId: string) => boolean | void
+  onDeckMoveRoot?: (deckId: string) => void
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -198,6 +202,10 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckClick,
     userDecks,
     onNewFolderIn,
+    onNewFrontlineFolder,
+    onDeckRenameRoot,
+    onDeckDeleteRoot,
+    onDeckMoveRoot,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
   const title =
@@ -229,7 +237,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
             <button className="mr-legacy-button" onClick={onClinical}>
               📋 Modo Caso Clínico
             </button>
-            <button className="mr-legacy-button primary" onClick={() => onNewFolderIn('custom')}>
+            <button className="mr-legacy-button primary" onClick={onNewFrontlineFolder}>
               ＋ Nova Pasta
             </button>
             <button
@@ -477,6 +485,28 @@ export function MedReviewLegacyHome(props: HomeProps) {
                           onClick={() => onDeckAddCard?.(item.deckId)}
                         >
                           ＋ Carta
+                        </button>
+                        <button
+                          type="button"
+                          title="Renomear pasta"
+                          onClick={() => onDeckRenameRoot?.(item.deckId)}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          title="Mover para dentro de outra pasta"
+                          onClick={() => onDeckMoveRoot?.(item.deckId)}
+                        >
+                          ➡️
+                        </button>
+                        <button
+                          type="button"
+                          className="danger"
+                          title="Excluir pasta (as cartas também serão apagadas)"
+                          onClick={() => onDeckDeleteRoot?.(item.deckId)}
+                        >
+                          🗑️
                         </button>
                       </span>
                     )}

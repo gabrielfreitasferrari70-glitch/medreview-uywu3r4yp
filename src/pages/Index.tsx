@@ -2094,6 +2094,38 @@ export default function Index() {
     setDeckKind(kind)
     setDeckModal({ type: 'folder', deckId: '' })
   }
+  const openNewFrontlineFolder = () => {
+    setDeckTitle('')
+    setDeckKind('custom')
+    setDeckModal({ type: 'folder', deckId: '@frontline' })
+  }
+  const renameRootDeck = (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId)
+    if (!deck) return
+    setDeckTitle(deck.title)
+    setDeckKind(deck.kind as any)
+    setDeckModal({ type: 'rename', deckId })
+  }
+  const moveRootDeck = (deckId: string) => {
+    setDeckMoveTarget('')
+    setDeckModal({ type: 'moveDeck', deckId })
+  }
+  const deleteRootDeck = (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId)
+    if (!deck) return
+    const n = cards.filter((c) => c.deck === deckId && !c.deleted).length
+    if (!window.confirm(`Excluir "${deck.title}" e ${n} carta(s)? Isso não pode ser desfeito.`))
+      return false
+    deleteDeck(deckId)
+      .then(() => {
+        setMsg('Pasta excluída.')
+        setTimeout(() => setMsg(''), 4000)
+      })
+      .catch(() => {
+        setMsg('Não foi possível excluir a pasta.')
+        setTimeout(() => setMsg(''), 4000)
+      })
+  }
 
   const openDeckCardModal = (deckId: string) => {
     setDeckQ('')
@@ -2153,7 +2185,11 @@ export default function Index() {
         await createCard(deckModal.deckId, { q: deckQ, a: deckA, group: '', ref: '' })
       } else if (deckModal.type === 'folder') {
         if (!deckTitle.trim()) throw new Error('Informe o nome da pasta.')
-        await createDeck(deckTitle, deckKind, deckModal.deckId || undefined)
+        await createDeck(
+          deckTitle,
+          deckKind,
+          deckModal.deckId === '@frontline' ? undefined : deckModal.deckId || undefined,
+        )
       } else if (deckModal.type === 'moveDeck') {
         if (!deckMoveTarget) throw new Error('Escolha a pasta de destino ou o nível inicial.')
         const goingRoot = deckMoveTarget.startsWith('@root:')
@@ -2174,17 +2210,21 @@ export default function Index() {
           : deckKind === 'tutoria'
             ? 'Tutoria'
             : 'Prova de Módulo'
-      const parentName = deckModal.deckId
-        ? ` — subpasta dentro de "${decks.find((d) => d.id === deckModal.deckId)?.title || ''}"`
-        : deckModal.type === 'folder'
+      const frontline = deckModal.deckId === '@frontline'
+      const createdIn =
+        deckModal.type === 'folder' && !frontline
           ? ` — seção ${sectionName}`
-          : ''
+          : deckModal.type === 'folder'
+            ? ' — no topo da tela inicial 🎯'
+            : deckModal.deckId
+              ? ` — dentro de "${decks.find((d) => d.id === deckModal.deckId)?.title || ''}"`
+              : ''
       setDeckModal(null)
       setMsg(
         deckModal.type === 'card'
           ? 'Carta criada.'
           : deckModal.type === 'folder'
-            ? `Pasta criada${parentName}.`
+            ? `Pasta criada${createdIn}.`
             : deckModal.type === 'moveDeck'
               ? 'Pasta movida.'
               : 'Pasta renomeada.',
@@ -2808,6 +2848,10 @@ export default function Index() {
           setQuizOpen(true)
         }}
         onNewFolderIn={openNewFolder}
+        onNewFrontlineFolder={openNewFrontlineFolder}
+        onDeckRenameRoot={renameRootDeck}
+        onDeckDeleteRoot={deleteRootDeck}
+        onDeckMoveRoot={moveRootDeck}
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
         onSettings={() => setSettingsOpen(true)}
@@ -2904,9 +2948,11 @@ export default function Index() {
             <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
               {deckModal.type === 'moveDeck'
                 ? `Mover “${decks.find((d) => d.id === deckModal.deckId)?.title || ''}” para dentro de outra pasta — ela vai junto com suas subpastas.`
-                : deckModal.deckId
-                  ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
-                  : 'A pasta aparece na home, na seção do tipo escolhido.'}
+                : deckModal.deckId === '@frontline'
+                  ? 'A pasta nasce como card no topo da tela inicial, no frente das outras. 🎯'
+                  : deckModal.deckId
+                    ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
+                    : 'A pasta aparece na home, na seção do tipo escolhido.'}
             </p>
             {deckModal.type === 'moveDeck' && (
               <select
@@ -2980,7 +3026,16 @@ export default function Index() {
                 {deckModal.type === 'folder' && !deckModal.deckId && (
                   <select
                     value={deckKind}
-                    onChange={(e) => setDeckKind(e.target.value as any)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v === '@frontline') {
+                        setDeckModal({ type: 'folder', deckId: '@frontline' })
+                        setDeckKind('custom')
+                      } else {
+                        setDeckModal({ type: 'folder', deckId: '' })
+                        setDeckKind(v as any)
+                      }
+                    }}
                     style={{
                       width: '100%',
                       boxSizing: 'border-box',
@@ -2992,6 +3047,9 @@ export default function Index() {
                       background: '#fff',
                     }}
                   >
+                    <option value="@frontline">
+                      🎯 Topo da tela inicial (no frente das outras)
+                    </option>
                     <option value="custom">📁 Minhas Pastas</option>
                     <option value="tutoria">🩺 Tutoria</option>
                     <option value="prova">📝 Prova de Módulo</option>
