@@ -2956,8 +2956,18 @@ export default function Index() {
     decks.filter((d) => d.kind === kind && !d.parent && !d.deleted)
   // Pastas criadas pela usuária (sem seed_key) — aparecem como cards no grid
   // "Pastas de Estudo" da home, no mesmo estilo das seções.
+  // Cards do grid da home = pastas CUSTOM de nível inicial criadas pela usuária.
+  // Blocos de seção movida (ex.: "Tutoria" ao ir para Minhas Pastas) NÃO viram
+  // card na home — eles vivem DENTRO da seção de destino (modelo Anki: mover =
+  // some da origem; abre Minhas Pastas e a pasta da seção está lá).
+  const sectionBlockTitles = ['Tutoria', 'Prova de Módulo', 'Prova']
   const userDecks = decks
-    .filter((d) => !d.seed_key && !d.parent)
+    .filter(
+      (d) =>
+        d.kind === 'custom' &&
+        !d.parent &&
+        !((d as any).mode === 'organizer' && sectionBlockTitles.includes(d.title)),
+    )
     .sort((a, b) => (a.order || 0) - (b.order || 0))
   // Card fixo da seção SÓ aparece se ela tem pastas em nível inicial — se a
   // seção foi movida (Anki: mover = some da origem), o card some da home.
