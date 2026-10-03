@@ -2920,7 +2920,7 @@ export default function Index() {
   // Contador por SUBÁRVORE: uma pasta organizadora (ex.: bloco "Tutoria" depois
   // de mover a seção) tem as cartas nas FILHAS — contar a árvore inteira, não
   // só cartas diretas.
-  const deckSubtreeIds = useMemo(() => {
+  const deckSubtreeIds = (() => {
     const children: Record<string, string[]> = {}
     for (const d of decks) {
       if (d.parent) (children[d.parent] ||= []).push(d.id)
@@ -2945,7 +2945,7 @@ export default function Index() {
     const map = new Map<string, Set<string>>()
     for (const d of decks) map.set(d.id, idsOf(d.id))
     return map
-  }, [decks])
+  })()
   const cardsInSubtree = (deckId: string) => {
     const ids = deckSubtreeIds.get(deckId)
     return ids ? cards.filter((c) => ids.has(c.deck) && !c.deleted).length : 0
