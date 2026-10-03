@@ -563,6 +563,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
       <div
         key={deck.id}
         className={`mr-lib-deck${isChild ? ' is-child' : ''}${dragDeckId === deck.id ? ' is-dragging' : ''}`}
+        style={isChild > 1 ? { paddingLeft: 44 + (Number(isChild) - 1) * 22 } : undefined}
         draggable
         onDragStart={(e) => {
           setDragDeckId(deck.id)
@@ -785,10 +786,12 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
                 roots.flatMap((deck) => {
                   const kids = childrenOf(deck.id)
                   const isOpen = !!expanded[deck.id]
-                  return [
-                    deckRow(deck, false),
-                    ...(isOpen ? kids.map((k) => deckRow(k, true)) : []),
-                  ]
+                  const renderTree = (deckId: string, depth: number): any[] =>
+                    childrenOf(deckId).flatMap((k) => [
+                      deckRow(k, depth),
+                      ...(expanded[k.id] ? renderTree(k.id, depth + 1) : []),
+                    ])
+                  return [deckRow(deck, false), ...(isOpen ? renderTree(deck.id, 1) : [])]
                 })
               )}
             </section>

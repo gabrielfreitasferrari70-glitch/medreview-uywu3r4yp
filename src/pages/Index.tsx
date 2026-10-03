@@ -2155,8 +2155,14 @@ export default function Index() {
         if (!deckTitle.trim()) throw new Error('Informe o nome da pasta.')
         await createDeck(deckTitle, deckKind, deckModal.deckId || undefined)
       } else if (deckModal.type === 'moveDeck') {
-        if (!deckMoveTarget) throw new Error('Escolha a pasta de destino.')
-        await moveDeck(deckModal.deckId, deckMoveTarget)
+        if (!deckMoveTarget) throw new Error('Escolha a pasta de destino ou o nível inicial.')
+        const moving = decks.find((d) => d.id === deckModal.deckId)
+        const goingRoot = deckMoveTarget === '@root'
+        await moveDeck(
+          deckModal.deckId,
+          goingRoot ? '' : deckMoveTarget,
+          goingRoot ? moving?.kind : undefined,
+        )
       } else {
         if (!deckTitle.trim()) throw new Error('Informe o novo nome.')
         await renameDeck(deckModal.deckId, deckTitle)
@@ -2909,6 +2915,7 @@ export default function Index() {
                 }}
               >
                 <option value="">Escolher pasta de destino…</option>
+                <option value="@root">⬆ Nível inicial da própria seção</option>
                 {decks
                   .filter((d) => d.id !== deckModal.deckId)
                   .sort((a, b) => (a.order || 0) - (b.order || 0))
