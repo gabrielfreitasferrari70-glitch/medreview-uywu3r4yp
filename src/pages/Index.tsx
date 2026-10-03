@@ -2215,7 +2215,7 @@ export default function Index() {
         deckModal.type === 'folder' && !frontline
           ? ` — seção ${sectionName}`
           : deckModal.type === 'folder'
-            ? ' — no topo da tela inicial 🎯'
+            ? ' — na tela inicial 🎯'
             : deckModal.deckId
               ? ` — dentro de "${decks.find((d) => d.id === deckModal.deckId)?.title || ''}"`
               : ''
@@ -2949,7 +2949,7 @@ export default function Index() {
               {deckModal.type === 'moveDeck'
                 ? `Mover “${decks.find((d) => d.id === deckModal.deckId)?.title || ''}” para dentro de outra pasta — ela vai junto com suas subpastas.`
                 : deckModal.deckId === '@frontline'
-                  ? 'A pasta nasce como card no topo da tela inicial, no frente das outras. 🎯'
+                  ? 'A pasta nasce como card na tela inicial, junto das outras pastas. 🎯'
                   : deckModal.deckId
                     ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
                     : 'A pasta aparece na home, na seção do tipo escolhido.'}
@@ -3049,7 +3049,7 @@ export default function Index() {
                       }}
                     >
                       <option value="@frontline">
-                        🎯 Topo da tela inicial (no frente das outras)
+                        🎯 Na tela inicial (junto das outras pastas)
                       </option>
                       <option value="custom">📁 Minhas Pastas</option>
                       <option value="tutoria">🩺 Tutoria</option>
