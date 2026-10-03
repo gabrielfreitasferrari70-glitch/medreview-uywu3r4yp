@@ -977,6 +977,291 @@ function CardStatsModal({
   )
 }
 
+// ===== 📈 Dashboard FSRS (heatmap, carga futura, acerto por pasta) =====
+function FsrDashboardModal({
+  decks,
+  cards,
+  reviews,
+  onClose,
+}: {
+  decks: Deck[]
+  cards: Card[]
+  reviews: Review[]
+  onClose: () => void
+}) {
+  const dayKeyOf = (ms: number) => {
+    const d = new Date(ms)
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+  }
+  // Heatmap: últimos 119 dias (17 semanas)
+  const counts = new Map<string, number>()
+  for (const r of reviews) {
+    const ms = parsePbDate(r.reviewed_at)
+    if (ms) counts.set(dayKeyOf(ms), (counts.get(dayKeyOf(ms)) || 0) + 1)
+  }
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const weeks: { key: string; count: number; date: Date }[][] = []
+  const start = new Date(today)
+  start.setDate(start.getDate() - 118)
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7)) // começa na segunda
+  for (let w = 0; w < 17; w++) {
+    const col: { key: string; count: number; date: Date }[] = []
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(start)
+      day.setDate(start.getDate() + w * 7 + d)
+      const key = dayKeyOf(day)
+      col.push({ key, count: counts.get(key) || 0, date: day })
+    }
+    weeks.push(col)
+  }
+  const heatColor = (n: number) =>
+    n === 0 ? '#eef2f0' : n <= 5 ? '#bbf7d0' : n <= 15 ? '#4ade80' : n <= 30 ? '#16a34a' : '#14532d'
+  // Carga futura: vencidas + próximas janelas
+  const now = Date.now()
+  let overdue = 0
+  let d7 = 0
+  let d14 = 0
+  let d30 = 0
+  for (const c of cards) {
+    if (c.suspended) continue
+    const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
+    if (cs.state === 'new') continue
+    const due = cs.dueMs || 0
+    if (due <= now) overdue++
+    else if (due <= now + 7 * 86400000) d7++
+    else if (due <= now + 14 * 86400000) d14++
+    else if (due <= now + 30 * 86400000) d30++
+  }
+  // Acerto por pasta (raiz + subpastas)
+  const rootDecks = decks.filter((d) => !d.parent).sort((a, b) => (a.order || 0) - (b.order || 0))
+  const perDeck = rootDecks
+    .map((deck) => {
+      const ids = new Set([deck.id, ...decks.filter((d) => d.parent === deck.id).map((d) => d.id)])
+      const deckCards = cards.filter((c) => ids.has(c.deck))
+      const cardIds = new Set(deckCards.map((c) => c.id))
+      const rs = reviews.filter((r) => cardIds.has(r.card_ref || r.card))
+      const correct = rs.filter((r) => r.rating === 'good' || r.rating === 'easy').length
+      return {
+        title: deck.title,
+        total: rs.length,
+        correct,
+        pct: rs.length ? Math.round((correct * 100) / rs.length) : null,
+      }
+    })
+    .filter((d) => d.total > 0)
+  const totalReviews = reviews.length
+  const totalCorrect = reviews.filter((r) => r.rating === 'good' || r.rating === 'easy').length
+  const overall = totalReviews ? Math.round((totalCorrect * 100) / totalReviews) : 0
+  const maxLoad = Math.max(overdue, d7, d14, d30, 1)
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 70,
+        background: 'rgba(15,23,42,.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 18,
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 18,
+          padding: 22,
+          width: '100%',
+          maxWidth: 560,
+          maxHeight: '90vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 50px rgba(15,23,42,.25)',
+        }}
+      >
+        <h3 style={{ margin: '0 0 4px', color: '#14532d', fontSize: '1.1rem', fontWeight: 900 }}>
+          📈 Dashboard FSRS
+        </h3>
+        <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
+          {totalReviews} revisões registradas · acerto geral {overall}%
+        </p>
+        <div
+          style={{
+            fontSize: '.72rem',
+            fontWeight: 900,
+            color: '#15803d',
+            letterSpacing: '.08em',
+            marginBottom: 8,
+          }}
+        >
+          HEATMAP DE ESTUDO (17 SEMANAS)
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(17,1fr)',
+            gap: 3,
+            marginBottom: 6,
+          }}
+        >
+          {weeks.map((col, i) => (
+            <div key={i} style={{ display: 'grid', gap: 3 }}>
+              {col.map((cell) => (
+                <div
+                  key={cell.key}
+                  title={`${cell.date.toLocaleDateString('pt-BR')}: ${cell.count} revisão(ões)`}
+                  style={{
+                    width: '100%',
+                    paddingBottom: '100%',
+                    borderRadius: 3,
+                    background: heatColor(cell.count),
+                    position: 'relative',
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            color: '#64748b',
+            fontSize: '.7rem',
+            marginBottom: 16,
+          }}
+        >
+          <span>menos</span>
+          {['#eef2f0', '#bbf7d0', '#4ade80', '#16a34a', '#14532d'].map((c) => (
+            <span
+              key={c}
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 3,
+                background: c,
+                display: 'inline-block',
+              }}
+            />
+          ))}
+          <span>mais</span>
+        </div>
+        <div
+          style={{
+            fontSize: '.72rem',
+            fontWeight: 900,
+            color: '#15803d',
+            letterSpacing: '.08em',
+            marginBottom: 8,
+          }}
+        >
+          CARGA DE REVISÕES
+        </div>
+        {[
+          { label: 'Vencidas agora', value: overdue, color: '#dc2626' },
+          { label: 'Próximos 7 dias', value: d7, color: '#d97706' },
+          { label: '8–14 dias', value: d14, color: '#16a34a' },
+          { label: '15–30 dias', value: d30, color: '#2563eb' },
+        ].map((row) => (
+          <div
+            key={row.label}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+          >
+            <span style={{ width: 110, color: '#475569', fontSize: '.78rem', fontWeight: 700 }}>
+              {row.label}
+            </span>
+            <div
+              style={{
+                flex: 1,
+                height: 14,
+                background: '#f1f5f9',
+                borderRadius: 7,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.round((row.value * 100) / maxLoad)}%`,
+                  height: '100%',
+                  background: row.color,
+                  borderRadius: 7,
+                }}
+              />
+            </div>
+            <span style={{ width: 30, color: '#64748b', fontSize: '.78rem', textAlign: 'right' }}>
+              {row.value}
+            </span>
+          </div>
+        ))}
+        <div
+          style={{
+            fontSize: '.72rem',
+            fontWeight: 900,
+            color: '#15803d',
+            letterSpacing: '.08em',
+            margin: '16px 0 8px',
+          }}
+        >
+          ACERTO POR PASTA
+        </div>
+        {perDeck.length === 0 ? (
+          <p style={{ margin: 0, color: '#94a3b8', fontSize: '.82rem' }}>
+            Nenhuma revisão registrada ainda — estude cartas para ver o acerto por pasta.
+          </p>
+        ) : (
+          perDeck.map((d) => (
+            <div
+              key={d.title}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+            >
+              <span
+                style={{
+                  flex: '0 0 150px',
+                  color: '#475569',
+                  fontSize: '.76rem',
+                  fontWeight: 700,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title={d.title}
+              >
+                {d.title}
+              </span>
+              <div
+                style={{
+                  flex: 1,
+                  height: 14,
+                  background: '#f1f5f9',
+                  borderRadius: 7,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${d.pct || 0}%`,
+                    height: '100%',
+                    background:
+                      (d.pct || 0) >= 80 ? '#16a34a' : (d.pct || 0) >= 60 ? '#d97706' : '#dc2626',
+                    borderRadius: 7,
+                  }}
+                />
+              </div>
+              <span style={{ width: 64, color: '#64748b', fontSize: '.74rem', textAlign: 'right' }}>
+                {d.pct}% · {d.total}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ==================== App ====================
 export default function Index() {
   const [auth, setAuth] = useState<'loading' | 'out' | 'in'>('loading')
@@ -1016,6 +1301,7 @@ export default function Index() {
   const [retentionTick, setRetentionTick] = useState(0)
   const [sessionBuilderOpen, setSessionBuilderOpen] = useState(false)
   const [cardStatsOpen, setCardStatsOpen] = useState(false)
+  const [dashboardOpen, setDashboardOpen] = useState(false)
   const [deckModal, setDeckModal] = useState<{
     type: 'card' | 'folder' | 'rename'
     deckId: string
@@ -1774,6 +2060,7 @@ export default function Index() {
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
         onSettings={() => setSettingsOpen(true)}
+        onDashboard={() => setDashboardOpen(true)}
         onDeckAddCard={openDeckCardModal}
         onDeckAddSubfolder={openDeckSubfolderModal}
         onDeckRename={openDeckRenameModal}
@@ -1784,6 +2071,14 @@ export default function Index() {
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           onSaved={() => setRetentionTick((t) => t + 1)}
+        />
+      )}
+      {dashboardOpen && (
+        <FsrDashboardModal
+          decks={decks}
+          cards={cards}
+          reviews={reviews}
+          onClose={() => setDashboardOpen(false)}
         />
       )}
       {sessionBuilderOpen && (

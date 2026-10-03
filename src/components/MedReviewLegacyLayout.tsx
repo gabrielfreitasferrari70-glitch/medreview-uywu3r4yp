@@ -149,6 +149,7 @@ type HomeProps = {
   onLibrary: () => void
   onLogout: () => void
   onSettings: () => void
+  onDashboard: () => void
   onDeckAddCard?: (deckId: string) => void
   onDeckAddSubfolder?: (deckId: string) => void
   onDeckRename?: (deckId: string) => void
@@ -177,6 +178,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onLibrary,
     onLogout,
     onSettings,
+    onDashboard,
     onDeckAddCard,
     onDeckAddSubfolder,
     onDeckRename,
@@ -208,6 +210,14 @@ export function MedReviewLegacyHome(props: HomeProps) {
             </button>
             <button className="mr-legacy-button primary" onClick={onNewFolder}>
               ＋ Nova Pasta
+            </button>
+            <button
+              className="mr-legacy-button logout"
+              onClick={onDashboard}
+              aria-label="Dashboard FSRS"
+              title="Dashboard FSRS — heatmap, carga de revisões e acerto por pasta"
+            >
+              📈
             </button>
             <button
               className="mr-legacy-button logout"
