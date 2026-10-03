@@ -363,25 +363,34 @@ routerAdd(
         // apaga o bloco da seção que ficou VAZIO (senão sobra pasta fantasma
         // com o mesmo nome, que reaparece na próxima movida)
         let blockDeleted = 0
+        let blockNote = ''
         const blockId = String(body.block_id || '')
         if (blockId) {
           try {
             const block = ownDeck(blockId)
-            const stillHasChildren = $app.countRecordsByFilter(
+            // bool vazio no PB = "" (não false) — filtrar só por parent e checar
+            // deleted no código
+            const kids = $app.findRecordsByFilter(
               'mr_decks',
-              `user_id = {:user} && parent = {:block} && deleted = false`,
+              'user_id = {:user} && parent = {:block}',
+              '-updated',
+              500,
+              0,
               { user: userId, block: blockId },
             )
-            if (!stillHasChildren) {
+            const alive = kids.filter((k) => !k.getBool('deleted'))
+            if (!alive.length) {
               block.set('deleted', true)
               $app.save(block)
               blockDeleted = 1
+            } else {
+              blockNote = 'bloco ainda tem ' + alive.length + ' pasta(s)'
             }
-          } catch (_e) {
-            // bloco já não existe — nada a fazer
+          } catch (err) {
+            blockNote = 'bloco: ' + (err && err.message ? err.message : String(err))
           }
         }
-        return e.json(200, { ok: true, restored, blockDeleted })
+        return e.json(200, { ok: true, restored, blockDeleted, blockNote })
       }
 
       if (action === 'deck_move_section') {
