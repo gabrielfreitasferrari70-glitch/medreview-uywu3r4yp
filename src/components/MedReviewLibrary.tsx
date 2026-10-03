@@ -539,7 +539,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
           e.dataTransfer.effectAllowed = 'move'
           try {
             e.dataTransfer.setData('text/plain', deck.id)
-          } catch (_) {}
+          } catch (_) {
+            // alguns navegadores não permitem setData; segue o fluxo
+          }
         }}
         onDragEnd={() => setDragDeckId('')}
         onDragOver={(e) => {
