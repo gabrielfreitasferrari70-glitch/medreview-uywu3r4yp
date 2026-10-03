@@ -6,6 +6,7 @@ import {
   deleteCard,
   deleteDeck,
   importCards,
+  moveCard,
   renameDeck,
   resetDeck,
   setCardSuspended,
@@ -35,6 +36,8 @@ type ModalState =
   | { type: 'rename'; deckId: string; title: string }
   | { type: 'card'; deckId: string; card?: Card }
   | { type: 'import'; deckId: string }
+  | { type: 'move'; card: Card }
+  | { type: 'export' }
 
 const fieldStyle: React.CSSProperties = {
   width: '100%',
@@ -294,6 +297,51 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     setCardRef(card?.ref || '')
     setModal({ type: 'card', deckId, card })
   }
+  const openMoveModal = (card: Card) => setModal({ type: 'move', card })
+  const [moveTarget, setMoveTarget] = useState('')
+  const submitMove = async () => {
+    if (modal.type !== 'move') return
+    if (!moveTarget) return setError('Escolha a pasta de destino.')
+    const done = await run(async () => {
+      await moveCard(modal.card.id, moveTarget)
+      setSelectedDeckId(moveTarget)
+    }, 'Carta movida.')
+    if (done) {
+      setMoveTarget('')
+      setModal({ type: 'none' })
+    }
+  }
+  const allDecksSorted = useMemo(
+    () =>
+      [...decks]
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .map((d) => ({
+          id: d.id,
+          label: (d.parent ? '↳ ' : '') + d.title + (d.kind === 'prova' ? ' (Prova)' : ''),
+        })),
+    [decks],
+  )
+  const downloadBackup = () => {
+    const data = {
+      exported_at: new Date().toISOString(),
+      decks: decks.map((d) => ({ id: d.id, title: d.title, kind: d.kind, parent: d.parent || '' })),
+      cartas: cards.map((c) => ({
+        frente: c.q,
+        verso: c.a,
+        grupo: c.group || '',
+        referencia: c.ref || '',
+        pasta: decks.find((d) => d.id === c.deck)?.title || '',
+        suspensa: !!c.suspended,
+      })),
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `medreview-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   const submitCard = async () => {
     if (modal.type !== 'card') return
     if (!cardQ.trim() || !cardA.trim()) return setError('Preencha frente e verso.')
@@ -435,6 +483,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         </button>
         <strong className="mr-lib-title">📚 Biblioteca</strong>
         <span className="mr-lib-spacer" />
+        <button className="mr-lib-mini" onClick={() => setModal({ type: 'export' })}>
+          💾 Exportar backup
+        </button>
         <span className="mr-lib-count">
           {decks.length} pastas · {cards.length} cartões
         </span>
@@ -509,6 +560,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
                       onClick={() => openCardModal(selectedDeck.id, card)}
                     >
                       ✏️ Editar
+                    </button>
+                    <button className="mr-lib-mini" onClick={() => openMoveModal(card)}>
+                      ➡️ Mover
                     </button>
                     <button className="mr-lib-mini" onClick={() => toggleSuspended(card)}>
                       {card.suspended ? '▶ Retomar' : '⏸ Suspender'}
@@ -652,6 +706,56 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitCard}>
                 {busy ? 'Salvando…' : modal.card ? 'Salvar' : 'Criar carta'}
+              </button>
+              <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
+                Cancelar
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {modal.type === 'move' && (
+          <Modal
+            title="Mover carta"
+            subtitle={`“${modal.card.q.slice(0, 60)}${modal.card.q.length > 60 ? '…' : ''}” — escolha a pasta de destino.`}
+            onClose={() => setModal({ type: 'none' })}
+          >
+            <label className="mr-lib-label">Pasta de destino</label>
+            <select
+              style={fieldStyle}
+              value={moveTarget}
+              onChange={(e) => setMoveTarget(e.target.value)}
+            >
+              <option value="">Escolher…</option>
+              {allDecksSorted.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button style={actionStyle} disabled={busy} onClick={submitMove}>
+                {busy ? 'Movendo…' : 'Mover'}
+              </button>
+              <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
+                Cancelar
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {modal.type === 'export' && (
+          <Modal
+            title="Exportar backup"
+            subtitle="Arquivo JSON com suas pastas e cartas (sem o progresso de revisões). Guarde como cópia de segurança."
+            onClose={() => setModal({ type: 'none' })}
+          >
+            <p style={{ margin: '0 0 12px', color: '#334155', fontSize: '.88rem' }}>
+              {cards.length} cartas em {decks.length} pastas serão exportadas.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={actionStyle} onClick={downloadBackup}>
+                📥 Baixar JSON
               </button>
               <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
                 Cancelar

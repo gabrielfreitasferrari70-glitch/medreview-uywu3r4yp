@@ -163,6 +163,14 @@ routerAdd(
         return e.json(200, { id: card.id, deleted: true })
       }
 
+      if (action === 'card_move') {
+        const card = ownCard(body.card_id)
+        const deck = ownDeck(body.deck_id)
+        card.set('deck', deck.id)
+        $app.save(card)
+        return e.json(200, { id: card.id, deck: deck.id })
+      }
+
       if (action === 'deck_reset') {
         const root = ownDeck(body.deck_id)
         const allDecks = $app.findRecordsByFilter(

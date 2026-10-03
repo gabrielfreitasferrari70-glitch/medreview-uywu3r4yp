@@ -70,6 +70,9 @@ export const deleteCard = (cardId: string) => manageLibrary('card_delete', { car
 
 export const resetDeck = (deckId: string) => manageLibrary('deck_reset', { deck_id: deckId })
 
+export const moveCard = (cardId: string, deckId: string) =>
+  manageLibrary('card_move', { card_id: cardId, deck_id: deckId })
+
 export const importCards = (deckId: string, cards: ParsedCsvCard[]) =>
   manageLibrary('card_import', {
     deck_id: deckId,
