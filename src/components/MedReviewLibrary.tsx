@@ -23,6 +23,7 @@ type Card = {
   group: string
   ref: string
   suspended?: boolean
+  diagram_svg?: string
 }
 type Props = {
   decks: Deck[]
@@ -170,6 +171,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   const [cardA, setCardA] = useState('')
   const [cardGroup, setCardGroup] = useState('')
   const [cardRef, setCardRef] = useState('')
+  const [cardImg, setCardImg] = useState('')
   const [importText, setImportText] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -297,6 +299,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     setCardA(card?.a || '')
     setCardGroup(card?.group || '')
     setCardRef(card?.ref || '')
+    setCardImg(card?.diagram_svg && /^https?:\/\//i.test(card.diagram_svg) ? card.diagram_svg : '')
     setModal({ type: 'card', deckId, card })
   }
   const openMoveModal = (card: Card) => setModal({ type: 'move', card })
@@ -737,6 +740,13 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
               style={fieldStyle}
               value={cardRef}
               onChange={(e) => setCardRef(e.target.value)}
+            />
+            <label className="mr-lib-label">Imagem (URL http/https — anatomia, ECG, figuras)</label>
+            <input
+              style={fieldStyle}
+              value={cardImg}
+              placeholder="https://…/imagem.png"
+              onChange={(e) => setCardImg(e.target.value)}
             />
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitCard}>

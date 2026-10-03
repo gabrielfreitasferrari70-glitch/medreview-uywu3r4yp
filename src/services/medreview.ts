@@ -45,7 +45,7 @@ export const renameDeck = (deckId: string, title: string) =>
 
 export const deleteDeck = (deckId: string) => manageLibrary('deck_delete', { deck_id: deckId })
 
-export const createCard = (deckId: string, card: ParsedCsvCard) =>
+export const createCard = (deckId: string, card: ParsedCsvCard & { imageUrl?: string }) =>
   manageLibrary('card_create', { deck_id: deckId, card })
 
 export const updateCard = (card: {
@@ -54,6 +54,7 @@ export const updateCard = (card: {
   a: string
   group: string
   ref: string
+  imageUrl?: string
 }) =>
   manageLibrary('card_update', {
     card_id: card.id,
@@ -61,6 +62,7 @@ export const updateCard = (card: {
     a: card.a,
     group: card.group,
     ref: card.ref,
+    imageUrl: card.imageUrl || '',
   })
 
 export const setCardSuspended = (cardId: string, suspended: boolean) =>

@@ -1949,7 +1949,11 @@ export default function Index() {
                       </figcaption>
                     )}
                     <img
-                      src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`}
+                      src={
+                        /^https?:\/\//i.test(card.diagram_svg)
+                          ? card.diagram_svg
+                          : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`
+                      }
                       alt={card.diagram_title || 'Diagrama do cartão'}
                       style={{
                         display: 'block',

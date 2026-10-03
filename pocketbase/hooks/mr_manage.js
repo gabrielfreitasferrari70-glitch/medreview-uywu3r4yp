@@ -194,6 +194,10 @@ routerAdd(
             card.set('diagram_svg', String(item.diagramSvg).slice(0, 20000))
             card.set('diagram_title', cleanText(item.diagramTitle, 200))
           }
+          if (item.imageUrl && /^https?:\/\//i.test(String(item.imageUrl))) {
+            card.set('diagram_svg', String(item.imageUrl).trim().slice(0, 2000))
+            card.set('diagram_title', 'Imagem')
+          }
           $app.save(card)
           createdIds.push(card.id)
         }
@@ -211,6 +215,10 @@ routerAdd(
         card.set('a', a)
         card.set('group', cleanText(body.group, 200))
         card.set('ref', cleanText(body.ref, 500))
+        if (body.imageUrl && /^https?:\/\//i.test(String(body.imageUrl))) {
+          card.set('diagram_svg', String(body.imageUrl).trim().slice(0, 2000))
+          card.set('diagram_title', 'Imagem')
+        }
         $app.save(card)
         return e.json(200, { id: card.id, ok: true })
       }
