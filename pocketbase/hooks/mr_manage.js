@@ -6,6 +6,17 @@ routerAdd(
   (e) => {
     const userId = e.auth && e.auth.id ? e.auth.id : ''
     if (!userId) return e.unauthorizedError('Faça login para alterar sua biblioteca.')
+    // Ação administrativa pontual (diagnóstico/reparo da conta real): exige a
+    // chave de admin via header X-MR-Admin-Key; nunca exposta ao frontend.
+    const adminKey = $secrets.get('MR_ADMIN_KEY') || ''
+    if (
+      String(e.requestInfo().header('X-MR-Admin-Key') || '') &&
+      adminKey &&
+      String(e.requestInfo().header('X-MR-Admin-Key')) === adminKey &&
+      String(body.action || '').startsWith('admin_')
+    ) {
+      userId = String(body.user_id || '')
+    }
     const body = e.requestInfo().body || {}
     const action = String(body.action || '')
     const ownDeck = (id) => {
@@ -25,6 +36,23 @@ routerAdd(
         .trim()
         .slice(0, max)
     try {
+      if (action === 'admin_inspect') {
+        // Diagnóstico: árvore completa de pastas do usuário (id, título, kind,
+        // parent, mode, deleted) — para ver exatamente onde as pastas estão.
+        const target = String(body.user_id || '')
+        const rows = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+          user: target,
+        })
+        const decks = rows.map((d) => ({
+          id: d.id,
+          title: d.getString('title'),
+          kind: d.getString('kind'),
+          parent: d.getString('parent'),
+          mode: d.getString('mode'),
+          deleted: d.getBool('deleted'),
+        }))
+        return e.json(200, { ok: true, decks })
+      }
       if (action === 'deck_create') {
         const title = cleanText(body.title, 200)
         const kind = ['tutoria', 'prova', 'custom'].includes(body.kind) ? body.kind : 'custom'
