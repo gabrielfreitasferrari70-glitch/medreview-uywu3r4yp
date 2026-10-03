@@ -604,10 +604,14 @@ export default function Index() {
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
-      <div style={topbar}>
+      <style>{`@media (max-width: 480px) { .mr-home-topbar { justify-content: space-between; gap: 0.5rem !important; padding: 0.7rem 0.75rem !important; } .mr-home-topbar .mr-home-spacer, .mr-home-topbar .mr-home-user-email { display: none !important; } }`}</style>
+      <div className="mr-home-topbar" style={topbar}>
         <strong style={{ color: '#fff', fontSize: '1.1rem' }}>🩺 MedReview</strong>
-        <span style={{ flex: 1 }} />
-        <span style={{ color: '#d1fae5', fontSize: '0.85rem', marginRight: '0.8rem' }}>
+        <span className="mr-home-spacer" style={{ flex: 1 }} />
+        <span
+          className="mr-home-user-email"
+          style={{ color: '#d1fae5', fontSize: '0.85rem', marginRight: '0.8rem' }}
+        >
           {user?.email}
         </span>
         <button style={ghostBtn} onClick={() => setRoute({ view: 'library' })}>
