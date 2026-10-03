@@ -172,7 +172,8 @@ export function MedReviewLegacyHome(props: HomeProps) {
           <div className="mr-legacy-brand">
             <span className="mr-legacy-brand-icon">🩺</span>
             <span className="mr-legacy-brand-title">
-              Plataforma de Fixação Médica
+              <span className="mr-legacy-brand-full">Plataforma de Fixação Médica</span>
+              <span className="mr-legacy-brand-short">MedReview</span>
               <span className="mr-legacy-brand-sub">MedReview · FSRS-5</span>
             </span>
           </div>
