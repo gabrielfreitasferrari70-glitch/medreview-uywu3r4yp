@@ -336,8 +336,8 @@ routerAdd(
         if (sectionNames.length) {
           for (const d of allDecks) {
             if (d.getBool('deleted')) continue
+            // o bloco fica DENTRO do destino (não na raiz) — não exigir parent vazio
             const isBlock =
-              !d.getString('parent') &&
               d.getString('mode') === 'organizer' &&
               sectionNames.includes(d.getString('title')) &&
               d.getString('kind') !== toRestoreKind
