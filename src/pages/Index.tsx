@@ -9,6 +9,7 @@ import {
   moveDeck,
   moveDeckSection,
   renameDeck,
+  repairSection,
   resetDeck,
   undoMoveSection,
 } from '@/services/medreview'
@@ -247,9 +248,28 @@ function getRetention(): number {
 }
 
 // ===== Painel de configurações (⚙️) =====
-function SettingsModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function SettingsModal({
+  onClose,
+  onSaved,
+  onRepair,
+}: {
+  onClose: () => void
+  onSaved: () => void
+  onRepair?: (kind: 'tutoria' | 'prova' | 'custom') => Promise<boolean>
+}) {
   const [val, setVal] = useState(() => getRetention() * 100)
   const [saving, setSaving] = useState(false)
+  const [repairing, setRepairing] = useState('')
+  const repair = async (kind: 'tutoria' | 'prova' | 'custom') => {
+    if (!onRepair) return
+    setRepairing(kind)
+    const ok = await onRepair(kind)
+    setRepairing('')
+    if (ok) {
+      onSaved()
+      onClose()
+    }
+  }
   const save = () => {
     setSaving(true)
     const v = Math.min(97, Math.max(80, val))
@@ -355,6 +375,55 @@ function SettingsModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             Cancelar
           </button>
         </div>
+        {onRepair && (
+          <div
+            style={{
+              marginTop: 18,
+              paddingTop: 14,
+              borderTop: '1px dashed #bbf7d0',
+            }}
+          >
+            <p style={{ margin: '0 0 8px', color: '#64748b', fontSize: '.8rem' }}>
+              🛠️ Reparo de estrutura — devolve as pastas para o lugar original
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => repair('tutoria')}
+                disabled={!!repairing}
+                style={{
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 9,
+                  padding: '0.45rem 0.8rem',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '.78rem',
+                  background: '#fff',
+                  color: '#334155',
+                }}
+              >
+                {repairing === 'tutoria' ? 'Reparando…' : '🩺 Tutorias → nível inicial'}
+              </button>
+              <button
+                type="button"
+                onClick={() => repair('prova')}
+                disabled={!!repairing}
+                style={{
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 9,
+                  padding: '0.45rem 0.8rem',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '.78rem',
+                  background: '#fff',
+                  color: '#334155',
+                }}
+              >
+                {repairing === 'prova' ? 'Reparando…' : '📝 Provas → nível inicial'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -2931,6 +3000,20 @@ export default function Index() {
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           onSaved={() => setRetentionTick((t) => t + 1)}
+          onRepair={async (kind) => {
+            try {
+              const pattern = kind === 'tutoria' ? '^Tutoria ' : '^Prova '
+              const res: any = await repairSection(kind, pattern)
+              await loadData()
+              setMsg(`Reparo concluído — ${res?.restored ?? 0} pasta(s) de volta ao nível inicial.`)
+              window.setTimeout(() => setMsg(''), 4500)
+              return true
+            } catch (e: any) {
+              setMsg(e?.message || 'Não foi possível reparar.')
+              window.setTimeout(() => setMsg(''), 4000)
+              return false
+            }
+          }}
         />
       )}
       {dashboardOpen && (

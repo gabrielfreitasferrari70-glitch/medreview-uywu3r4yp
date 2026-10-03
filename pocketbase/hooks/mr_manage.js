@@ -307,6 +307,40 @@ routerAdd(
         return e.json(200, { id: card.id, deck: deck.id })
       }
 
+      if (action === 'deck_section_repair') {
+        // Reparo de emergência: devolve TODAS as pastas raiz de um kind que estão
+        // em outro lugar (dentro de pasta ou kind errado) para o nível inicial do
+        // próprio kind. Usado para consertar movidas antigas sem desfazer manual.
+        const toRestoreKind = ['tutoria', 'prova', 'custom'].includes(body.restore_kind)
+          ? body.restore_kind
+          : ''
+        if (!toRestoreKind) return e.badRequestError('Seção inválida.')
+        const allDecks = $app.findRecordsByFilter(
+          'mr_decks',
+          'user_id = {:user}',
+          'order',
+          500,
+          0,
+          { user: userId },
+        )
+        // candidatos: pastas cujo TÍTULO casa com o padrão da seção e que NÃO estão
+        // na raiz do próprio kind (ex.: "Tutoria N" fora da raiz tutoria)
+        const pattern = body.title_pattern || ''
+        let restored = 0
+        for (const d of allDecks) {
+          if (d.getBool('deleted')) continue
+          const title = d.getString('title')
+          if (pattern && !new RegExp(pattern, 'i').test(title)) continue
+          const isRootOfKind = !d.getString('parent') && d.getString('kind') === toRestoreKind
+          if (isRootOfKind) continue
+          d.set('parent', '')
+          d.set('kind', toRestoreKind)
+          $app.save(d)
+          restored++
+        }
+        return e.json(200, { ok: true, restored })
+      }
+
       if (action === 'deck_move_section_undo') {
         // Desfazer: devolve TODAS as pastas raiz que estão no toKind mas vieram
         // de outro kind (marcadas no undo) para o kind/raiz original.
