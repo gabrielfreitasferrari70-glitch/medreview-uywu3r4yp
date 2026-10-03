@@ -224,6 +224,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
+      <style>{`@media (max-width: 720px) { .mr-library-grid { grid-template-columns: minmax(0, 1fr) !important; } .mr-library-grid > * { min-width: 0; } .mr-library-grid input, .mr-library-grid select, .mr-library-grid textarea { min-width: 0; max-width: 100%; } }`}</style>
       <div style={{ ...topbar, position: 'sticky', top: 0, zIndex: 3 }}>
         <button style={ghostBtn} onClick={onBack}>
           ← Início
@@ -237,7 +238,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         {message && (
           <div style={{ ...notice, background: '#f0fdf4', color: '#166534' }}>{message}</div>
         )}
-        <div style={libraryGrid}>
+        <div className="mr-library-grid" style={libraryGrid}>
           <section style={panel}>
             <h2 style={sectionTitle}>Pastas e subpastas</h2>
             <label style={fieldLabel}>Pasta selecionada</label>
