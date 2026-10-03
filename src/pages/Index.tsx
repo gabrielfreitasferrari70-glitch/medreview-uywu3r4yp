@@ -1830,6 +1830,7 @@ export default function Index() {
   const [undoInfo, setUndoInfo] = useState<{
     deckIds: string[]
     restoreKind: 'tutoria' | 'prova' | 'custom'
+    blockId?: string
   } | null>(null)
   const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -2207,6 +2208,7 @@ export default function Index() {
   }
   const openSectionMoveModal = (kind: 'tutoria' | 'prova' | 'custom') => {
     setDeckMoveTarget('')
+    setDeckTitle('')
     setDeckModal({ type: 'moveSection', deckId: kind })
   }
   const openDeckRenameModal = (deckId: string) => {
@@ -2280,13 +2282,16 @@ export default function Index() {
         const fromKind = deckModal.deckId as 'tutoria' | 'prova' | 'custom'
         // snapshot para o desfazer: ids das raízes atuais da seção
         const snapshotIds = decks.filter((d) => d.kind === fromKind && !d.parent).map((d) => d.id)
-        await moveDeckSection(
+        const res: any = await moveDeckSection(
           fromKind,
           goingRoot ? '' : deckMoveTarget,
           goingRoot ? (rootKind as 'tutoria' | 'prova' | 'custom') : undefined,
-          deckTitle.trim() || undefined,
         )
-        setUndoInfo({ deckIds: snapshotIds, restoreKind: fromKind })
+        setUndoInfo({
+          deckIds: snapshotIds,
+          restoreKind: fromKind,
+          blockId: res?.blockId || '',
+        })
       } else {
         if (!deckTitle.trim()) throw new Error('Informe o novo nome.')
         await renameDeck(deckModal.deckId, deckTitle)
@@ -2859,7 +2864,7 @@ export default function Index() {
                     setUndoInfo(null)
                     setMsg('')
                     try {
-                      await undoMoveSection(info.deckIds, info.restoreKind)
+                      await undoMoveSection(info.deckIds, info.restoreKind, info.blockId)
                       await loadData()
                       setMsg('Desfeito — pastas de volta no lugar original.')
                     } catch (e: any) {
@@ -2912,6 +2917,39 @@ export default function Index() {
   const tutorias = decks.filter((d) => d.kind === 'tutoria')
   const provas = decks.filter((d) => d.kind === 'prova')
   const customs = decks.filter((d) => d.kind === 'custom')
+  // Contador por SUBÁRVORE: uma pasta organizadora (ex.: bloco "Tutoria" depois
+  // de mover a seção) tem as cartas nas FILHAS — contar a árvore inteira, não
+  // só cartas diretas.
+  const deckSubtreeIds = useMemo(() => {
+    const children: Record<string, string[]> = {}
+    for (const d of decks) {
+      if (d.parent) (children[d.parent] ||= []).push(d.id)
+    }
+    const idsOf = (rootId: string): Set<string> => {
+      const seen = new Set<string>([rootId])
+      let grew = true
+      while (grew) {
+        grew = false
+        for (const [pid, kids] of Object.entries(children)) {
+          if (seen.has(pid)) {
+            for (const k of kids)
+              if (!seen.has(k)) {
+                seen.add(k)
+                grew = true
+              }
+          }
+        }
+      }
+      return seen
+    }
+    const map = new Map<string, Set<string>>()
+    for (const d of decks) map.set(d.id, idsOf(d.id))
+    return map
+  }, [decks])
+  const cardsInSubtree = (deckId: string) => {
+    const ids = deckSubtreeIds.get(deckId)
+    return ids ? cards.filter((c) => ids.has(c.deck) && !c.deleted).length : 0
+  }
   // Pastas criadas pela usuária (sem seed_key) — aparecem como cards no grid
   // "Pastas de Estudo" da home, no mesmo estilo das seções.
   const userDecks = decks
@@ -2924,7 +2962,7 @@ export default function Index() {
       title: 'Tutoria',
       description:
         'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
-      count: cards.filter((c) => tutorias.some((d) => d.id === c.deck)).length,
+      count: tutorias.reduce((n, d) => n + cardsInSubtree(d.id), 0),
       onClick: () => openFolderGroup('tutoria'),
       deckId: tutorias.find((d) => !d.parent)?.id,
       sectionKind: 'tutoria',
@@ -2934,7 +2972,7 @@ export default function Index() {
       tag: 'Módulos',
       title: 'Prova de Módulo',
       description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
-      count: cards.filter((c) => provas.some((d) => d.id === c.deck)).length,
+      count: provas.reduce((n, d) => n + cardsInSubtree(d.id), 0),
       onClick: () => openFolderGroup('prova'),
       deckId: provas.find((d) => !d.parent)?.id,
       sectionKind: 'prova',
@@ -2944,7 +2982,7 @@ export default function Index() {
       tag: 'Suas pastas livres',
       title: 'Minhas Pastas',
       description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
-      count: cards.filter((c) => customs.some((d) => d.id === c.deck)).length,
+      count: customs.reduce((n, d) => n + cardsInSubtree(d.id), 0),
       onClick: () => openFolderGroup('custom'),
       deckId: customs.find((d) => !d.parent)?.id,
       sectionKind: 'custom',
@@ -3105,26 +3143,10 @@ export default function Index() {
                       : 'A pasta aparece na home, na seção do tipo escolhido.'}
             </p>
             {deckModal.type === 'moveSection' && (
-              <>
-                <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '.83rem' }}>
-                  A seção vai como UMA pasta no destino — dentro dela ficam todas as pastas da
-                  seção, cada uma com suas subpastas. Nada solto, nada apagado.
-                </p>
-                <input
-                  placeholder="Nome da pasta da seção (ex.: Tutoria)"
-                  value={deckTitle}
-                  onChange={(e) => setDeckTitle(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '0.65rem 0.8rem',
-                    borderRadius: 9,
-                    border: '1.5px solid #cbd5e1',
-                    font: 'inherit',
-                    marginBottom: 8,
-                  }}
-                />
-              </>
+              <p style={{ margin: '0 0 10px', color: '#64748b', fontSize: '.83rem' }}>
+                A seção vai como UMA pasta no destino (com o nome dela) — dentro dela ficam todas as
+                pastas da seção, cada uma com suas subpastas. Nada solto, nada apagado.
+              </p>
             )}
             {(deckModal.type === 'moveDeck' || deckModal.type === 'moveSection') && (
               <select

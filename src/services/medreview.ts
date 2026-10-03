@@ -60,8 +60,16 @@ export const moveDeckSection = (
     block_title: blockTitle || '',
   })
 
-export const undoMoveSection = (deckIds: string[], restoreKind: 'tutoria' | 'prova' | 'custom') =>
-  manageLibrary('deck_move_section_undo', { deck_ids: deckIds, restore_kind: restoreKind })
+export const undoMoveSection = (
+  deckIds: string[],
+  restoreKind: 'tutoria' | 'prova' | 'custom',
+  blockId?: string,
+) =>
+  manageLibrary('deck_move_section_undo', {
+    deck_ids: deckIds,
+    restore_kind: restoreKind,
+    block_id: blockId || '',
+  })
 
 export const repairSection = (restoreKind: 'tutoria' | 'prova' | 'custom', titlePattern: string) =>
   manageLibrary('deck_section_repair', { restore_kind: restoreKind, title_pattern: titlePattern })
