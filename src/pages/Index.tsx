@@ -2,6 +2,11 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { applyInitialSeed, createReview } from '@/services/medreview'
 import MedReviewLibrary from '@/components/MedReviewLibrary'
+import {
+  MedReviewLegacyHome,
+  MedReviewLegacySessionComplete,
+  MedReviewLegacyStyles,
+} from '@/components/MedReviewLegacyLayout'
 
 // ==================== Motor FSRS-5 (portado do MedReview original) ====================
 const FSRS_W = [
@@ -199,12 +204,22 @@ export default function Index() {
   const [decks, setDecks] = useState<Deck[]>([])
   const [cards, setCards] = useState<Card[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
-  const [route, setRoute] = useState<{ view: 'home' | 'study' | 'library'; deckId?: string }>({
-    view: 'home',
-  })
+  const [route, setRoute] = useState<{
+    view: 'home' | 'study' | 'library'
+    deckId?: string
+    folderKind?: 'tutoria' | 'prova'
+    sessionTitle?: string
+  }>({ view: 'home' })
   const [flipped, setFlipped] = useState(false)
   const [queue, setQueue] = useState<Card[]>([])
   const [qIdx, setQIdx] = useState(0)
+  const [studySession, setStudySession] = useState({
+    startMs: Date.now(),
+    again: 0,
+    hard: 0,
+    good: 0,
+    easy: 0,
+  })
   const [msg, setMsg] = useState('')
   const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -318,18 +333,19 @@ export default function Index() {
     setRoute({ view: 'home' })
   }
 
-  // Fila de estudo: vencidas → novas → futuras
-  const openDeck = (deckId: string) => {
-    const deckCards = cards.filter((c) => c.deck === deckId && !c.suspended && !c.deleted)
+  // Fila FSRS: vencidas → novas → futuras.
+  const startStudy = (candidateCards: Card[], deckId?: string, sessionTitle?: string) => {
+    const studyCards = candidateCards.filter((c) => !c.suspended && !c.deleted)
     const states = new Map(
-      deckCards.map((c) => [
+      studyCards.map((c) => [
         c.id,
         cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)),
       ]),
     )
-    const now = Date.now()
-    const rank = (cs: CardState) => (cs.state === 'new' ? 2 : (cs.dueMs || 0) <= now ? 0 : 1)
-    const sorted = [...deckCards].sort((a, b) => {
+    const currentTime = Date.now()
+    const rank = (cs: CardState) =>
+      cs.state === 'new' ? 2 : (cs.dueMs || 0) <= currentTime ? 0 : 1
+    const sorted = [...studyCards].sort((a, b) => {
       const ra = rank(states.get(a.id)!),
         rb = rank(states.get(b.id)!)
       if (ra !== rb) return ra - rb
@@ -339,8 +355,42 @@ export default function Index() {
     setQueue(sorted)
     setQIdx(0)
     setFlipped(false)
-    setRoute({ view: 'study', deckId })
+    setStudySession({ startMs: Date.now(), again: 0, hard: 0, good: 0, easy: 0 })
+    setRoute({ view: 'study', deckId, sessionTitle })
   }
+
+  const openDeck = (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId)
+    startStudy(
+      cards.filter((c) => c.deck === deckId),
+      deckId,
+      deck?.title,
+    )
+  }
+  const openFolderGroup = (folderKind: 'tutoria' | 'prova') =>
+    setRoute({ view: 'home', folderKind })
+  const startStudyNow = () => {
+    const dueOrNew = cards.filter((c) => {
+      if (c.suspended || c.deleted) return false
+      const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
+      return cs.state === 'new' || (cs.dueMs || 0) <= Date.now()
+    })
+    startStudy(
+      dueOrNew.length ? dueOrNew : cards.filter((c) => !c.suspended && !c.deleted),
+      undefined,
+      'Todas as cartas',
+    )
+  }
+  const startClinicalMode = () => {
+    const clinicalCards = cards.filter((c) => /caso clínico|caso clinico/i.test(c.q))
+    if (!clinicalCards.length) {
+      setMsg('Ainda não há cartões de caso clínico nesta biblioteca.')
+      window.setTimeout(() => setMsg(''), 3500)
+      return
+    }
+    startStudy(clinicalCards, undefined, 'Modo Caso Clínico')
+  }
+  const openNewFolder = () => setRoute({ view: 'library' })
 
   // Avalia carta: grava review no banco e avança
   const rate = async (quality: Quality) => {
@@ -372,6 +422,7 @@ export default function Index() {
         reviewed_at: fmt(now),
       })
       setReviews((rs) => [...rs, { ...(created as any), card_ref: card.id }])
+      setStudySession((session) => ({ ...session, [quality]: session[quality] + 1 }))
       setMsg(`Carta agendada para daqui ${chosen.label}`)
       setTimeout(() => setMsg(''), 2500)
       setFlipped(false)
@@ -436,93 +487,134 @@ export default function Index() {
   }
 
   const totalCards = cards.length
-  const now = Date.now()
+  const cardStates = new Map(
+    cards.map((c) => [
+      c.id,
+      cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)),
+    ]),
+  )
   const dueCount = cards.filter((c) => {
-    const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
-    return cs.state !== 'new' && (cs.dueMs || 0) <= now
+    const cs = cardStates.get(c.id)!
+    return cs.state !== 'new' && (cs.dueMs || 0) <= Date.now()
   }).length
-  const newCount = cards.filter(
-    (c) =>
-      cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id)).state === 'new',
-  ).length
+  const newCount = cards.filter((c) => cardStates.get(c.id)!.state === 'new').length
+  const reviewTodayCount = dueCount + newCount
+  const masteredCount = cards.filter((c) => (cardStates.get(c.id)!.s || 0) >= 21).length
+  const masteredPercent = totalCards ? Math.round((masteredCount * 100) / totalCards) : 0
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+  const reviewDays = new Set(
+    reviews
+      .map((r) => {
+        const date = new Date(
+          r.reviewed_at.includes('T') ? r.reviewed_at : r.reviewed_at.replace(' ', 'T'),
+        )
+        return Number.isNaN(date.getTime()) ? '' : dayKey(date)
+      })
+      .filter(Boolean),
+  )
+  const streakCursor = new Date()
+  if (!reviewDays.has(dayKey(streakCursor))) streakCursor.setDate(streakCursor.getDate() - 1)
+  let streakDays = 0
+  while (reviewDays.has(dayKey(streakCursor)) && streakDays < 366) {
+    streakDays += 1
+    streakCursor.setDate(streakCursor.getDate() - 1)
+  }
 
   // ===== Tela: estudo =====
   if (route.view === 'study') {
     const deck = decks.find((d) => d.id === route.deckId)
     const card = queue[qIdx]
-    if (!card) {
+    const sessionTitle = route.sessionTitle || deck?.title || 'Biblioteca'
+    const categoryTitle =
+      route.sessionTitle === 'Modo Caso Clínico'
+        ? 'Casos Clínicos'
+        : deck?.kind === 'prova'
+          ? 'Prova de Módulo'
+          : deck
+            ? 'Tutoria'
+            : 'Biblioteca'
+    const returnToFolders = () =>
+      setRoute({
+        view: 'home',
+        folderKind: deck?.kind === 'prova' ? 'prova' : deck ? 'tutoria' : undefined,
+      })
+    if (!card)
       return (
-        <div style={center}>
-          <div style={loginBox}>
-            <h2 style={{ color: '#14532d' }}>🎉 Sessão concluída!</h2>
-            <p style={{ color: '#475569' }}>Você revisou todas as cartas desta fila.</p>
-            <button style={primaryBtn} onClick={() => setRoute({ view: 'home' })}>
-              Voltar ao início
-            </button>
-          </div>
-        </div>
+        <MedReviewLegacySessionComplete
+          title={sessionTitle}
+          tally={studySession}
+          retention={retention}
+          onRestart={() => {
+            setStudySession({ startMs: Date.now(), again: 0, hard: 0, good: 0, easy: 0 })
+            setQIdx(0)
+            setFlipped(false)
+          }}
+          onExit={returnToFolders}
+        />
       )
-    }
     const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === card.id))
     const pv = previewIntervals(cs, retention)
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: '#f8fafc',
-          fontFamily: 'Inter, system-ui, sans-serif',
-        }}
-      >
-        <div style={topbar}>
-          <button style={ghostBtn} onClick={() => setRoute({ view: 'home' })}>
-            ← Início
-          </button>
-          <strong style={{ color: '#fff' }}>{deck?.title || 'Estudo'}</strong>
-          <span style={{ color: '#d1fae5', fontSize: '0.85rem' }}>
-            {qIdx + 1}/{queue.length}
-          </span>
-        </div>
-        <div style={{ maxWidth: 680, margin: '0 auto', padding: '1.5rem 1rem' }}>
-          <div style={cardBox} onClick={() => setFlipped((f) => !f)}>
-            <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '0.6rem' }}>
-              {cs.state === 'new' ? '🆕 Nova' : (cs.dueMs || 0) <= now ? '⏰ Vencida' : '📅 Futura'}{' '}
-              · grupo: {card.group || '—'}
+      <div className="mr-legacy-study-page">
+        <MedReviewLegacyStyles />
+        <header className="mr-legacy-header">
+          <div className="mr-legacy-study-top">
+            <nav className="mr-legacy-breadcrumb">
+              <button onClick={() => setRoute({ view: 'home' })}>Início</button>
+              <span>/</span>
+              <button onClick={returnToFolders}>{categoryTitle}</button>
+              <span>/</span>
+              <strong>{sessionTitle}</strong>
+            </nav>
+            <div className="mr-legacy-study-controls">
+              <span className="mr-legacy-control">
+                {qIdx + 1} / {queue.length}
+              </span>
+              <button className="mr-legacy-control" onClick={() => setQIdx(queue.length)}>
+                ✓ Concluído
+              </button>
+              <button className="mr-legacy-control exit" onClick={returnToFolders}>
+                ✕ Sair da sessão
+              </button>
             </div>
-            <div
-              style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.5 }}
-            >
-              {card.q}
-            </div>
+          </div>
+        </header>
+        <main className="mr-legacy-study-main">
+          <div className="mr-legacy-progress">
+            <span>
+              {cs.state === 'new'
+                ? '🆕 Nova'
+                : (cs.dueMs || 0) <= Date.now()
+                  ? '⏰ Vencida'
+                  : '📅 Futura'}{' '}
+              · {card.group || 'Revisão médica'}
+            </span>
+            <span>Retenção alvo: {Math.round(retention * 100)}%</span>
+          </div>
+          <article className="mr-legacy-study-card" onClick={() => setFlipped((f) => !f)}>
+            <span className="mr-legacy-badge">🩺 Cartão de revisão</span>
+            <h1 className="mr-legacy-question">{card.q}</h1>
+            {!flipped && <p className="mr-legacy-hint">Toque no cartão para revelar a resposta</p>}
             {flipped && (
-              <div
-                style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid #a7f3d0' }}
-              >
-                <div
+              <div className="mr-legacy-answer">
+                <strong
                   style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 800,
+                    display: 'block',
                     color: '#15803d',
-                    marginBottom: '0.4rem',
+                    fontSize: '.76rem',
+                    letterSpacing: '.1em',
+                    marginBottom: 8,
                   }}
                 >
                   GABARITO
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.95rem',
-                    color: '#1e293b',
-                    lineHeight: 1.6,
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {card.a}
-                </div>
+                </strong>
+                {card.a}
                 {card.diagram_svg && (
-                  <div style={{ marginTop: '0.8rem' }}>
+                  <figure style={{ margin: '18px 0 0' }}>
                     {card.diagram_title && (
-                      <div style={{ fontSize: '0.78rem', color: '#475569', marginBottom: 4 }}>
+                      <figcaption style={{ color: '#64748b', fontSize: '.8rem', marginBottom: 5 }}>
                         {card.diagram_title}
-                      </div>
+                      </figcaption>
                     )}
                     <img
                       src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`}
@@ -535,30 +627,18 @@ export default function Index() {
                         objectFit: 'contain',
                       }}
                     />
-                  </div>
+                  </figure>
                 )}
                 {card.ref && (
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.6rem' }}>
+                  <div style={{ color: '#64748b', fontSize: '.78rem', marginTop: 12 }}>
                     📚 {card.ref}
                   </div>
                 )}
               </div>
             )}
-            {!flipped && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  color: '#94a3b8',
-                  fontSize: '0.8rem',
-                  marginTop: '1rem',
-                }}
-              >
-                Toque na carta para revelar a resposta
-              </div>
-            )}
-          </div>
+          </article>
           {flipped && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <div className="mr-legacy-rating-row">
               {(['again', 'hard', 'good', 'easy'] as Quality[]).map((q) => (
                 <button key={q} style={qualityBtn(q)} onClick={() => rate(q)}>
                   <div style={{ fontWeight: 800 }}>
@@ -570,13 +650,13 @@ export default function Index() {
                           ? 'Bom'
                           : 'Fácil'}
                   </div>
-                  <div style={{ fontSize: '0.72rem', opacity: 0.9 }}>{pv[q].label}</div>
+                  <div style={{ fontSize: '.72rem', opacity: 0.9 }}>{pv[q].label}</div>
                 </button>
               ))}
             </div>
           )}
           {msg && <div style={toast}>{msg}</div>}
-        </div>
+        </main>
       </div>
     )
   }
@@ -596,189 +676,56 @@ export default function Index() {
 
   const tutorias = decks.filter((d) => d.kind === 'tutoria')
   const provas = decks.filter((d) => d.kind === 'prova')
+  const categories = [
+    {
+      icon: '🩺',
+      tag: 'PBL / Tutoria',
+      title: 'Tutoria',
+      description:
+        'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
+      count: cards.filter((c) => tutorias.some((d) => d.id === c.deck)).length,
+      onClick: () => openFolderGroup('tutoria'),
+    },
+    {
+      icon: '📝',
+      tag: 'Módulos',
+      title: 'Prova de Módulo',
+      description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
+      count: cards.filter((c) => provas.some((d) => d.id === c.deck)).length,
+      onClick: () => openFolderGroup('prova'),
+    },
+    {
+      icon: '📚',
+      tag: 'Biblioteca',
+      title: 'Todos os Cards',
+      description: 'Acesso completo a todas as cartas médicas, pastas e subpastas.',
+      count: totalCards,
+      onClick: () => setRoute({ view: 'library' }),
+    },
+  ]
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f8fafc',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      }}
-    >
-      <style>{`@media (max-width: 480px) { .mr-home-topbar { justify-content: space-between; gap: 0.5rem !important; padding: 0.7rem 0.75rem !important; } .mr-home-topbar .mr-home-spacer, .mr-home-topbar .mr-home-user-email { display: none !important; } }`}</style>
-      <div className="mr-home-topbar" style={topbar}>
-        <strong style={{ color: '#fff', fontSize: '1.1rem' }}>🩺 MedReview</strong>
-        <span className="mr-home-spacer" style={{ flex: 1 }} />
-        <span
-          className="mr-home-user-email"
-          style={{ color: '#d1fae5', fontSize: '0.85rem', marginRight: '0.8rem' }}
-        >
-          {user?.email}
-        </span>
-        <button style={ghostBtn} onClick={() => setRoute({ view: 'library' })}>
-          📚 Biblioteca
-        </button>
-        <button style={ghostBtn} onClick={logout}>
-          Sair
-        </button>
-      </div>
-      <div style={{ maxWidth: 880, margin: '0 auto', padding: '1.5rem 1rem' }}>
-        <div style={{ display: 'flex', gap: '0.8rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <div style={statBox}>
-            <div style={statNum}>{totalCards}</div>
-            <div style={statLabel}>Cartas</div>
-          </div>
-          <div style={statBox}>
-            <div style={{ ...statNum, color: '#b45309' }}>{dueCount}</div>
-            <div style={statLabel}>Vencidas hoje</div>
-          </div>
-          <div style={statBox}>
-            <div style={{ ...statNum, color: '#1d4ed8' }}>{newCount}</div>
-            <div style={statLabel}>Novas</div>
-          </div>
-        </div>
-        <h2 style={{ color: '#14532d', fontSize: '1.15rem', margin: '0 0 0.8rem' }}>
-          🩺 PBL / Tutoria
-        </h2>
-        <div style={deckGrid}>
-          {tutorias.map((d) => (
-            <DeckCard key={d.id} deck={d} cards={cards} reviews={reviews} onOpen={openDeck} />
-          ))}
-        </div>
-        <h2 style={{ color: '#14532d', fontSize: '1.15rem', margin: '1.5rem 0 0.8rem' }}>
-          📝 Módulos / Prova de Módulo
-        </h2>
-        <div style={deckGrid}>
-          {provas.map((d) => (
-            <DeckCard key={d.id} deck={d} cards={cards} reviews={reviews} onOpen={openDeck} />
-          ))}
-        </div>
-        {msg && <div style={toast}>{msg}</div>}
-      </div>
-    </div>
+    <MedReviewLegacyHome
+      userEmail={user?.email}
+      totalCards={totalCards}
+      reviewTodayCount={reviewTodayCount}
+      masteredPercent={masteredPercent}
+      streakDays={streakDays}
+      categories={categories}
+      decks={decks}
+      cards={cards}
+      folderKind={route.folderKind}
+      onOpenGroup={openFolderGroup}
+      onHome={() => setRoute({ view: 'home' })}
+      onOpenDeck={openDeck}
+      onClinical={startClinicalMode}
+      onStudyNow={startStudyNow}
+      onNewFolder={openNewFolder}
+      onLibrary={() => setRoute({ view: 'library' })}
+      onLogout={logout}
+    />
   )
 }
 
-function DeckCard({
-  deck,
-  cards,
-  reviews,
-  onOpen,
-}: {
-  deck: Deck
-  cards: Card[]
-  reviews: Review[]
-  onOpen: (id: string) => void
-}) {
-  const deckCards = cards.filter((c) => c.deck === deck.id)
-  const now = Date.now()
-  const due = deckCards.filter((c) => {
-    const rs = reviews.filter((r) => (r.card_ref || r.card) === c.id)
-    if (rs.length === 0) return false
-    const last = rs[rs.length - 1]
-    const dueMs = last.due ? new Date(last.due.replace(' ', 'T') + 'Z').getTime() : 0
-    return dueMs <= now
-  }).length
-  const isNew = deckCards.every(
-    (c) => reviews.filter((r) => (r.card_ref || r.card) === c.id).length === 0,
-  )
-  return (
-    <div style={deckCardBox} onClick={() => onOpen(deck.id)}>
-      <div style={{ fontSize: '1.4rem' }}>{deck.kind === 'prova' ? '📝' : '📁'}</div>
-      <div style={{ fontWeight: 800, color: '#14532d', fontSize: '0.92rem', lineHeight: 1.3 }}>
-        {deck.title}
-      </div>
-      <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-        <span style={chip('#dcfce7', '#15803d')}>{deckCards.length} cartas</span>
-        {due > 0 && <span style={chip('#fef3c7', '#b45309')}>{due} vencidas</span>}
-        {isNew && <span style={chip('#dbeafe', '#1d4ed8')}>🆕</span>}
-      </div>
-    </div>
-  )
-}
-
-// ==================== Estilos ====================
-const center: React.CSSProperties = {
-  minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontFamily: 'Inter, system-ui, sans-serif',
-}
-const loginBox: React.CSSProperties = {
-  background: '#fff',
-  borderRadius: 16,
-  padding: '2rem',
-  boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-  width: 340,
-  textAlign: 'center',
-}
-const input: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  padding: '0.7rem 0.9rem',
-  borderRadius: 10,
-  border: '1.5px solid #cbd5e1',
-  fontSize: '0.95rem',
-  marginBottom: '0.7rem',
-  outline: 'none',
-}
-const primaryBtn: React.CSSProperties = {
-  width: '100%',
-  padding: '0.8rem',
-  borderRadius: 10,
-  border: 'none',
-  background: '#16a34a',
-  color: '#fff',
-  fontWeight: 800,
-  fontSize: '0.95rem',
-  cursor: 'pointer',
-  marginTop: '0.4rem',
-}
-const errBox: React.CSSProperties = {
-  background: '#fef2f2',
-  color: '#b91c1c',
-  border: '1px solid #fecaca',
-  borderRadius: 8,
-  padding: '0.6rem',
-  fontSize: '0.82rem',
-  marginBottom: '0.6rem',
-}
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  flex: 1,
-  padding: '0.55rem',
-  borderRadius: 8,
-  border: active ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
-  background: active ? '#f0fdf4' : '#fff',
-  color: active ? '#14532d' : '#64748b',
-  fontWeight: 700,
-  cursor: 'pointer',
-})
-const topbar: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.8rem',
-  padding: '0.8rem 1.2rem',
-  background: 'linear-gradient(90deg,#15803d,#16a34a)',
-  boxShadow: '0 2px 8px rgba(22,163,74,0.25)',
-}
-const ghostBtn: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.15)',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 8,
-  padding: '0.45rem 0.9rem',
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-}
-const cardBox: React.CSSProperties = {
-  background: '#fff',
-  borderRadius: 16,
-  padding: '1.6rem',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-  cursor: 'pointer',
-  minHeight: 220,
-}
 const qualityBtn = (q: Quality): React.CSSProperties => ({
   flex: 1,
   minWidth: 100,
@@ -802,33 +749,3 @@ const toast: React.CSSProperties = {
   fontSize: '0.85rem',
   boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
 }
-const statBox: React.CSSProperties = {
-  background: '#fff',
-  borderRadius: 12,
-  padding: '0.9rem 1.4rem',
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-  textAlign: 'center',
-}
-const statNum: React.CSSProperties = { fontSize: '1.6rem', fontWeight: 800, color: '#14532d' }
-const statLabel: React.CSSProperties = { fontSize: '0.78rem', color: '#64748b' }
-const deckGrid: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-  gap: '0.9rem',
-}
-const deckCardBox: React.CSSProperties = {
-  background: '#fff',
-  borderRadius: 14,
-  padding: '1rem 1.1rem',
-  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-  cursor: 'pointer',
-  border: '1.5px solid transparent',
-}
-const chip = (bg: string, fg: string): React.CSSProperties => ({
-  background: bg,
-  color: fg,
-  borderRadius: 999,
-  padding: '0.15rem 0.6rem',
-  fontSize: '0.72rem',
-  fontWeight: 700,
-})
