@@ -109,17 +109,9 @@ routerAdd(
   (e) => {
     const userId = e.auth && e.auth.id ? e.auth.id : ''
     if (!userId) return e.unauthorizedError('Faça login para alterar sua biblioteca.')
-    // Ação administrativa pontual (diagnóstico/reparo da conta real): exige a
-    // chave de admin via header X-MR-Admin-Key; nunca exposta ao frontend.
-    const adminKey = $secrets.get('MR_ADMIN_KEY') || ''
-    if (
-      String(e.requestInfo().header('X-MR-Admin-Key') || '') &&
-      adminKey &&
-      String(e.requestInfo().header('X-MR-Admin-Key')) === adminKey &&
-      String(body.action || '').startsWith('admin_')
-    ) {
-      userId = String(body.user_id || '')
-    }
+    // Ação administrativa pontual: agora vive na rota dedicada /backend/v1/mr/admin
+    // (chave X-MR-Admin-Key). Nada de leitura de header aqui — e.requestInfo()
+    // não tem .header() e um TypeError aqui derruba TODAS as ações do manage.
     const body = e.requestInfo().body || {}
     const action = String(body.action || '')
     const ownDeck = (id) => {
