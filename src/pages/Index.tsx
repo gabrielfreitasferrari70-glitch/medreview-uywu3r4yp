@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { parseCardsFromCsv } from '@/lib/csvImport'
 
 // ==================== Motor FSRS-5 (portado do MedReview original) ====================
 const FSRS_W = [
@@ -119,6 +120,9 @@ interface Deck {
   title: string
   kind: string
   order: number
+  seed_key?: string
+  parent?: string
+  deleted?: boolean
 }
 interface Card {
   id: string
@@ -128,10 +132,15 @@ interface Card {
   group: string
   ref: string
   suspended: boolean
+  seed_key?: string
+  deleted?: boolean
+  diagram_svg?: string
+  diagram_title?: string
 }
 interface Review {
   id: string
   card: string
+  card_ref?: string
   rating: string
   stability: number
   difficulty: number
@@ -143,19 +152,30 @@ interface Review {
   reviewed_at: string
 }
 
+function parsePbDate(value?: string): number | null {
+  if (!value) return null
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T')
+  const withZone = /(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`
+  const ms = new Date(withZone).getTime()
+  return Number.isFinite(ms) ? ms : null
+}
+
 // Estado FSRS derivado do histórico de revisões (fonte única: banco)
 function cardStateFromReviews(reviews: Review[]): CardState {
   if (reviews.length === 0)
     return { s: null, d: null, state: 'new', reps: 0, lapses: 0, lastReviewMs: null, dueMs: null }
-  const last = reviews[reviews.length - 1]
-  const due = last.due ? new Date(last.due.replace(' ', 'T') + 'Z').getTime() : Date.now()
+  const ordered = [...reviews].sort(
+    (a, b) => (parsePbDate(a.reviewed_at) || 0) - (parsePbDate(b.reviewed_at) || 0),
+  )
+  const last = ordered[ordered.length - 1]
+  const due = parsePbDate(last.due) || Date.now()
   return {
     s: last.stability ?? null,
     d: last.difficulty ?? null,
     state: last.state || 'review',
-    reps: reviews.filter((r) => r.rating !== 'again').length,
-    lapses: reviews.filter((r) => r.rating === 'again').length,
-    lastReviewMs: new Date(last.reviewed_at.replace(' ', 'T') + 'Z').getTime(),
+    reps: ordered.filter((r) => r.rating !== 'again').length,
+    lapses: ordered.filter((r) => r.rating === 'again').length,
+    lastReviewMs: parsePbDate(last.reviewed_at),
     dueMs: due,
   }
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T02:24:28.884Z",
+  "generatedAt": "2026-10-03T03:33:42.269Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -73,14 +78,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -114,7 +124,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["tutoria", "prova", "custom"]
+          "selectValues": [
+            "tutoria",
+            "prova",
+            "custom"
+          ]
         },
         {
           "name": "order",
@@ -127,17 +141,44 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "seed_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deleted",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parent",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "mr_decks"
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_mr_decks_user_seed` ON `mr_decks` (user_id, seed_key) WHERE seed_key != ''",
+        "CREATE INDEX `idx_mr_decks_user_parent_order` ON `mr_decks` (user_id, parent, \"order\")"
+      ]
     },
     {
       "name": "mr_cards",
@@ -199,17 +240,49 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "seed_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deleted",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "diagram_svg",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "diagram_title",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_mr_cards_user_seed` ON `mr_cards` (user_id, seed_key) WHERE seed_key != ''",
+        "CREATE INDEX `idx_mr_cards_user_deck` ON `mr_cards` (user_id, deck)"
+      ]
     },
     {
       "name": "mr_reviews",
@@ -217,9 +290,9 @@
       "apiRules": {
         "list": "@request.auth.id != '' && user_id = @request.auth.id",
         "view": "@request.auth.id != '' && user_id = @request.auth.id",
-        "create": "@request.auth.id != '' && user_id = @request.auth.id",
-        "update": "@request.auth.id != '' && user_id = @request.auth.id",
-        "delete": "@request.auth.id != '' && user_id = @request.auth.id"
+        "create": null,
+        "update": null,
+        "delete": null
       },
       "fields": [
         {
@@ -241,7 +314,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["again", "hard", "good", "easy"]
+          "selectValues": [
+            "again",
+            "hard",
+            "good",
+            "easy"
+          ]
         },
         {
           "name": "stability",
@@ -278,7 +356,12 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["new", "learning", "review", "relearning"]
+          "selectValues": [
+            "new",
+            "learning",
+            "review",
+            "relearning"
+          ]
         },
         {
           "name": "due",
@@ -297,17 +380,31 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "card_ref",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "mr_cards"
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE INDEX `idx_mr_reviews_user_cardref_time` ON `mr_reviews` (user_id, card_ref, reviewed_at)"
+      ]
     }
   ]
 }

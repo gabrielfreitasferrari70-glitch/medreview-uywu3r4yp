@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "decks": [
+    {
+      "seed_key": "initial:tutoria:01",
+      "title": "Tutoria 1 — Embriologia do Sistema Cardiovascular",
+      "kind": "tutoria",
+      "order": 1,
+      "files": ["tutoria-01-01.json", "tutoria-01-02.json", "tutoria-01-03.json"],
+      "card_count": 34
+    },
+    {
+      "seed_key": "initial:tutoria:02",
+      "title": "Tutoria 2 — Artérias Coronárias e IAM",
+      "kind": "tutoria",
+      "order": 2,
+      "files": ["tutoria-02-01.json", "tutoria-02-02.json"],
+      "card_count": 30
+    },
+    {
+      "seed_key": "initial:tutoria:03",
+      "title": "Tutoria 3 — Sistema Venoso dos Membros Inferiores",
+      "kind": "tutoria",
+      "order": 3,
+      "files": ["tutoria-03-01.json", "tutoria-03-02.json"],
+      "card_count": 28
+    },
+    {
+      "seed_key": "initial:tutoria:04",
+      "title": "Tutoria 4 — Reflexo Barorreceptor e Regulação da PA",
+      "kind": "tutoria",
+      "order": 4,
+      "files": ["tutoria-04-01.json", "tutoria-04-02.json"],
+      "card_count": 26
+    },
+    {
+      "seed_key": "initial:tutoria:05",
+      "title": "Tutoria 5 — Coagulação Sanguínea, DvW, Coagulograma e AAS",
+      "kind": "tutoria",
+      "order": 5,
+      "files": ["tutoria-05-01.json", "tutoria-05-02.json"],
+      "card_count": 28
+    },
+    {
+      "seed_key": "initial:tutoria:06",
+      "title": "Tutoria 6 — Embriologia, FTE, Umidade/Queimadas & Tosse/Espirro",
+      "kind": "tutoria",
+      "order": 6,
+      "files": [
+        "tutoria-06-01.json",
+        "tutoria-06-02.json",
+        "tutoria-06-03.json",
+        "tutoria-06-004.svg.json",
+        "tutoria-06-016.svg.json",
+        "tutoria-06-022.svg.json",
+        "tutoria-06-027.svg.json"
+      ],
+      "card_count": 40
+    },
+    {
+      "seed_key": "initial:tutoria:07",
+      "title": "Tutoria 7",
+      "kind": "tutoria",
+      "order": 7,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:08",
+      "title": "Tutoria 8",
+      "kind": "tutoria",
+      "order": 8,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:09",
+      "title": "Tutoria 9",
+      "kind": "tutoria",
+      "order": 9,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:10",
+      "title": "Tutoria 10",
+      "kind": "tutoria",
+      "order": 10,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:11",
+      "title": "Tutoria 11",
+      "kind": "tutoria",
+      "order": 11,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:12",
+      "title": "Tutoria 12",
+      "kind": "tutoria",
+      "order": 12,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:13",
+      "title": "Tutoria 13",
+      "kind": "tutoria",
+      "order": 13,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:14",
+      "title": "Tutoria 14",
+      "kind": "tutoria",
+      "order": 14,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:15",
+      "title": "Tutoria 15",
+      "kind": "tutoria",
+      "order": 15,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:16",
+      "title": "Tutoria 16",
+      "kind": "tutoria",
+      "order": 16,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:tutoria:17",
+      "title": "Tutoria 17",
+      "kind": "tutoria",
+      "order": 17,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:prova:01",
+      "title": "Prova do Primeiro Semestre",
+      "kind": "prova",
+      "order": 18,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:prova:18",
+      "title": "Prova de Cardiorrespiratório",
+      "kind": "prova",
+      "order": 19,
+      "files": [],
+      "card_count": 0
+    },
+    {
+      "seed_key": "initial:prova:20",
+      "title": "Prova de Urogenital",
+      "kind": "prova",
+      "order": 20,
+      "files": [],
+      "card_count": 0
+    }
+  ]
+}
