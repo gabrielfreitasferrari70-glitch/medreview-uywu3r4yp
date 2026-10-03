@@ -9,13 +9,13 @@ routerAdd(
     try {
       const rec = $app.findRecordById('medreview_state', 'alw0c9r44hr44yl')
       stage = 'read-json-field'
-      let parsed = rec.get('data')
+      const raw = rec.getString('data')
+      if (!raw) throw new Error('seed_json_empty')
+      let parsed = JSON.parse(raw)
       if (typeof parsed === 'string') parsed = JSON.parse(parsed)
-      if (!parsed || typeof parsed !== 'object') {
-        const raw = rec.getString('data')
-        parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('seed_json_shape_invalid')
       }
-      if (typeof parsed === 'string') parsed = JSON.parse(parsed)
       stage = 'normalize-seed'
       const state = parsed && parsed.state ? parsed.state : parsed
       const tuts = (state && state.tutorias_numbered) || {}
