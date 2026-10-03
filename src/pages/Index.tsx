@@ -6,6 +6,7 @@ import {
   createDeck,
   createReview,
   deleteDeck,
+  moveDeck,
   renameDeck,
   resetDeck,
 } from '@/services/medreview'
@@ -1769,9 +1770,10 @@ export default function Index() {
   const [quizKind, setQuizKind] = useState('all')
   const [quiz, setQuiz] = useState<QuizState | null>(null)
   const [deckModal, setDeckModal] = useState<{
-    type: 'card' | 'folder' | 'rename'
+    type: 'card' | 'folder' | 'rename' | 'moveDeck'
     deckId: string
   } | null>(null)
+  const [deckMoveTarget, setDeckMoveTarget] = useState('')
   const [deckQ, setDeckQ] = useState('')
   const [deckA, setDeckA] = useState('')
   const [deckTitle, setDeckTitle] = useState('')
@@ -2099,6 +2101,10 @@ export default function Index() {
     setDeckKind((parent?.kind as 'tutoria' | 'prova' | 'custom') || 'custom')
     setDeckModal({ type: 'folder', deckId })
   }
+  const openDeckMoveModal = (deckId: string) => {
+    setDeckMoveTarget('')
+    setDeckModal({ type: 'moveDeck', deckId })
+  }
   const openDeckRenameModal = (deckId: string) => {
     setDeckTitle(decks.find((d) => d.id === deckId)?.title || '')
     setDeckModal({ type: 'rename', deckId })
@@ -2143,6 +2149,9 @@ export default function Index() {
       } else if (deckModal.type === 'folder') {
         if (!deckTitle.trim()) throw new Error('Informe o nome da pasta.')
         await createDeck(deckTitle, deckKind, deckModal.deckId || undefined)
+      } else if (deckModal.type === 'moveDeck') {
+        if (!deckMoveTarget) throw new Error('Escolha a pasta de destino.')
+        await moveDeck(deckModal.deckId, deckMoveTarget)
       } else {
         if (!deckTitle.trim()) throw new Error('Informe o novo nome.')
         await renameDeck(deckModal.deckId, deckTitle)
@@ -2165,7 +2174,9 @@ export default function Index() {
           ? 'Carta criada.'
           : deckModal.type === 'folder'
             ? `Pasta criada${parentName}.`
-            : 'Pasta renomeada.',
+            : deckModal.type === 'moveDeck'
+              ? 'Pasta movida.'
+              : 'Pasta renomeada.',
       )
       setTimeout(() => setMsg(''), 4000)
     } catch (e: any) {
@@ -2787,6 +2798,7 @@ export default function Index() {
         onDeckRename={openDeckRenameModal}
         onDeckDelete={confirmDeckDelete}
         onDeckReset={confirmDeckReset}
+        onDeckMove={openDeckMoveModal}
       />
       {settingsOpen && (
         <SettingsModal
@@ -2869,10 +2881,43 @@ export default function Index() {
                   : '✏️ Renomear pasta'}
             </h3>
             <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
-              {deckModal.deckId
-                ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
-                : 'A pasta aparece na home, na seção do tipo escolhido.'}
+              {deckModal.type === 'moveDeck'
+                ? `Mover “${decks.find((d) => d.id === deckModal.deckId)?.title || ''}” para dentro de outra pasta — ela vai junto com suas subpastas.`
+                : deckModal.deckId
+                  ? `Em: ${decks.find((d) => d.id === deckModal.deckId)?.title || ''}`
+                  : 'A pasta aparece na home, na seção do tipo escolhido.'}
             </p>
+            {deckModal.type === 'moveDeck' && (
+              <select
+                value={deckMoveTarget}
+                onChange={(e) => setDeckMoveTarget(e.target.value)}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '0.65rem 0.8rem',
+                  borderRadius: 9,
+                  border: '1.5px solid #cbd5e1',
+                  font: 'inherit',
+                  marginBottom: 8,
+                  background: '#fff',
+                }}
+              >
+                <option value="">Escolher pasta de destino…</option>
+                {decks
+                  .filter((d) => d.id !== deckModal.deckId)
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {(d.parent ? '↳ ' : '') + d.title}
+                      {d.kind === 'prova'
+                        ? ' (Prova)'
+                        : d.kind === 'custom'
+                          ? ' (Minhas Pastas)'
+                          : ''}
+                    </option>
+                  ))}
+              </select>
+            )}
             {deckModal.type === 'card' ? (
               <>
                 <textarea

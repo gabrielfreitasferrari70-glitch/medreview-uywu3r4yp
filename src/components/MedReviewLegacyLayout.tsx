@@ -156,6 +156,7 @@ type HomeProps = {
   onDeckRename?: (deckId: string) => void
   onDeckDelete?: (deckId: string) => void
   onDeckReset?: (deckId: string) => void
+  onDeckMove?: (deckId: string) => void
 }
 
 export function MedReviewLegacyHome(props: HomeProps) {
@@ -186,6 +187,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckRename,
     onDeckDelete,
     onDeckReset,
+    onDeckMove,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
   const title =
@@ -325,6 +327,13 @@ export function MedReviewLegacyHome(props: HomeProps) {
                           onClick={() => onDeckReset?.(deck.id)}
                         >
                           ↺ Resetar
+                        </button>
+                        <button
+                          type="button"
+                          title="Mover para dentro de outra pasta"
+                          onClick={() => onDeckMove?.(deck.id)}
+                        >
+                          ➡️
                         </button>
                         <button
                           type="button"

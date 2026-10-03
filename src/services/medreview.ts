@@ -43,6 +43,9 @@ export const createDeck = (
 export const renameDeck = (deckId: string, title: string) =>
   manageLibrary('deck_rename', { deck_id: deckId, title })
 
+export const moveDeck = (deckId: string, parentId: string) =>
+  manageLibrary('deck_move', { deck_id: deckId, parent_id: parentId })
+
 export const deleteDeck = (deckId: string) => manageLibrary('deck_delete', { deck_id: deckId })
 
 export interface CardExtras {

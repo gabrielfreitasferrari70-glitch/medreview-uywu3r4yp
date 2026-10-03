@@ -8,6 +8,7 @@ import {
   importCards,
   importCardsAuto,
   moveCard,
+  moveDeck,
   renameDeck,
   resetDeck,
   setCardSuspended,
@@ -44,6 +45,7 @@ type ModalState =
   | { type: 'import'; deckId: string }
   | { type: 'importAuto' }
   | { type: 'move'; card: Card }
+  | { type: 'moveDeck'; deckId: string }
   | { type: 'export' }
 
 const fieldStyle: React.CSSProperties = {
@@ -91,6 +93,8 @@ const libCss = `
 .mr-lib-section-head h2{margin:0;color:#14532d;font-size:1.02rem;font-weight:900}
 .mr-lib-section-head p{margin:3px 0 0;color:#6b7280;font-size:.8rem}
 .mr-lib-deck{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
+.mr-lib-deck.is-dragging{opacity:.4}
+.mr-lib-deck.drag-valid{outline:2px dashed #16a34a;outline-offset:-2px;background:#f0fdf4}
 .mr-lib-deck:last-child{border-bottom:0}
 .mr-lib-deck.is-child{padding-left:44px;background:#fafcfa}
 .mr-lib-deck-name{display:flex;align-items:center;gap:9px;flex:1;min-width:180px;cursor:pointer;border:0;background:none;padding:0;text-align:left;font:inherit}
@@ -317,6 +321,47 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   }
   const openMoveModal = (card: Card) => setModal({ type: 'move', card })
   const [moveTarget, setMoveTarget] = useState('')
+  const openMoveDeckModal = (deckId: string) => {
+    setMoveDeckTarget('')
+    setModal({ type: 'moveDeck', deckId })
+  }
+  const [moveDeckTarget, setMoveDeckTarget] = useState('')
+  const submitMoveDeck = async () => {
+    if (modal.type !== 'moveDeck') return
+    if (!moveDeckTarget) return setError('Escolha a pasta de destino.')
+    const done = await run(async () => {
+      await moveDeck(modal.deckId, moveDeckTarget)
+      setExpanded((e) => ({ ...e, [moveDeckTarget]: true }))
+    }, 'Pasta movida.')
+    if (done) {
+      setMoveDeckTarget('')
+      setModal({ type: 'none' })
+    }
+  }
+  // Arrastar e soltar de pastas: dragstart marca a pasta; dragover valida
+  // destino (não pode ser a própria nem descendente); drop chama deck_move.
+  const [dragDeckId, setDragDeckId] = useState('')
+  const dragOverOk = (targetId: string) => {
+    if (!dragDeckId || dragDeckId === targetId) return false
+    let cur: string | undefined = targetId
+    while (cur) {
+      if (cur === dragDeckId) return false
+      cur = decks.find((d) => d.id === cur)?.parent
+    }
+    return true
+  }
+  const submitDragDeck = async (targetId: string) => {
+    const from = dragDeckId
+    setDragDeckId('')
+    const deck = decks.find((d) => d.id === from)
+    const target = decks.find((d) => d.id === targetId)
+    if (!deck || !target) return
+    if (!window.confirm(`Mover "${deck.title}" para dentro de "${target.title}"?`)) return
+    await run(async () => {
+      await moveDeck(from, targetId)
+      setExpanded((e) => ({ ...e, [targetId]: true }))
+    }, `"${deck.title}" movida para "${target.title}".`)
+  }
   const submitMove = async () => {
     if (modal.type !== 'move') return
     if (!moveTarget) return setError('Escolha a pasta de destino.')
@@ -485,7 +530,29 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     const isOpen = !!expanded[deck.id]
     const isSeed = !!deck.title.match(/Tutoria \d+/) && deck.kind === 'tutoria'
     return (
-      <div key={deck.id} className={`mr-lib-deck${isChild ? ' is-child' : ''}`}>
+      <div
+        key={deck.id}
+        className={`mr-lib-deck${isChild ? ' is-child' : ''}${dragDeckId === deck.id ? ' is-dragging' : ''}`}
+        draggable
+        onDragStart={(e) => {
+          setDragDeckId(deck.id)
+          e.dataTransfer.effectAllowed = 'move'
+          try {
+            e.dataTransfer.setData('text/plain', deck.id)
+          } catch (_) {}
+        }}
+        onDragEnd={() => setDragDeckId('')}
+        onDragOver={(e) => {
+          if (!dragOverOk(deck.id)) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (dragOverOk(deck.id)) submitDragDeck(deck.id)
+        }}
+      >
         <button
           type="button"
           className="mr-lib-deck-name"
@@ -520,6 +587,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
           </button>
           <button className="mr-lib-mini" onClick={() => resetDeckProgress(deck)}>
             ↺ Resetar
+          </button>
+          <button className="mr-lib-mini" onClick={() => openMoveDeckModal(deck.id)}>
+            ➡️ Mover
           </button>
           <button
             className="mr-lib-mini"
@@ -737,6 +807,44 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitRename}>
                 {busy ? 'Salvando…' : 'Renomear'}
+              </button>
+              <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
+                Cancelar
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {modal.type === 'moveDeck' && (
+          <Modal
+            title="Mover pasta"
+            subtitle={`“${decks.find((d) => d.id === modal.deckId)?.title || ''}” — escolha a pasta que vai recebê-la (ela vai junto com suas subpastas).`}
+            onClose={() => setModal({ type: 'none' })}
+          >
+            <label className="mr-lib-label">Pasta de destino</label>
+            <select
+              style={fieldStyle}
+              value={moveDeckTarget}
+              onChange={(e) => setMoveDeckTarget(e.target.value)}
+            >
+              <option value="">Escolher…</option>
+              {allDecksSorted
+                .filter((d) => d.id !== modal.deckId)
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                  </option>
+                ))}
+            </select>
+            <p
+              className="mr-lib-hint"
+              style={{ margin: '2px 0 0', fontSize: '.78rem', color: '#64748b' }}
+            >
+              Destinos dentro da própria pasta ficam ocultos (proteção contra ciclos).
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button style={actionStyle} disabled={busy} onClick={submitMoveDeck}>
+                {busy ? 'Movendo…' : 'Mover pasta'}
               </button>
               <button style={secondaryStyle} onClick={() => setModal({ type: 'none' })}>
                 Cancelar

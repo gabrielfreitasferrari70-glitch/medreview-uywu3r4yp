@@ -288,6 +288,50 @@ routerAdd(
         return e.json(200, { id: card.id, deck: deck.id })
       }
 
+      if (action === 'deck_move') {
+        // Mover pasta (e toda a subárvore) para dentro de outra pasta.
+        // Proteções: destino tem que ser próprio, não pode ser a própria pasta
+        // nem nenhum descendente dela (evita ciclo na árvore).
+        const moving = ownDeck(body.deck_id)
+        const target = ownDeck(body.parent_id)
+        if (moving.id === target.id)
+          return e.badRequestError('A pasta não pode ir para dentro dela mesma.')
+        const allDecks = $app.findRecordsByFilter(
+          'mr_decks',
+          'user_id = {:user}',
+          'order',
+          500,
+          0,
+          { user: userId },
+        )
+        const subtree = {}
+        subtree[moving.id] = true
+        let grew = true
+        while (grew) {
+          grew = false
+          for (let i = 0; i < allDecks.length; i++) {
+            const pid = allDecks[i].getString('parent')
+            if (pid && subtree[pid] && !subtree[allDecks[i].id]) {
+              subtree[allDecks[i].id] = true
+              grew = true
+            }
+          }
+        }
+        if (subtree[target.id])
+          return e.badRequestError(
+            'Destino inválido: a pasta destino está dentro da pasta que está sendo movida.',
+          )
+        moving.set('parent', target.id)
+        moving.set('kind', target.getString('kind'))
+        moving.set('order', allDecks.length + 1)
+        $app.save(moving)
+        return e.json(200, {
+          id: moving.id,
+          parent: target.id,
+          kind: moving.getString('kind'),
+        })
+      }
+
       if (action === 'deck_reset') {
         const root = ownDeck(body.deck_id)
         const allDecks = $app.findRecordsByFilter(
