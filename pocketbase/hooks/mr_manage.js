@@ -144,6 +144,7 @@ routerAdd(
           kind: d.getString('kind'),
           parent: d.getString('parent'),
           mode: d.getString('mode'),
+          seed_key: d.getString('seed_key'),
           deleted: d.getBool('deleted'),
         }))
         return e.json(200, { ok: true, decks })
