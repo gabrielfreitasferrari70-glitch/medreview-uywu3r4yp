@@ -1734,7 +1734,7 @@ export default function Index() {
   const [route, setRoute] = useState<{
     view: 'home' | 'study' | 'library'
     deckId?: string
-    folderKind?: 'tutoria' | 'prova'
+    folderKind?: 'tutoria' | 'prova' | 'custom'
     sessionTitle?: string
   }>({ view: 'home' })
   const [flipped, setFlipped] = useState(false)
@@ -2060,7 +2060,7 @@ export default function Index() {
       deck?.title,
     )
   }
-  const openFolderGroup = (folderKind: 'tutoria' | 'prova') =>
+  const openFolderGroup = (folderKind: 'tutoria' | 'prova' | 'custom') =>
     setRoute({ view: 'home', folderKind })
   const startStudyNow = () => {
     const dueOrNew = cards.filter((c) => {
@@ -2095,6 +2095,8 @@ export default function Index() {
   }
   const openDeckSubfolderModal = (deckId: string) => {
     setDeckTitle('')
+    const parent = decks.find((d) => d.id === deckId)
+    setDeckKind((parent?.kind as 'tutoria' | 'prova' | 'custom') || 'custom')
     setDeckModal({ type: 'folder', deckId })
   }
   const openDeckRenameModal = (deckId: string) => {
@@ -2146,15 +2148,26 @@ export default function Index() {
         await renameDeck(deckModal.deckId, deckTitle)
       }
       await loadData()
+      const sectionName =
+        deckKind === 'custom'
+          ? 'Minhas Pastas (card 📁 na home)'
+          : deckKind === 'tutoria'
+            ? 'Tutoria'
+            : 'Prova de Módulo'
+      const parentName = deckModal.deckId
+        ? ` — subpasta dentro de "${decks.find((d) => d.id === deckModal.deckId)?.title || ''}"`
+        : deckModal.type === 'folder'
+          ? ` — seção ${sectionName}`
+          : ''
       setDeckModal(null)
       setMsg(
         deckModal.type === 'card'
           ? 'Carta criada.'
           : deckModal.type === 'folder'
-            ? 'Pasta criada.'
+            ? `Pasta criada${parentName}.`
             : 'Pasta renomeada.',
       )
-      setTimeout(() => setMsg(''), 2500)
+      setTimeout(() => setMsg(''), 4000)
     } catch (e: any) {
       setMsg(e?.message || 'Não foi possível salvar.')
       setTimeout(() => setMsg(''), 3000)
@@ -2697,6 +2710,7 @@ export default function Index() {
 
   const tutorias = decks.filter((d) => d.kind === 'tutoria')
   const provas = decks.filter((d) => d.kind === 'prova')
+  const customs = decks.filter((d) => d.kind === 'custom')
   const categories = [
     {
       icon: '🩺',
@@ -2714,6 +2728,14 @@ export default function Index() {
       description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
       count: cards.filter((c) => provas.some((d) => d.id === c.deck)).length,
       onClick: () => openFolderGroup('prova'),
+    },
+    {
+      icon: '📁',
+      tag: 'Suas pastas livres',
+      title: 'Minhas Pastas',
+      description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
+      count: cards.filter((c) => customs.some((d) => d.id === c.deck)).length,
+      onClick: () => openFolderGroup('custom'),
     },
     {
       icon: '📚',

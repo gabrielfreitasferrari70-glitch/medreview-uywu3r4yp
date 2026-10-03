@@ -138,7 +138,7 @@ type HomeProps = {
   categories: CategoryItem[]
   decks: LegacyDeck[]
   cards: LegacyCard[]
-  folderKind?: 'tutoria' | 'prova'
+  folderKind?: 'tutoria' | 'prova' | 'custom'
   onOpenGroup: (kind: 'tutoria' | 'prova') => void
   onHome: () => void
   onOpenDeck: (deckId: string) => void
@@ -188,11 +188,18 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onDeckReset,
   } = props
   const folderDecks = folderKind ? decks.filter((d) => d.kind === folderKind) : []
-  const title = folderKind === 'prova' ? 'Prova de Módulo' : 'Tutoria'
+  const title =
+    folderKind === 'prova'
+      ? 'Prova de Módulo'
+      : folderKind === 'custom'
+        ? 'Minhas Pastas'
+        : 'Tutoria'
   const description =
     folderKind === 'prova'
       ? 'Bancos de revisão focados para os módulos do curso.'
-      : 'Caso Atual em andamento, tutorias e casos clínicos integrados com FSRS-5.'
+      : folderKind === 'custom'
+        ? 'Suas pastas livres — organização que você criar, com subpastas ilimitadas.'
+        : 'Caso Atual em andamento, tutorias e casos clínicos integrados com FSRS-5.'
   return (
     <div className="mr-legacy-shell">
       <MedReviewLegacyStyles />
@@ -250,7 +257,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
             <div className="mr-legacy-folder-head">
               <div>
                 <h1>
-                  {folderKind === 'prova' ? '📝' : '🩺'} {title}
+                  {folderKind === 'prova' ? '📝' : folderKind === 'custom' ? '📁' : '🩺'} {title}
                 </h1>
                 <p>{description}</p>
               </div>
@@ -275,14 +282,16 @@ export function MedReviewLegacyHome(props: HomeProps) {
                     >
                       <span className="mr-legacy-category-top" style={{ width: '100%' }}>
                         <span className="mr-legacy-category-icon">
-                          {folderKind === 'prova' ? '📝' : '🩺'}
+                          {folderKind === 'prova' ? '📝' : folderKind === 'custom' ? '📁' : '🩺'}
                         </span>
                         <span className="mr-legacy-tag">
                           {deck.parent
                             ? 'Subpasta'
                             : folderKind === 'prova'
                               ? 'Módulos'
-                              : 'PBL / Tutoria'}
+                              : folderKind === 'custom'
+                                ? 'Pasta livre'
+                                : 'PBL / Tutoria'}
                         </span>
                       </span>
                       <h3>{deck.title}</h3>
