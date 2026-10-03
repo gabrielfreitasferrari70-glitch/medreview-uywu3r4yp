@@ -34,20 +34,26 @@ export const manageLibrary = <T = any>(action: string, fields: Record<string, un
     body: JSON.stringify({ action, ...fields }),
   })
 
-export const createDeck = (
+export const createDeck = async (
   title: string,
   kind: 'tutoria' | 'prova' | 'custom',
   parentId?: string,
   mode?: 'study' | 'organizer',
   frontline?: boolean,
-) =>
-  manageLibrary('deck_create', {
+) => {
+  const res: any = await manageLibrary('deck_create', {
     title,
     kind,
     parent_id: parentId || '',
     mode: mode || 'study',
-    frontline: !!frontline,
   })
+  // Marca "🎯 Na tela inicial" gravada DIRETO pelo frontend (updateRule do dono
+  // já garante ownership) — independe de deploy de hook.
+  if (frontline && res?.id) {
+    await pb.collection('mr_decks').update(res.id, { frontline: true })
+  }
+  return res
+}
 
 export const renameDeck = (deckId: string, title: string) =>
   manageLibrary('deck_rename', { deck_id: deckId, title })
