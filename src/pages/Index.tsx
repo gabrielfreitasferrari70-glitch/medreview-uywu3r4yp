@@ -2520,13 +2520,20 @@ export default function Index() {
                 </button>
               </div>
             )}
-            {!flipped && studyMode !== 'write' && (
-              <p className="mr-legacy-hint">
-                {isCloze(card.q)
-                  ? 'Pense na lacuna e toque no cartão para conferir'
-                  : 'Toque no cartão para revelar a resposta'}
-              </p>
-            )}
+            {!flipped &&
+              studyMode !== 'write' &&
+              !(
+                studyMode === 'flip' &&
+                !card.__reverse &&
+                Array.isArray(card.choices) &&
+                card.choices.length > 0
+              ) && (
+                <p className="mr-legacy-hint">
+                  {isCloze(card.q)
+                    ? 'Pense na lacuna e toque no cartão para conferir'
+                    : 'Toque no cartão para revelar a resposta'}
+                </p>
+              )}
             {flipped && (
               <div className="mr-legacy-answer">
                 {writeFeedback && (
@@ -2562,6 +2569,21 @@ export default function Index() {
                       ? 'PERGUNTA'
                       : 'GABARITO'}
                 </strong>
+                {mcPicked && (
+                  <div
+                    style={{
+                      marginBottom: 12,
+                      padding: '0.6rem 0.9rem',
+                      borderRadius: 10,
+                      background: mcPicked === card.a ? '#f0fdf4' : '#fef2f2',
+                      color: mcPicked === card.a ? '#166534' : '#991b1b',
+                      fontWeight: 700,
+                      fontSize: '.86rem',
+                    }}
+                  >
+                    {mcPicked === card.a ? '✅ Correto!' : `❌ Você marcou: ${mcPicked}`}
+                  </div>
+                )}
                 {card.__reverse ? card.q : studyMode === 'reverse' ? card.q : card.a}
                 {card.__reverse && (card.diagram_svg || card.image) && (
                   <figure style={{ margin: '18px 0 0' }}>
