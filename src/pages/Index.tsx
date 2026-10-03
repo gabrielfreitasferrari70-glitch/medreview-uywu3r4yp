@@ -2063,7 +2063,8 @@ export default function Index() {
     const deck = decks.find((d) => d.id === deckId)
     // Pasta organizadora: abre a view com as pastas dentro (como a Tutoria).
     // Pasta de estudo: inicia a sessão de flashcards direto.
-    if (deck && (deck as any).mode === 'organizer') {
+    const hasChildren = decks.some((d) => d.parent === deckId && !d.deleted)
+    if (deck && ((deck as any).mode === 'organizer' || hasChildren)) {
       setRoute({ view: 'home', folderKind: 'custom', deckId })
       return
     }
@@ -3068,51 +3069,53 @@ export default function Index() {
                       <option value="prova">📝 Prova de Módulo</option>
                     </select>
                   )}
-                {deckModal.type === 'folder' && (
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    <button
-                      type="button"
-                      onClick={() => setDeckMode('study')}
-                      style={{
-                        flex: 1,
-                        border: deckMode === 'study' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
-                        borderRadius: 9,
-                        padding: '0.55rem 0.7rem',
-                        cursor: 'pointer',
-                        fontWeight: 800,
-                        fontSize: '.78rem',
-                        background: deckMode === 'study' ? '#f0fdf4' : '#fff',
-                        color: deckMode === 'study' ? '#166534' : '#64748b',
-                      }}
-                    >
-                      ⚡ Estudo
-                      <span style={{ display: 'block', fontWeight: 500, fontSize: '.68rem' }}>
-                        clica e estuda os flashcards
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeckMode('organizer')}
-                      style={{
-                        flex: 1,
-                        border:
-                          deckMode === 'organizer' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
-                        borderRadius: 9,
-                        padding: '0.55rem 0.7rem',
-                        cursor: 'pointer',
-                        fontWeight: 800,
-                        fontSize: '.78rem',
-                        background: deckMode === 'organizer' ? '#f0fdf4' : '#fff',
-                        color: deckMode === 'organizer' ? '#166534' : '#64748b',
-                      }}
-                    >
-                      📂 Organizadora
-                      <span style={{ display: 'block', fontWeight: 500, fontSize: '.68rem' }}>
-                        abre e mostra as pastas dentro
-                      </span>
-                    </button>
-                  </div>
-                )}
+                {deckModal.type === 'folder' &&
+                  (!deckModal.deckId || deckModal.deckId === '@frontline') && (
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => setDeckMode('study')}
+                        style={{
+                          flex: 1,
+                          border:
+                            deckMode === 'study' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                          borderRadius: 9,
+                          padding: '0.55rem 0.7rem',
+                          cursor: 'pointer',
+                          fontWeight: 800,
+                          fontSize: '.78rem',
+                          background: deckMode === 'study' ? '#f0fdf4' : '#fff',
+                          color: deckMode === 'study' ? '#166534' : '#64748b',
+                        }}
+                      >
+                        ⚡ Estudo
+                        <span style={{ display: 'block', fontWeight: 500, fontSize: '.68rem' }}>
+                          clica e estuda os flashcards
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeckMode('organizer')}
+                        style={{
+                          flex: 1,
+                          border:
+                            deckMode === 'organizer' ? '2px solid #16a34a' : '1.5px solid #cbd5e1',
+                          borderRadius: 9,
+                          padding: '0.55rem 0.7rem',
+                          cursor: 'pointer',
+                          fontWeight: 800,
+                          fontSize: '.78rem',
+                          background: deckMode === 'organizer' ? '#f0fdf4' : '#fff',
+                          color: deckMode === 'organizer' ? '#166534' : '#64748b',
+                        }}
+                      >
+                        📂 Organizadora
+                        <span style={{ display: 'block', fontWeight: 500, fontSize: '.68rem' }}>
+                          abre e mostra as pastas dentro
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 <input
                   placeholder="Nome da pasta"
                   value={deckTitle}

@@ -282,8 +282,28 @@ export function MedReviewLegacyHome(props: HomeProps) {
           <>
             <nav className="mr-legacy-breadcrumb">
               <button onClick={onHome}>Início</button>
-              <span>/</span>
-              <strong>{title}</strong>
+              {(openDeckId
+                ? (() => {
+                    const chain: { id: string; title: string }[] = []
+                    let cur: LegacyDeck | undefined = decks.find((d) => d.id === openDeckId)
+                    while (cur) {
+                      chain.unshift({ id: cur.id, title: cur.title })
+                      const pid = cur.parent
+                      cur = pid ? decks.find((d) => d.id === pid) : undefined
+                    }
+                    return chain
+                  })()
+                : [{ id: 'section', title }]
+              ).map((d, i, arr) => (
+                <span key={d.id} style={{ display: 'contents' }}>
+                  <span>/</span>
+                  {i === arr.length - 1 ? (
+                    <strong>{d.title}</strong>
+                  ) : (
+                    <button onClick={() => onOpenDeck(d.id)}>{d.title}</button>
+                  )}
+                </span>
+              ))}
             </nav>
             <div className="mr-legacy-folder-head">
               <div>

@@ -44,6 +44,11 @@ routerAdd(
         deck.set('order', rows.length + 1)
         if (parent) deck.set('parent', parent.id)
         $app.save(deck)
+        // A pasta que ganhou uma subpasta passa a ser organizadora.
+        if (parent && parent.getString('mode') !== 'organizer') {
+          parent.set('mode', 'organizer')
+          $app.save(parent)
+        }
         return e.json(201, { id: deck.id, title, kind, mode, parent: parent ? parent.id : '' })
       }
 
