@@ -308,7 +308,10 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     setCardRef(card?.ref || '')
     setCardImg(card?.diagram_svg && /^https?:\/\//i.test(card.diagram_svg) ? card.diagram_svg : '')
     setCardFile(null)
-    setCardChoices(Array.isArray(card?.choices) ? (card?.choices as string[]).join('\n') : '')
+    const existingChoices: string[] = Array.isArray(card?.choices)
+      ? (card!.choices as string[])
+      : []
+    setCardChoices(existingChoices.join('\n'))
     setCardReverse(!!card?.reverse)
     setModal({ type: 'card', deckId, card })
   }

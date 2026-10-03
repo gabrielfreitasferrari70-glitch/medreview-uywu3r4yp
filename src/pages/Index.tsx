@@ -1175,7 +1175,9 @@ function QuizRunModal({
     return (
       <div onClick={onClose} style={quizOverlay(80)}>
         <div onClick={(e) => e.stopPropagation()} style={quizPanel}>
-          <h3 style={{ margin: '0 0 10px', color: '#14532d', fontSize: '1.15rem', fontWeight: 900 }}>
+          <h3
+            style={{ margin: '0 0 10px', color: '#14532d', fontSize: '1.15rem', fontWeight: 900 }}
+          >
             🏁 Quiz concluído!
           </h3>
           <div
@@ -1260,10 +1262,11 @@ function QuizRunModal({
   const cur = quiz.qs[quiz.i]
   if (!cur) return null
   const remaining =
-    quiz.timerOn && !quiz.revealed
-      ? Math.max(0, Math.ceil((quiz.endsMs - Date.now()) / 1000))
-      : 0
-  const opts = cur.choices && cur.choices.length ? seededShuffle([...cur.choices.slice(0, 5), cur.a], cur.id) : null
+    quiz.timerOn && !quiz.revealed ? Math.max(0, Math.ceil((quiz.endsMs - Date.now()) / 1000)) : 0
+  const opts =
+    cur.choices && cur.choices.length
+      ? seededShuffle([...cur.choices.slice(0, 5), cur.a], cur.id)
+      : null
   const imgSrc = cur.image
     ? pb.files.getURL({ collectionId: 'pbc_709748442', id: cur.id }, cur.image)
     : cur.diagram_svg
@@ -1318,7 +1321,13 @@ function QuizRunModal({
           <img
             src={imgSrc}
             alt={cur.diagram_title || 'Imagem da questão'}
-            style={{ maxWidth: '100%', maxHeight: 260, display: 'block', margin: '0 auto 12px', objectFit: 'contain' }}
+            style={{
+              maxWidth: '100%',
+              maxHeight: 260,
+              display: 'block',
+              margin: '0 auto 12px',
+              objectFit: 'contain',
+            }}
           />
         )}
         {opts ? (
@@ -1363,7 +1372,15 @@ function QuizRunModal({
               padding: '0.7rem 0.9rem',
             }}
           >
-            <strong style={{ display: 'block', color: '#15803d', fontSize: '.76rem', letterSpacing: '.1em', marginBottom: 6 }}>
+            <strong
+              style={{
+                display: 'block',
+                color: '#15803d',
+                fontSize: '.76rem',
+                letterSpacing: '.1em',
+                marginBottom: 6,
+              }}
+            >
               GABARITO
             </strong>
             <div style={{ color: '#1e293b', lineHeight: 1.55 }}>{cur.a}</div>
@@ -1897,7 +1914,8 @@ export default function Index() {
     setWriteFeedback(null)
     setMcPicked(null)
     setStudySession({ startMs: Date.now(), again: 0, hard: 0, good: 0, easy: 0 })
-    setRoute({ view: 'study', deckId, sessionTitle })  }
+    setRoute({ view: 'study', deckId, sessionTitle })
+  }
 
   // Normaliza texto para comparação no modo escrita (sem acentos/pontuação/caixa)
   const normalizeAnswer = (s: string) =>
@@ -1950,7 +1968,9 @@ export default function Index() {
       setTimeout(() => setMsg(''), 3000)
       return
     }
-    const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(count, pool.length))
+    const shuffled = [...pool]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, Math.min(count, pool.length))
     const qs: QuizQ[] = shuffled.map((c) => {
       const deck = decks.find((d) => d.id === c.deck)
       return {
@@ -2013,17 +2033,26 @@ export default function Index() {
       }
     })
   }
-  const quizRedo = () => startQuiz(quiz?.qs.length || 10, quiz?.timerOn !== false, quiz?.kind || 'all')
+  const quizRedo = () =>
+    startQuiz(quiz?.qs.length || 10, quiz?.timerOn !== false, quiz?.kind || 'all')
   // Timer expira → revela como erro
   useEffect(() => {
     if (!quiz || quiz.done || quiz.revealed || !quiz.timerOn) return
-    const t = setTimeout(() => {
-      setQuiz((q) => {
-        if (!q || q.revealed || q.done) return q
-        const cur = q.qs[q.i]
-        return { ...q, picked: null, revealed: true, wrong: [...q.wrong, { q: cur, picked: null }] }
-      })
-    }, Math.max(0, quiz.endsMs - Date.now()))
+    const t = setTimeout(
+      () => {
+        setQuiz((q) => {
+          if (!q || q.revealed || q.done) return q
+          const cur = q.qs[q.i]
+          return {
+            ...q,
+            picked: null,
+            revealed: true,
+            wrong: [...q.wrong, { q: cur, picked: null }],
+          }
+        })
+      },
+      Math.max(0, quiz.endsMs - Date.now()),
+    )
     return () => clearTimeout(t)
   }, [quiz?.i, quiz?.revealed, quiz?.endsMs, quiz?.timerOn, quiz?.done])
 
@@ -2048,7 +2077,8 @@ export default function Index() {
       undefined,
       'Todas as cartas',
     )
-  }  const startClinicalMode = () => {
+  }
+  const startClinicalMode = () => {
     const clinicalCards = cards.filter((c) => /caso clínico|caso clinico/i.test(c.q))
     if (!clinicalCards.length) {
       setMsg('Ainda não há cartões de caso clínico nesta biblioteca.')
@@ -2397,38 +2427,41 @@ export default function Index() {
                     : renderClozeHtml(card.q, flipped),
               }}
             />
-            {!flipped && studyMode === 'flip' && Array.isArray(card.choices) && card.choices.length > 0 && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{ marginTop: 14, display: 'grid', gap: 8 }}
-              >
-                {seededShuffle([...card.choices.slice(0, 5), card.a], card.id).map((opt) => {
-                  const isCorrect = opt === card.a
-                  const isPicked = mcPicked === opt
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => {
-                        setMcPicked(opt)
-                        setFlipped(true)
-                      }}
-                      style={{
-                        textAlign: 'left',
-                        border: '1.5px solid #cbd5e1',
-                        background: '#fff',
-                        borderRadius: 10,
-                        padding: '0.6rem 0.9rem',
-                        cursor: 'pointer',
-                        font: '500 .9rem Inter, system-ui, sans-serif',
-                        color: '#1e293b',
-                      }}
-                    >
-                      {opt}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            {!flipped &&
+              studyMode === 'flip' &&
+              Array.isArray(card.choices) &&
+              card.choices.length > 0 && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ marginTop: 14, display: 'grid', gap: 8 }}
+                >
+                  {seededShuffle([...card.choices.slice(0, 5), card.a], card.id).map((opt) => {
+                    const isCorrect = opt === card.a
+                    const isPicked = mcPicked === opt
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => {
+                          setMcPicked(opt)
+                          setFlipped(true)
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          border: '1.5px solid #cbd5e1',
+                          background: '#fff',
+                          borderRadius: 10,
+                          padding: '0.6rem 0.9rem',
+                          cursor: 'pointer',
+                          font: '500 .9rem Inter, system-ui, sans-serif',
+                          color: '#1e293b',
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             {!flipped && studyMode === 'write' && (
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -2523,7 +2556,11 @@ export default function Index() {
                     marginBottom: 8,
                   }}
                 >
-                  {card.__reverse ? 'CARTÃO REVERSO — PERGUNTA ORIGINAL' : studyMode === 'reverse' ? 'PERGUNTA' : 'GABARITO'}
+                  {card.__reverse
+                    ? 'CARTÃO REVERSO — PERGUNTA ORIGINAL'
+                    : studyMode === 'reverse'
+                      ? 'PERGUNTA'
+                      : 'GABARITO'}
                 </strong>
                 {card.__reverse ? card.q : studyMode === 'reverse' ? card.q : card.a}
                 {card.__reverse && card.diagram_svg && (
@@ -2536,7 +2573,10 @@ export default function Index() {
                     <img
                       src={
                         card.image
-                          ? pb.files.getURL({ collectionId: 'pbc_709748442', id: card.id }, card.image)
+                          ? pb.files.getURL(
+                              { collectionId: 'pbc_709748442', id: card.id },
+                              card.image,
+                            )
                           : /^https?:\/\//i.test(card.diagram_svg)
                             ? card.diagram_svg
                             : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`
@@ -2562,7 +2602,10 @@ export default function Index() {
                     <img
                       src={
                         card.image
-                          ? pb.files.getURL({ collectionId: 'pbc_709748442', id: card.id }, card.image)
+                          ? pb.files.getURL(
+                              { collectionId: 'pbc_709748442', id: card.id },
+                              card.image,
+                            )
                           : /^https?:\/\//i.test(card.diagram_svg)
                             ? card.diagram_svg
                             : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.diagram_svg)}`
