@@ -1,6 +1,5 @@
-// Rota administrativa pontual (diagnóstico/reparo da conta real): SEM auth do
-// PocketBase, protegida APENAS pela chave X-MR-Admin-Key (secret do projeto).
-// Nunca exposta ao frontend; remover após o reparo.
+// Rota administrativa (diagnóstico/reparo): SEM auth do PocketBase, protegida
+// APENAS pela chave X-MR-Admin-Key (secret do projeto). Nunca exposta ao frontend.
 routerAdd('POST', '/backend/v1/mr/admin', (e) => {
   const adminKey = $secrets.get('MR_ADMIN_KEY') || ''
   const info = e.requestInfo()
