@@ -2955,38 +2955,55 @@ export default function Index() {
   const userDecks = decks
     .filter((d) => !d.seed_key && !d.parent)
     .sort((a, b) => (a.order || 0) - (b.order || 0))
+  // Card fixo da seção SÓ aparece se ela tem pastas em nível inicial — se a
+  // seção foi movida (Anki: mover = some da origem), o card some da home.
+  // Sem card vazio duplicado com a pasta movida.
+  const sectionHasRoots = (kind: string) =>
+    decks.some((d) => d.kind === kind && !d.parent && !d.deleted)
   const categories = [
-    {
-      icon: '🩺',
-      tag: 'PBL / Tutoria',
-      title: 'Tutoria',
-      description:
-        'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
-      count: tutorias.reduce((n, d) => n + cardsInSubtree(d.id), 0),
-      onClick: () => openFolderGroup('tutoria'),
-      deckId: tutorias.find((d) => !d.parent)?.id,
-      sectionKind: 'tutoria',
-    },
-    {
-      icon: '📝',
-      tag: 'Módulos',
-      title: 'Prova de Módulo',
-      description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
-      count: provas.reduce((n, d) => n + cardsInSubtree(d.id), 0),
-      onClick: () => openFolderGroup('prova'),
-      deckId: provas.find((d) => !d.parent)?.id,
-      sectionKind: 'prova',
-    },
-    {
-      icon: '📁',
-      tag: 'Suas pastas livres',
-      title: 'Minhas Pastas',
-      description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
-      count: customs.reduce((n, d) => n + cardsInSubtree(d.id), 0),
-      onClick: () => openFolderGroup('custom'),
-      deckId: customs.find((d) => !d.parent)?.id,
-      sectionKind: 'custom',
-    },
+    ...(sectionHasRoots('tutoria')
+      ? [
+          {
+            icon: '🩺',
+            tag: 'PBL / Tutoria',
+            title: 'Tutoria',
+            description:
+              'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
+            count: tutorias.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+            onClick: () => openFolderGroup('tutoria'),
+            deckId: tutorias.find((d) => !d.parent)?.id,
+            sectionKind: 'tutoria' as const,
+          },
+        ]
+      : []),
+    ...(sectionHasRoots('prova')
+      ? [
+          {
+            icon: '📝',
+            tag: 'Módulos',
+            title: 'Prova de Módulo',
+            description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
+            count: provas.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+            onClick: () => openFolderGroup('prova'),
+            deckId: provas.find((d) => !d.parent)?.id,
+            sectionKind: 'prova' as const,
+          },
+        ]
+      : []),
+    ...(sectionHasRoots('custom')
+      ? [
+          {
+            icon: '📁',
+            tag: 'Suas pastas livres',
+            title: 'Minhas Pastas',
+            description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
+            count: customs.reduce((n, d) => n + cardsInSubtree(d.id), 0),
+            onClick: () => openFolderGroup('custom'),
+            deckId: customs.find((d) => !d.parent)?.id,
+            sectionKind: 'custom' as const,
+          },
+        ]
+      : []),
     {
       icon: '📚',
       tag: 'Biblioteca',
