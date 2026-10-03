@@ -56,6 +56,12 @@
       "      startSessionTimer();\n      renderStudyInterface();\n    }\n\n    // --- VIEW 5: FLASHCARD STUDY SESSION ---",
       "      startSessionTimer();\n      updateStudySessionQueue();\n      renderStudyInterface();\n    }\n\n    // --- VIEW 5: FLASHCARD STUDY SESSION ---",
       false
+    ],
+    [
+      "t",
+      "    const detailedStatsModalEl = document.getElementById('detailed-stats-modal');",
+      "    const detailedStatsModalEl = document.getElementById('detailed-stats-modal') || (function () {\n      const d = document.createElement('div');\n      d.id = 'detailed-stats-modal';\n      d.className = 'modal-overlay';\n      d.style.display = 'none';\n      d.innerHTML = '<div class=\"detailed-stats-dialog\"><div class=\"modal-header\" style=\"border-bottom:1.5px solid #a7f3d0; padding-bottom:0.85rem;\"><h3 style=\"color:#065f46; display:flex; align-items:center; gap:0.45rem; font-size:1.25rem; font-weight:800; margin:0;\"><span>📊</span> Estatísticas Detalhadas de Desempenho</h3><button type=\"button\" onclick=\"closeDetailedStatsModal()\" class=\"btn btn-sm\" style=\"background:none; border:none; font-size:1.5rem; cursor:pointer; color:#047857;\" title=\"Fechar\">&times;</button></div><div id=\"detailed-stats-content\" style=\"margin-top:1rem;\"></div></div>';\n      document.body.appendChild(d);\n      return d;\n    })();",
+      false
     ]
   ]
 }
