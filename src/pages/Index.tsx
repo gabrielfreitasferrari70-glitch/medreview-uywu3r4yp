@@ -2940,7 +2940,7 @@ export default function Index() {
               {deckModal.type === 'card'
                 ? '＋ Nova carta'
                 : deckModal.type === 'folder'
-                  ? deckModal.deckId
+                  ? deckModal.deckId && deckModal.deckId !== '@frontline'
                     ? '＋ Nova subpasta'
                     : '＋ Nova pasta'
                   : '✏️ Renomear pasta'}
@@ -3023,38 +3023,39 @@ export default function Index() {
               </>
             ) : (
               <>
-                {deckModal.type === 'folder' && !deckModal.deckId && (
-                  <select
-                    value={deckKind}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      if (v === '@frontline') {
-                        setDeckModal({ type: 'folder', deckId: '@frontline' })
-                        setDeckKind('custom')
-                      } else {
-                        setDeckModal({ type: 'folder', deckId: '' })
-                        setDeckKind(v as any)
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '0.65rem 0.8rem',
-                      borderRadius: 9,
-                      border: '1.5px solid #cbd5e1',
-                      font: 'inherit',
-                      marginBottom: 8,
-                      background: '#fff',
-                    }}
-                  >
-                    <option value="@frontline">
-                      🎯 Topo da tela inicial (no frente das outras)
-                    </option>
-                    <option value="custom">📁 Minhas Pastas</option>
-                    <option value="tutoria">🩺 Tutoria</option>
-                    <option value="prova">📝 Prova de Módulo</option>
-                  </select>
-                )}
+                {deckModal.type === 'folder' &&
+                  (!deckModal.deckId || deckModal.deckId === '@frontline') && (
+                    <select
+                      value={deckModal.deckId === '@frontline' ? '@frontline' : deckKind}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (v === '@frontline') {
+                          setDeckModal({ type: 'folder', deckId: '@frontline' })
+                          setDeckKind('custom')
+                        } else {
+                          setDeckModal({ type: 'folder', deckId: '' })
+                          setDeckKind(v as any)
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '0.65rem 0.8rem',
+                        borderRadius: 9,
+                        border: '1.5px solid #cbd5e1',
+                        font: 'inherit',
+                        marginBottom: 8,
+                        background: '#fff',
+                      }}
+                    >
+                      <option value="@frontline">
+                        🎯 Topo da tela inicial (no frente das outras)
+                      </option>
+                      <option value="custom">📁 Minhas Pastas</option>
+                      <option value="tutoria">🩺 Tutoria</option>
+                      <option value="prova">📝 Prova de Módulo</option>
+                    </select>
+                  )}
                 <input
                   placeholder="Nome da pasta"
                   value={deckTitle}
