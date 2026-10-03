@@ -505,9 +505,9 @@ export default function Index() {
   const reviewDays = new Set(
     reviews
       .map((r) => {
-        const date = new Date(
-          r.reviewed_at.includes('T') ? r.reviewed_at : r.reviewed_at.replace(' ', 'T'),
-        )
+        const raw = typeof r.reviewed_at === 'string' ? r.reviewed_at : ''
+        if (!raw) return ''
+        const date = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T'))
         return Number.isNaN(date.getTime()) ? '' : dayKey(date)
       })
       .filter(Boolean),
