@@ -140,6 +140,7 @@ type HomeProps = {
   onOpenDeck: (deckId: string) => void
   onClinical: () => void
   onStudyNow: () => void
+  onSessionBuilder: () => void
   onNewFolder: () => void
   onLibrary: () => void
   onLogout: () => void
@@ -167,6 +168,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     onOpenDeck,
     onClinical,
     onStudyNow,
+    onSessionBuilder,
     onNewFolder,
     onLibrary,
     onLogout,
@@ -371,6 +373,9 @@ export function MedReviewLegacyHome(props: HomeProps) {
               <div className="mr-legacy-actions">
                 <button className="mr-legacy-button primary" onClick={onStudyNow}>
                   ⚡ Estudar agora
+                </button>
+                <button className="mr-legacy-button" onClick={onSessionBuilder}>
+                  🎛️ Montar sessão
                 </button>
                 <button className="mr-legacy-button" onClick={onClinical}>
                   📋 Modo Caso Clínico

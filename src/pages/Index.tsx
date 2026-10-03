@@ -319,6 +319,631 @@ function SettingsModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   )
 }
 
+// ===== 🎛️ Montar sessão (sessão personalizada por pastas/filtros) =====
+type SessionFilter = {
+  id: string
+  name: string
+  deckIds: string[]
+  includeNew: boolean
+  includeDue: boolean
+  includeFuture: boolean
+  includeSuspended: boolean
+  limit: number
+}
+const FILTERS_KEY = 'mr_session_filters'
+function loadSessionFilters(): SessionFilter[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FILTERS_KEY) || '[]')
+    if (Array.isArray(raw)) return raw
+  } catch (e) {
+    // corrompido — ignora
+  }
+  return []
+}
+function saveSessionFilters(filters: SessionFilter[]) {
+  localStorage.setItem(FILTERS_KEY, JSON.stringify(filters))
+}
+function buildSessionCards(
+  cards: Card[],
+  reviews: Review[],
+  deckIds: string[],
+  opts: {
+    includeNew: boolean
+    includeDue: boolean
+    includeFuture: boolean
+    includeSuspended: boolean
+    limit: number
+  },
+): Card[] {
+  const now = Date.now()
+  const deckSet = new Set(deckIds)
+  let picked: Card[] = []
+  for (const c of cards) {
+    if (!deckSet.has(c.deck)) continue
+    if (c.suspended && !opts.includeSuspended) continue
+    const cs = cardStateFromReviews(reviews.filter((r) => (r.card_ref || r.card) === c.id))
+    const isNew = cs.state === 'new'
+    const isDue = cs.state !== 'new' && (cs.dueMs || 0) <= now
+    const isFuture = cs.state !== 'new' && (cs.dueMs || 0) > now
+    if (isNew && !opts.includeNew) continue
+    if (!isNew && isDue && !opts.includeDue) continue
+    if (!isNew && isFuture && !opts.includeFuture) continue
+    picked.push(c)
+  }
+  if (opts.limit > 0 && picked.length > opts.limit) picked = picked.slice(0, opts.limit)
+  return picked
+}
+function SessionBuilderModal({
+  decks,
+  cards,
+  reviews,
+  onClose,
+  onStart,
+}: {
+  decks: Deck[]
+  cards: Card[]
+  reviews: Review[]
+  onClose: () => void
+  onStart: (picked: Card[], title: string) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [includeNew, setIncludeNew] = useState(true)
+  const [includeDue, setIncludeDue] = useState(true)
+  const [includeFuture, setIncludeFuture] = useState(false)
+  const [includeSuspended, setIncludeSuspended] = useState(false)
+  const [limit, setLimit] = useState(0)
+  const [filters, setFilters] = useState<SessionFilter[]>(() => loadSessionFilters())
+  const [filterName, setFilterName] = useState('')
+  const [filterMsg, setFilterMsg] = useState('')
+  const visibleDecks = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return [...decks]
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .filter((d) => !q || d.title.toLowerCase().includes(q))
+  }, [decks, search])
+  const countOf = (deckId: string) => {
+    const childIds = decks.filter((d) => d.parent === deckId).map((d) => d.id)
+    const allIds = [deckId, ...childIds]
+    return buildSessionCards(
+      cards.filter((c) => allIds.includes(c.deck)),
+      reviews,
+      allIds,
+      { includeNew, includeDue, includeFuture, includeSuspended, limit: 0 },
+    ).length
+  }
+  const totalCount = buildSessionCards(cards, reviews, [...selected], {
+    includeNew,
+    includeDue,
+    includeFuture,
+    includeSuspended,
+    limit,
+  }).length
+  const toggleDeck = (deckId: string) => {
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(deckId)) next.delete(deckId)
+      else next.add(deckId)
+      return next
+    })
+  }
+  const saveFilter = () => {
+    const name = filterName.trim() || `Sessão ${filters.length + 1}`
+    const f: SessionFilter = {
+      id: 'f' + Date.now().toString(36),
+      name,
+      deckIds: [...selected],
+      includeNew,
+      includeDue,
+      includeFuture,
+      includeSuspended,
+      limit,
+    }
+    const next = [...filters, f]
+    setFilters(next)
+    saveSessionFilters(next)
+    setFilterName('')
+    setFilterMsg(`Filtro “${name}” salvo.`)
+    setTimeout(() => setFilterMsg(''), 2500)
+  }
+  const applyFilter = (f: SessionFilter) => {
+    setSelected(new Set(f.deckIds))
+    setIncludeNew(f.includeNew)
+    setIncludeDue(f.includeDue)
+    setIncludeFuture(f.includeFuture)
+    setIncludeSuspended(f.includeSuspended)
+    setLimit(f.limit)
+  }
+  const removeFilter = (id: string) => {
+    const next = filters.filter((f) => f.id !== id)
+    setFilters(next)
+    saveSessionFilters(next)
+  }
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
+        background: 'rgba(15,23,42,.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 18,
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 18,
+          padding: 22,
+          width: '100%',
+          maxWidth: 480,
+          maxHeight: '90vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 50px rgba(15,23,42,.25)',
+        }}
+      >
+        <h3 style={{ margin: '0 0 4px', color: '#14532d', fontSize: '1.1rem', fontWeight: 900 }}>
+          🎛️ Montar sessão
+        </h3>
+        <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
+          Escolha as pastas e o que revisar — a fila FSRS monta na hora.
+        </p>
+        <input
+          placeholder="🔍 Buscar tema…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            padding: '0.6rem 0.8rem',
+            borderRadius: 9,
+            border: '1.5px solid #cbd5e1',
+            font: 'inherit',
+            marginBottom: 10,
+          }}
+        />
+        <div
+          style={{
+            maxHeight: 240,
+            overflow: 'auto',
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            marginBottom: 12,
+          }}
+        >
+          {visibleDecks.map((deck) => {
+            const childIds = decks.filter((d) => d.parent === deck.id).map((d) => d.id)
+            const hasParent = !!deck.parent
+            return (
+              <label
+                key={deck.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '8px 12px',
+                  borderBottom: '1px solid #f1f5f9',
+                  paddingLeft: hasParent ? 28 : 12,
+                  fontSize: '.88rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(deck.id)}
+                  onChange={() => toggleDeck(deck.id)}
+                  style={{ accentColor: '#16a34a' }}
+                />
+                <span style={{ flex: 1, color: '#1f2937', fontWeight: 600 }}>
+                  {deck.kind === 'prova' ? '📝' : '🩺'} {deck.title}
+                </span>
+                <span style={{ color: '#64748b', fontSize: '.75rem' }}>{countOf(deck.id)}</span>
+                {childIds.length > 0 && (
+                  <span style={{ color: '#64748b', fontSize: '.68rem' }}>
+                    +{childIds.length} sub
+                  </span>
+                )}
+              </label>
+            )
+          })}
+          {!visibleDecks.length && (
+            <div style={{ padding: 16, color: '#64748b', fontSize: '.85rem', textAlign: 'center' }}>
+              Nenhuma pasta encontrada.
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            border: '1px solid #e2e8f0',
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: '.72rem',
+              fontWeight: 900,
+              color: '#15803d',
+              letterSpacing: '.08em',
+              marginBottom: 8,
+            }}
+          >
+            CONFIGURAÇÕES
+          </div>
+          {[
+            ['Novas cartas', includeNew, setIncludeNew],
+            ['Revisões de hoje (vencidas)', includeDue, setIncludeDue],
+            ['Revisões futuras', includeFuture, setIncludeFuture],
+            ['Incluir suspensas', includeSuspended, setIncludeSuspended],
+          ].map(([label, checked, setter]: any) => (
+            <label
+              key={label}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 9,
+                padding: '5px 0',
+                fontSize: '.86rem',
+                color: '#1f2937',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => setter(e.target.checked)}
+                style={{ accentColor: '#16a34a' }}
+              />
+              {label}
+            </label>
+          ))}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              padding: '5px 0',
+              fontSize: '.86rem',
+              color: '#1f2937',
+            }}
+          >
+            Limite de cartas
+            <input
+              type="number"
+              min={0}
+              max={500}
+              value={limit}
+              onChange={(e) => setLimit(Math.max(0, parseInt(e.target.value) || 0))}
+              style={{
+                width: 80,
+                padding: '0.35rem 0.55rem',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                font: 'inherit',
+              }}
+            />
+            <span style={{ color: '#64748b', fontSize: '.72rem' }}>0 = sem limite</span>
+          </label>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div
+            style={{
+              fontSize: '.72rem',
+              fontWeight: 900,
+              color: '#15803d',
+              letterSpacing: '.08em',
+              marginBottom: 8,
+            }}
+          >
+            MEUS FILTROS {filters.length ? `(${filters.length})` : ''}
+          </div>
+          {filters.map((f) => (
+            <div
+              key={f.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '7px 10px',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+                marginBottom: 6,
+              }}
+            >
+              <span style={{ flex: 1, fontSize: '.86rem', fontWeight: 600, color: '#1f2937' }}>
+                💾 {f.name}
+              </span>
+              <button
+                onClick={() => applyFilter(f)}
+                style={{
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 8,
+                  padding: '4px 10px',
+                  background: '#f0fdf4',
+                  color: '#15803d',
+                  font: '700 .74rem Inter, system-ui, sans-serif',
+                  cursor: 'pointer',
+                }}
+              >
+                Aplicar
+              </button>
+              <button
+                onClick={() => removeFilter(f.id)}
+                style={{
+                  border: '1px solid #fecaca',
+                  borderRadius: 8,
+                  padding: '4px 10px',
+                  background: '#fff',
+                  color: '#b91c1c',
+                  font: '700 .74rem Inter, system-ui, sans-serif',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              placeholder="Nome deste filtro…"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '0.45rem 0.7rem',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                font: 'inherit',
+                fontSize: '.84rem',
+              }}
+            />
+            <button
+              onClick={saveFilter}
+              style={{
+                border: '1px solid #bbf7d0',
+                borderRadius: 8,
+                padding: '0.45rem 0.8rem',
+                background: '#f0fdf4',
+                color: '#15803d',
+                font: '700 .8rem Inter, system-ui, sans-serif',
+                cursor: 'pointer',
+              }}
+            >
+              💾 Salvar filtro
+            </button>
+          </div>
+          {filterMsg && (
+            <div style={{ color: '#15803d', fontSize: '.78rem', marginTop: 6 }}>{filterMsg}</div>
+          )}
+        </div>
+        <button
+          disabled={!selected.size || !totalCount}
+          onClick={() => {
+            const titles = [...selected]
+              .map((id) => decks.find((d) => d.id === id)?.title)
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(', ')
+            onStart(
+              buildSessionCards(cards, reviews, [...selected], {
+                includeNew,
+                includeDue,
+                includeFuture,
+                includeSuspended,
+                limit,
+              }),
+              titles + (selected.size > 3 ? ` +${selected.size - 3}` : ''),
+            )
+          }}
+          style={{
+            width: '100%',
+            border: 'none',
+            borderRadius: 11,
+            padding: '0.8rem',
+            cursor: selected.size && totalCount ? 'pointer' : 'not-allowed',
+            background:
+              selected.size && totalCount ? 'linear-gradient(135deg,#16a34a,#22c55e)' : '#e2e8f0',
+            color: selected.size && totalCount ? '#fff' : '#94a3b8',
+            fontWeight: 800,
+            fontSize: '.95rem',
+          }}
+        >
+          🎯 {totalCount} cards
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ===== 📊 Estatísticas do cartão =====
+function CardStatsModal({
+  card,
+  reviews,
+  onClose,
+}: {
+  card: Card
+  reviews: Review[]
+  onClose: () => void
+}) {
+  const cardReviews = reviews
+    .filter((r) => (r.card_ref || r.card) === card.id)
+    .sort((a, b) => (parsePbDate(a.reviewed_at) || 0) - (parsePbDate(b.reviewed_at) || 0))
+  const total = cardReviews.length
+  const correct = cardReviews.filter((r) => r.rating === 'good' || r.rating === 'easy').length
+  const errors = cardReviews.filter((r) => r.rating === 'again').length
+  const hardCount = cardReviews.filter((r) => r.rating === 'hard').length
+  const dist = [
+    { label: 'Errei', value: errors, color: '#dc2626' },
+    { label: 'Difícil', value: hardCount, color: '#d97706' },
+    {
+      label: 'Bom',
+      value: cardReviews.filter((r) => r.rating === 'good').length,
+      color: '#16a34a',
+    },
+    {
+      label: 'Fácil',
+      value: cardReviews.filter((r) => r.rating === 'easy').length,
+      color: '#2563eb',
+    },
+  ]
+  const cs = cardStateFromReviews(cardReviews)
+  const nextDue = cs.dueMs
+    ? new Date(cs.dueMs).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+      }) +
+      ' às ' +
+      new Date(cs.dueMs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : null
+  const maxDist = Math.max(1, ...dist.map((d) => d.value))
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 70,
+        background: 'rgba(15,23,42,.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 18,
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 18,
+          padding: 22,
+          width: '100%',
+          maxWidth: 440,
+          maxHeight: '90vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 50px rgba(15,23,42,.25)',
+        }}
+      >
+        <h3 style={{ margin: '0 0 4px', color: '#14532d', fontSize: '1.1rem', fontWeight: 900 }}>
+          📊 Estatísticas do cartão
+        </h3>
+        <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.8rem', lineHeight: 1.4 }}>
+          {card.q.slice(0, 90)}
+          {card.q.length > 90 ? '…' : ''}
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3,1fr)',
+            gap: 8,
+            marginBottom: 14,
+          }}
+        >
+          {[
+            { label: 'Vezes respondida', value: total, color: '#14532d' },
+            { label: 'Acertos', value: correct, color: '#15803d' },
+            { label: 'Erros', value: errors, color: '#b91c1c' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              style={{
+                border: '1px solid #d1fae5',
+                borderRadius: 12,
+                padding: '10px 8px',
+                textAlign: 'center',
+                background: '#f8fafc',
+              }}
+            >
+              <div style={{ color: s.color, fontSize: '1.25rem', fontWeight: 900 }}>{s.value}</div>
+              <div style={{ color: '#64748b', fontSize: '.68rem', marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            fontSize: '.72rem',
+            fontWeight: 900,
+            color: '#15803d',
+            letterSpacing: '.08em',
+            marginBottom: 8,
+          }}
+        >
+          COMO VOCÊ RESPONDE
+        </div>
+        {dist.map((d) => (
+          <div
+            key={d.label}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}
+          >
+            <span style={{ width: 52, color: '#475569', fontSize: '.76rem', fontWeight: 700 }}>
+              {d.label}
+            </span>
+            <div
+              style={{
+                flex: 1,
+                height: 14,
+                background: '#f1f5f9',
+                borderRadius: 7,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.round((d.value * 100) / maxDist)}%`,
+                  height: '100%',
+                  background: d.color,
+                  borderRadius: 7,
+                  transition: 'width .3s ease',
+                }}
+              />
+            </div>
+            <span style={{ width: 24, color: '#64748b', fontSize: '.76rem', textAlign: 'right' }}>
+              {d.value}
+            </span>
+          </div>
+        ))}
+        <div
+          style={{
+            marginTop: 14,
+            padding: '10px 12px',
+            border: '1px solid #d1fae5',
+            borderRadius: 12,
+            background: '#f0fdf4',
+            fontSize: '.84rem',
+            color: '#14532d',
+          }}
+        >
+          <strong>Situação atual:</strong>{' '}
+          {cs.state === 'new'
+            ? '🆕 carta nova — ainda não estudada'
+            : nextDue
+              ? `📅 próxima revisão em ${nextDue}`
+              : '📅 sem agendamento'}
+          {cs.reps > 0 && (
+            <span style={{ display: 'block', marginTop: 4, color: '#15803d', fontSize: '.78rem' }}>
+              Estabilidade: {cs.s ? cs.s.toFixed(1) + 'd' : '—'} · Dificuldade:{' '}
+              {cs.d ? cs.d.toFixed(1) + '/10' : '—'} · Revisões: {cs.reps} · Lapsos: {cs.lapses}
+            </span>
+          )}
+        </div>
+        {!total && (
+          <p
+            style={{ margin: '12px 0 0', color: '#94a3b8', fontSize: '.8rem', textAlign: 'center' }}
+          >
+            Nenhuma revisão registrada ainda — os números aparecem depois da primeira avaliação.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ==================== App ====================
 export default function Index() {
   const [auth, setAuth] = useState<'loading' | 'out' | 'in'>('loading')
@@ -351,6 +976,8 @@ export default function Index() {
   const [busy, setBusy] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [retentionTick, setRetentionTick] = useState(0)
+  const [sessionBuilderOpen, setSessionBuilderOpen] = useState(false)
+  const [cardStatsOpen, setCardStatsOpen] = useState(false)
   const [deckModal, setDeckModal] = useState<{
     type: 'card' | 'folder' | 'rename'
     deckId: string
@@ -799,7 +1426,27 @@ export default function Index() {
                   : '📅 Futura'}{' '}
               · {card.group || 'Revisão médica'}
             </span>
-            <span>Retenção alvo: {Math.round(retention * 100)}%</span>
+            <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCardStatsOpen(true)
+                }}
+                style={{
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 8,
+                  padding: '4px 9px',
+                  background: '#fff',
+                  color: '#15803d',
+                  font: '700 .74rem Inter, system-ui, sans-serif',
+                  cursor: 'pointer',
+                }}
+                title="Estatísticas deste cartão"
+              >
+                📊 Stats
+              </button>
+              <span>Retenção alvo: {Math.round(retention * 100)}%</span>
+            </span>
           </div>
           <article className="mr-legacy-study-card" onClick={() => setFlipped((f) => !f)}>
             <span className="mr-legacy-badge">🩺 Cartão de revisão</span>
@@ -866,6 +1513,9 @@ export default function Index() {
             </div>
           )}
           {msg && <div style={toast}>{msg}</div>}
+          {cardStatsOpen && (
+            <CardStatsModal card={card} reviews={reviews} onClose={() => setCardStatsOpen(false)} />
+          )}
         </main>
       </div>
     )
@@ -930,6 +1580,7 @@ export default function Index() {
         onOpenDeck={openDeck}
         onClinical={startClinicalMode}
         onStudyNow={startStudyNow}
+        onSessionBuilder={() => setSessionBuilderOpen(true)}
         onNewFolder={openNewFolder}
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
@@ -944,6 +1595,18 @@ export default function Index() {
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           onSaved={() => setRetentionTick((t) => t + 1)}
+        />
+      )}
+      {sessionBuilderOpen && (
+        <SessionBuilderModal
+          decks={decks}
+          cards={cards}
+          reviews={reviews}
+          onClose={() => setSessionBuilderOpen(false)}
+          onStart={(picked, title) => {
+            setSessionBuilderOpen(false)
+            startStudy(picked, undefined, title || 'Sessão personalizada')
+          }}
         />
       )}
       {deckModal && (
