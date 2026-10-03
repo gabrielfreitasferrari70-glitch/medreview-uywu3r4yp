@@ -166,9 +166,6 @@ type HomeProps = {
   userDecks: LegacyDeck[]
   onNewFolderIn: (kind: 'tutoria' | 'prova' | 'custom') => void
   onNewFrontlineFolder: () => void
-  onDeckRenameRoot?: (deckId: string) => void
-  onDeckDeleteRoot?: (deckId: string) => boolean | void
-  onDeckMoveRoot?: (deckId: string) => void
   openDeckId?: string
 }
 
@@ -205,9 +202,6 @@ export function MedReviewLegacyHome(props: HomeProps) {
     userDecks,
     onNewFolderIn,
     onNewFrontlineFolder,
-    onDeckRenameRoot,
-    onDeckDeleteRoot,
-    onDeckMoveRoot,
     openDeckId,
   } = props
   // Quando um deck específico é aberto (pasta organizadora), mostra só a subárvore dele;
@@ -525,28 +519,6 @@ export function MedReviewLegacyHome(props: HomeProps) {
                           onClick={() => onDeckAddCard?.(item.deckId)}
                         >
                           ＋ Carta
-                        </button>
-                        <button
-                          type="button"
-                          title="Renomear pasta"
-                          onClick={() => onDeckRenameRoot?.(item.deckId)}
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          type="button"
-                          title="Mover para dentro de outra pasta"
-                          onClick={() => onDeckMoveRoot?.(item.deckId)}
-                        >
-                          ➡️
-                        </button>
-                        <button
-                          type="button"
-                          className="danger"
-                          title="Excluir pasta (as cartas também serão apagadas)"
-                          onClick={() => onDeckDeleteRoot?.(item.deckId)}
-                        >
-                          🗑️
                         </button>
                       </span>
                     )}

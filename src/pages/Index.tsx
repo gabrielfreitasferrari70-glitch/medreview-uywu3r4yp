@@ -2113,34 +2113,6 @@ export default function Index() {
     setDeckMode('study')
     setDeckModal({ type: 'folder', deckId: '@frontline' })
   }
-  const renameRootDeck = (deckId: string) => {
-    const deck = decks.find((d) => d.id === deckId)
-    if (!deck) return
-    setDeckTitle(deck.title)
-    setDeckKind(deck.kind as any)
-    setDeckModal({ type: 'rename', deckId })
-  }
-  const moveRootDeck = (deckId: string) => {
-    setDeckMoveTarget('')
-    setDeckModal({ type: 'moveDeck', deckId })
-  }
-  const deleteRootDeck = (deckId: string) => {
-    const deck = decks.find((d) => d.id === deckId)
-    if (!deck) return
-    const n = cards.filter((c) => c.deck === deckId && !c.deleted).length
-    if (!window.confirm(`Excluir "${deck.title}" e ${n} carta(s)? Isso não pode ser desfeito.`))
-      return false
-    deleteDeck(deckId)
-      .then(() => {
-        setMsg('Pasta excluída.')
-        setTimeout(() => setMsg(''), 4000)
-      })
-      .catch(() => {
-        setMsg('Não foi possível excluir a pasta.')
-        setTimeout(() => setMsg(''), 4000)
-      })
-  }
-
   const openDeckCardModal = (deckId: string) => {
     setDeckQ('')
     setDeckA('')
@@ -2874,9 +2846,6 @@ export default function Index() {
         }}
         onNewFolderIn={openNewFolder}
         onNewFrontlineFolder={openNewFrontlineFolder}
-        onDeckRenameRoot={renameRootDeck}
-        onDeckDeleteRoot={deleteRootDeck}
-        onDeckMoveRoot={moveRootDeck}
         onLibrary={() => setRoute({ view: 'library' })}
         onLogout={logout}
         onSettings={() => setSettingsOpen(true)}
@@ -2969,7 +2938,9 @@ export default function Index() {
                   ? deckModal.deckId && deckModal.deckId !== '@frontline'
                     ? '＋ Nova subpasta'
                     : '＋ Nova pasta'
-                  : '✏️ Renomear pasta'}
+                  : deckModal.type === 'moveDeck'
+                    ? '➡️ Mover pasta'
+                    : '✏️ Renomear pasta'}
             </h3>
             <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: '.83rem' }}>
               {deckModal.type === 'moveDeck'
@@ -3148,20 +3119,22 @@ export default function Index() {
                       </button>
                     </div>
                   )}
-                <input
-                  placeholder="Nome da pasta"
-                  value={deckTitle}
-                  onChange={(e) => setDeckTitle(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '0.65rem 0.8rem',
-                    borderRadius: 9,
-                    border: '1.5px solid #cbd5e1',
-                    font: 'inherit',
-                    marginBottom: 12,
-                  }}
-                />
+                {deckModal.type !== 'moveDeck' && (
+                  <input
+                    placeholder="Nome da pasta"
+                    value={deckTitle}
+                    onChange={(e) => setDeckTitle(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '0.65rem 0.8rem',
+                      borderRadius: 9,
+                      border: '1.5px solid #cbd5e1',
+                      font: 'inherit',
+                      marginBottom: 12,
+                    }}
+                  />
+                )}
               </>
             )}
             <div style={{ display: 'flex', gap: 8 }}>
