@@ -101,6 +101,68 @@ routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
     }
     return e.json(200, { ok: true, restoredDecks, restoredCards })
   }
+  if (action === 'admin_deck_edit') {
+    // Editar deck da conta: kind e parent (reorganização administrativa).
+    const target = String(body.user_id || '')
+    const d = $app.findRecordById('mr_decks', String(body.deck_id || ''))
+    if (d.getString('user_id') !== target)
+      return e.json(403, { ok: false, error: 'não é da conta' })
+    if (['tutoria', 'prova', 'custom'].includes(body.kind)) d.set('kind', body.kind)
+    if ('parent' in body) d.set('parent', String(body.parent || ''))
+    if (body.title) d.set('title', String(body.title).slice(0, 200))
+    $app.save(d)
+    return e.json(200, {
+      ok: true,
+      id: d.id,
+      kind: d.getString('kind'),
+      parent: d.getString('parent'),
+    })
+  }
+  if (action === 'admin_deck_delete') {
+    // Soft-delete SELETIVO de um deck (e subárvore + cartas) — limpeza de pastas de teste.
+    const target = String(body.user_id || '')
+    const root = $app.findRecordById('mr_decks', String(body.deck_id || ''))
+    if (root.getString('user_id') !== target)
+      return e.json(403, { ok: false, error: 'não é da conta' })
+    const allDecks = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+      user: target,
+    })
+    const ids = {}
+    ids[root.id] = true
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const d of allDecks) {
+        const pid = d.getString('parent')
+        if (pid && ids[pid] && !ids[d.id]) {
+          ids[d.id] = true
+          changed = true
+        }
+      }
+    }
+    let n = 0
+    for (const d of allDecks) {
+      if (!ids[d.id] || d.getBool('deleted')) continue
+      d.set('deleted', true)
+      $app.save(d)
+      n++
+      const cards = $app.findRecordsByFilter(
+        'mr_cards',
+        'user_id = {:user} && deck = {:deck}',
+        '-created',
+        1000,
+        0,
+        { user: target, deck: d.id },
+      )
+      for (const c of cards) {
+        if (!c.getBool('deleted')) {
+          c.set('deleted', true)
+          $app.save(c)
+        }
+      }
+    }
+    return e.json(200, { ok: true, deleted: n })
+  }
   if (action === 'admin_repair') {
     // Restaurar estado inicial de um kind (mesma lógica do deck_section_repair)
     const toRestoreKind = ['tutoria', 'prova', 'custom'].includes(body.restore_kind)
