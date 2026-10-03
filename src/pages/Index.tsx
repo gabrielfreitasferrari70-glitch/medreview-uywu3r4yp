@@ -220,6 +220,40 @@ export default function Index() {
     if (auth === 'in') loadData()
   }, [auth, loadData])
 
+  // Seed no primeiro login: busca os decks/cartas originais e popula o banco do usuário
+  const ensureSeed = async () => {
+    try {
+      const existing = await pb.collection('mr_decks').getList(1, 1)
+      if ((existing?.totalItems || 0) > 0) return
+      const res = await fetch(pb.baseURL + '/backend/mr-seed')
+      if (!res.ok) return
+      const data = await res.json()
+      const uid = pb.authStore.record?.id
+      if (!uid) return
+      let order = 1
+      for (const d of data?.decks || []) {
+        const deck = await pb
+          .collection('mr_decks')
+          .create({ user_id: uid, title: d.title, kind: d.kind, order: order++ })
+        const payloads = (d.cards || []).map((c: any) => ({
+          user_id: uid,
+          deck: deck.id,
+          q: c.q,
+          a: c.a,
+          group: c.group || '',
+          ref: c.ref || 'Referência Médica',
+        }))
+        for (let i = 0; i < payloads.length; i += 25) {
+          await Promise.all(
+            payloads.slice(i, i + 25).map((p: any) => pb.collection('mr_cards').create(p)),
+          )
+        }
+      }
+    } catch (e) {
+      // seed é best-effort: o app funciona mesmo sem ele
+    }
+  }
+
   // Login / signup
   const doAuth = async () => {
     setAuthErr('')
@@ -233,6 +267,8 @@ export default function Index() {
       await pb.collection('users').authWithPassword(email, pass)
       setUser(pb.authStore.record)
       setAuth('in')
+      await ensureSeed()
+      await loadData()
     } catch (e: any) {
       setAuthErr(e?.message || 'Falha na autenticação')
     } finally {
