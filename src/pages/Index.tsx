@@ -2316,13 +2316,22 @@ export default function Index() {
         ? 'Casos Clínicos'
         : deck?.kind === 'prova'
           ? 'Prova de Módulo'
-          : deck
-            ? 'Tutoria'
-            : 'Biblioteca'
+          : deck?.kind === 'custom'
+            ? 'Minhas Pastas'
+            : deck
+              ? 'Tutoria'
+              : 'Biblioteca'
     const returnToFolders = () =>
       setRoute({
         view: 'home',
-        folderKind: deck?.kind === 'prova' ? 'prova' : deck ? 'tutoria' : undefined,
+        folderKind:
+          deck?.kind === 'prova'
+            ? 'prova'
+            : deck?.kind === 'custom'
+              ? 'custom'
+              : deck
+                ? 'tutoria'
+                : undefined,
       })
     if (!card)
       return (
