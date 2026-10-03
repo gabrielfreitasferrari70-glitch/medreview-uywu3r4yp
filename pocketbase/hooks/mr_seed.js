@@ -41,16 +41,20 @@ routerAdd(
           seed_key: seedKey,
           title: deck.title || key,
           kind: 'tutoria',
-          cards: deck.cards.map((card, index) => ({
-            seed_key: seedKey + ':' + String(index + 1).padStart(3, '0'),
-            q: card.q || '',
-            a: card.a || '',
-            group: card.group || '',
-            ref: card.ref || '',
-            ...(card.diagramSvg
-              ? { diagramSvg: card.diagramSvg, diagramTitle: card.diagramTitle || '' }
-              : {}),
-          })),
+          cards: deck.cards.map((card, index) => {
+            const output = {
+              seed_key: seedKey + ':' + String(index + 1).padStart(3, '0'),
+              q: card.q || '',
+              a: card.a || '',
+              group: card.group || '',
+              ref: card.ref || '',
+            }
+            if (card.diagramSvg) {
+              output.diagramSvg = card.diagramSvg
+              output.diagramTitle = card.diagramTitle || ''
+            }
+            return output
+          }),
         })
       })
       Object.keys(provas)
@@ -63,16 +67,20 @@ routerAdd(
             seed_key: seedKey,
             title: deck.title || key,
             kind: 'prova',
-            cards: deck.cards.map((card, cardIndex) => ({
-              seed_key: seedKey + ':' + String(cardIndex + 1).padStart(3, '0'),
-              q: card.q || '',
-              a: card.a || '',
-              group: card.group || '',
-              ref: card.ref || '',
-              ...(card.diagramSvg
-                ? { diagramSvg: card.diagramSvg, diagramTitle: card.diagramTitle || '' }
-                : {}),
-            })),
+            cards: deck.cards.map((card, cardIndex) => {
+              const output = {
+                seed_key: seedKey + ':' + String(cardIndex + 1).padStart(3, '0'),
+                q: card.q || '',
+                a: card.a || '',
+                group: card.group || '',
+                ref: card.ref || '',
+              }
+              if (card.diagramSvg) {
+                output.diagramSvg = card.diagramSvg
+                output.diagramTitle = card.diagramTitle || ''
+              }
+              return output
+            }),
           })
         })
       const totalCards = decks.reduce((count, deck) => count + deck.cards.length, 0)
