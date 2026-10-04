@@ -3413,18 +3413,22 @@ export default function Index() {
                   if (!decks.some((d) => d.kind === kind && !d.parent && !d.deleted)) return false
                   return !(deckModal.type === 'moveSection' && deckModal.deckId === kind)
                 })
-                const movingId = deckModal.type === 'moveDeck' ? deckModal.deckId : ''
-                const blockedIds = new Set<string>()
-                if (movingId) {
-                  blockedIds.add(movingId)
-                  let grew = true
-                  while (grew) {
-                    grew = false
-                    for (const d of decks) {
-                      if (d.parent && blockedIds.has(d.parent) && !blockedIds.has(d.id)) {
-                        blockedIds.add(d.id)
-                        grew = true
-                      }
+                const movingRoots =
+                  deckModal.type === 'moveSection'
+                    ? decks
+                        .filter((d) => d.kind === deckModal.deckId && !d.parent && !d.deleted)
+                        .map((d) => d.id)
+                    : deckModal.type === 'moveDeck'
+                      ? [deckModal.deckId]
+                      : []
+                const blockedIds = new Set<string>(movingRoots)
+                let grew = true
+                while (grew) {
+                  grew = false
+                  for (const d of decks) {
+                    if (d.parent && blockedIds.has(d.parent) && !blockedIds.has(d.id)) {
+                      blockedIds.add(d.id)
+                      grew = true
                     }
                   }
                 }
@@ -3434,7 +3438,6 @@ export default function Index() {
                       (d) => (d.parent || '') === parentId && !d.deleted && !blockedIds.has(d.id),
                     )
                     .sort((a, b) => (a.order || 0) - (b.order || 0))
-                    .filter((d) => deckModal.type !== 'moveSection' || !!d.parent)
                     .map((d) => {
                       const children = decks.filter(
                         (c) => c.parent === d.id && !c.deleted && !blockedIds.has(c.id),
