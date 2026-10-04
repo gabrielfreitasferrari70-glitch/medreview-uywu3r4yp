@@ -233,6 +233,26 @@ routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
     $app.delete(u)
     return e.json(200, { ok: true, deleted: target })
   }
+  if (action === 'admin_fix_frontline') {
+    // Reparo: pastas custom de raiz marcadas como frontline mas sem o campo
+    // gravado (bug de criação v0.0.304-311) — restaura a visibilidade na home.
+    const target = String(body.user_id || '')
+    const rows = $app.findRecordsByFilter('mr_decks', 'user_id = {:user}', 'order', 500, 0, {
+      user: target,
+    })
+    let fixed = 0
+    for (const d of rows) {
+      if (d.getBool('deleted')) continue
+      if (d.getString('kind') !== 'custom' || d.getString('parent')) continue
+      if (d.getBool('frontline')) continue
+      if (!body.title) continue
+      if (d.getString('title') !== String(body.title)) continue
+      d.set('frontline', true)
+      $app.save(d)
+      fixed++
+    }
+    return e.json(200, { ok: true, fixed })
+  }
   if (action === 'admin_fix_seedkeys') {
     // Reparo de dados: pastas do catálogo (Tutoria N / Prova ...) sem seed_key
     // viram "cards de usuário" na home (duplicando com o card da seção).
