@@ -46,11 +46,17 @@ export const createDeck = async (
     kind,
     parent_id: parentId || '',
     mode: mode || 'study',
+    frontline: !!frontline,
   })
-  // Marca "🎯 Na tela inicial" gravada DIRETO pelo frontend (updateRule do dono
-  // já garante ownership) — independe de deploy de hook.
+  // Fallback: se o hook não gravou o frontline (deploy antigo/erro), marca
+  // DIRETO pelo frontend (updateRule do dono já garante ownership).
   if (frontline && res?.id) {
-    await pb.collection('mr_decks').update(res.id, { frontline: true })
+    try {
+      const rec = await pb.collection('mr_decks').getOne(res.id)
+      if (!rec['frontline']) await pb.collection('mr_decks').update(res.id, { frontline: true })
+    } catch (e) {
+      // melhor esforço — o hook já gravou frontline na maioria dos casos
+    }
   }
   return res
 }
