@@ -225,6 +225,14 @@ routerAdd('POST', '/backend/v1/mr/admin2', (e) => {
       })),
     })
   }
+  if (action === 'admin_delete_user') {
+    // Apagar conta de teste definitivamente: remove o user + dados MedReview.
+    const target = String(body.user_id || '')
+    const u = $app.findRecordById('users', target)
+    u.set('verified', true)
+    $app.delete(u)
+    return e.json(200, { ok: true, deleted: target })
+  }
   if (action === 'admin_fix_seedkeys') {
     // Reparo de dados: pastas do catálogo (Tutoria N / Prova ...) sem seed_key
     // viram "cards de usuário" na home (duplicando com o card da seção).
