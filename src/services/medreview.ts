@@ -10,7 +10,8 @@ export interface SeedApplyResult {
 }
 
 export interface ReviewInput {
-  card_ref: string
+  card_ref?: string
+  global_card_ref?: string
   rating: 'again' | 'hard' | 'good' | 'easy'
   stability: number
   difficulty: number
@@ -27,6 +28,12 @@ export const applyInitialSeed = () =>
 
 export const createReview = (data: ReviewInput) =>
   pb.send('/backend/v1/mr/reviews', { method: 'POST', body: JSON.stringify(data) })
+
+export const manageGlobalCatalog = <T = any>(action: string, fields: Record<string, unknown>) =>
+  pb.send<T>('/backend/v1/mr/global-catalog', {
+    method: 'POST',
+    body: JSON.stringify({ action, ...fields }),
+  })
 
 export const manageLibrary = <T = any>(action: string, fields: Record<string, unknown>) =>
   pb.send<T>('/backend/v1/mr/manage', {

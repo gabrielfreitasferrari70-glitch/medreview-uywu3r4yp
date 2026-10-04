@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { parseCardsFromCsv, type ParsedCsvCard } from '@/lib/csvImport'
 import {
+  manageGlobalCatalog,
   createCard,
   createDeck,
   deleteCard,
@@ -29,6 +30,9 @@ type Card = {
   image?: string
   choices?: string[] | null
   reverse?: boolean
+  clinical?: boolean
+  is_global?: boolean
+  deleted?: boolean
 }
 type Props = {
   decks: Deck[]
@@ -36,6 +40,8 @@ type Props = {
   onBack: () => void
   onRefresh: () => Promise<void>
   onStudy: (deckId: string) => void
+  onStudyGlobal: (deckId: string) => void
+  adminMode?: boolean
 }
 type ModalState =
   | { type: 'none' }
@@ -191,7 +197,26 @@ function Modal({
   )
 }
 
-export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onStudy }: Props) {
+export default function MedReviewLibrary({
+  decks,
+  cards,
+  onBack,
+  onRefresh,
+  onStudy,
+  onStudyGlobal,
+  adminMode = false,
+}: Props) {
+  const [globalDecks, setGlobalDecks] = useState<Deck[]>([])
+  const [globalCards, setGlobalCards] = useState<Card[]>([])
+  const [globalSelectedDeckId, setGlobalSelectedDeckId] = useState('')
+  const [globalDeckTitle, setGlobalDeckTitle] = useState('')
+  const [globalCardQ, setGlobalCardQ] = useState('')
+  const [globalCardA, setGlobalCardA] = useState('')
+  const [globalError, setGlobalError] = useState('')
+  const [globalBusy, setGlobalBusy] = useState(false)
+  const [globalHistory, setGlobalHistory] = useState<any[]>([])
+  const [historyBusy, setHistoryBusy] = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [selectedDeckId, setSelectedDeckId] = useState('')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
@@ -219,6 +244,84 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     }
   }, [decks, selectedDeckId])
 
+  useEffect(() => {
+    let active = true
+    manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>('list_catalog', {})
+      .then((res) => {
+        if (active) {
+          setGlobalDecks(res.decks || [])
+          setGlobalCards(res.cards || [])
+        }
+      })
+      .catch((e: any) => {
+        if (active)
+          setGlobalError(
+            e?.response?.data?.message ||
+              e?.message ||
+              'Não foi possível carregar o Catálogo Geral.',
+          )
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+  const refreshGlobal = async () => {
+    const res = await manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>('list_catalog', {})
+    setGlobalDecks(res.decks || [])
+    setGlobalCards(res.cards || [])
+  }
+  const submitGlobalDeck = async () => {
+    if (!globalDeckTitle.trim()) return setGlobalError('Informe o nome da pasta geral.')
+    setGlobalBusy(true)
+    setGlobalError('')
+    try {
+      await manageGlobalCatalog('create_deck', { title: globalDeckTitle, kind: 'custom' })
+      setGlobalDeckTitle('')
+      await refreshGlobal()
+    } catch (e: any) {
+      setGlobalError(e?.response?.data?.message || e?.message || 'Não foi possível criar a pasta.')
+    } finally {
+      setGlobalBusy(false)
+    }
+  }
+  const submitGlobalCard = async () => {
+    if (!globalSelectedDeckId || !globalCardQ.trim() || !globalCardA.trim())
+      return setGlobalError('Escolha uma pasta e preencha frente e verso.')
+    setGlobalBusy(true)
+    setGlobalError('')
+    try {
+      await manageGlobalCatalog('create_card', {
+        deck_id: globalSelectedDeckId,
+        card: { q: globalCardQ, a: globalCardA, group: '', ref: '' },
+      })
+      setGlobalCardQ('')
+      setGlobalCardA('')
+      await refreshGlobal()
+    } catch (e: any) {
+      setGlobalError(
+        e?.response?.data?.message || e?.message || 'Não foi possível adicionar o card.',
+      )
+    } finally {
+      setGlobalBusy(false)
+    }
+  }
+  const loadGlobalHistory = async () => {
+    setHistoryBusy(true)
+    setGlobalError('')
+    try {
+      const result = await manageGlobalCatalog<{ reviews: any[] }>('admin_list_reviews', {})
+      setGlobalHistory(result.reviews || [])
+      setHistoryLoaded(true)
+    } catch (e: any) {
+      setGlobalError(
+        e?.response?.data?.message ||
+          e?.message ||
+          'Não foi possível carregar o histórico autorizado.',
+      )
+    } finally {
+      setHistoryBusy(false)
+    }
+  }
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId)
   const deckCards = useMemo(
     () => cards.filter((card) => card.deck === selectedDeckId),
@@ -830,6 +933,141 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
           <div className="mr-lib-notice" style={{ background: '#f0fdf4', color: '#166534' }}>
             {message}
           </div>
+        )}
+
+        <section className="mr-lib-section">
+          <div className="mr-lib-section-head">
+            <div>
+              <h2>🌐 Catálogo Geral</h2>
+              <p>Conteúdo compartilhado; seu progresso continua individual.</p>
+            </div>
+          </div>
+          {globalError && (
+            <div
+              className="mr-lib-notice"
+              style={{ background: '#fef2f2', color: '#991b1b', margin: 12 }}
+            >
+              {globalError}
+            </div>
+          )}
+          {adminMode && (
+            <div style={{ padding: 14, display: 'grid', gap: 8, gridTemplateColumns: '1fr auto' }}>
+              <input
+                style={{ ...fieldStyle, margin: 0 }}
+                value={globalDeckTitle}
+                placeholder="Nova pasta geral"
+                onChange={(e) => setGlobalDeckTitle(e.target.value)}
+              />
+              <button className="mr-lib-mini" disabled={globalBusy} onClick={submitGlobalDeck}>
+                ＋ Pasta geral
+              </button>
+            </div>
+          )}
+          {globalDecks.length === 0 ? (
+            <div className="mr-lib-empty">O Catálogo Geral ainda está vazio.</div>
+          ) : (
+            globalDecks.map((d) => {
+              const list = globalCards.filter((c) => c.deck === d.id && !c.deleted)
+              const open = globalSelectedDeckId === d.id
+              return (
+                <div key={d.id}>
+                  <button
+                    type="button"
+                    className="mr-lib-deck-name"
+                    style={{ width: '100%', padding: '12px 18px' }}
+                    onClick={() => setGlobalSelectedDeckId(open ? '' : d.id)}
+                  >
+                    <span className="mr-lib-deck-icon">🌐</span>
+                    <span className="mr-lib-deck-title">{d.title}</span>
+                    <span className="mr-lib-deck-tag">{list.length} cards</span>
+                  </button>
+                  {open && (
+                    <div style={{ padding: '0 18px 12px' }}>
+                      {adminMode && (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gap: 8,
+                            margin: '8px 0',
+                            border: '1px solid #d1fae5',
+                            borderRadius: 12,
+                            padding: 12,
+                          }}
+                        >
+                          <input
+                            style={fieldStyle}
+                            value={globalCardQ}
+                            placeholder="Frente / pergunta"
+                            onChange={(e) => setGlobalCardQ(e.target.value)}
+                          />
+                          <textarea
+                            style={{ ...fieldStyle, minHeight: 70 }}
+                            value={globalCardA}
+                            placeholder="Verso / resposta"
+                            onChange={(e) => setGlobalCardA(e.target.value)}
+                          />
+                          <button
+                            className="mr-lib-mini"
+                            disabled={globalBusy}
+                            onClick={submitGlobalCard}
+                          >
+                            ＋ Adicionar card geral
+                          </button>
+                        </div>
+                      )}
+                      {list.map((c) => (
+                        <article key={c.id} className="mr-lib-card-row">
+                          <div className="mr-lib-card-q">{c.q}</div>
+                          <button className="mr-lib-mini" onClick={() => onStudyGlobal(d.id)}>
+                            ▶ Estudar pasta
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </section>
+        {adminMode && (
+          <section className="mr-lib-section">
+            <div className="mr-lib-section-head">
+              <div>
+                <h2>🛡️ Histórico autorizado</h2>
+                <p>Somente revisões de cards globais de estudantes que deram consentimento.</p>
+              </div>
+              <button className="mr-lib-mini" disabled={historyBusy} onClick={loadGlobalHistory}>
+                {historyBusy ? 'Carregando…' : 'Consultar histórico'}
+              </button>
+            </div>
+            {!historyLoaded ? (
+              <div className="mr-lib-empty">
+                A consulta só retorna dados consentidos e pode ser repetida após revogação.
+              </div>
+            ) : globalHistory.length === 0 ? (
+              <div className="mr-lib-empty">Nenhuma revisão consentida disponível.</div>
+            ) : (
+              globalHistory.map((r, i) => (
+                <article
+                  key={r.id || `${r.card_ref}-${r.reviewed_at}-${i}`}
+                  className="mr-lib-card-row"
+                >
+                  <div style={{ flex: 1 }}>
+                    <strong className="mr-lib-card-q">
+                      {r.question || 'Card do Catálogo Geral'}
+                    </strong>
+                    <div className="mr-lib-card-chips">
+                      <span className="mr-lib-card-chip">Estudante {r.student || '—'}</span>
+                      <span className="mr-lib-card-chip">{r.rating}</span>
+                      <span className="mr-lib-card-chip">{r.state}</span>
+                      <span className="mr-lib-card-chip">{r.reviewed_at}</span>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
         )}
 
         {selectedDeck && (
