@@ -272,7 +272,13 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     },
   ]
   const rootDecksOf = (kind: string) =>
-    decks.filter((d) => d.kind === kind && !d.parent).sort((a, b) => a.order - b.order)
+    decks
+      .filter((d) => d.kind === kind && !d.parent && !d.deleted)
+      .sort((a, b) => a.order - b.order)
+  // Só mostramos seções com conteúdo na raiz. O comando global "Nova pasta"
+  // abaixo continua oferecendo todas as três categorias, então uma seção vazia
+  // não vira um beco sem saída para criação.
+  const visibleSections = sections.filter((section) => rootDecksOf(section.kind).length > 0)
 
   const run = async (task: () => Promise<void>, okMsg?: string) => {
     setBusy(true)
@@ -701,6 +707,9 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         <button className="mr-lib-mini" onClick={() => setModal({ type: 'export' })}>
           💾 Exportar backup
         </button>
+        <button className="mr-lib-mini" onClick={() => openFolderModal('', 'custom')}>
+          ＋ Nova pasta
+        </button>
         <span className="mr-lib-count">
           {decks.length} pastas · {cards.length} cartões
         </span>
@@ -792,7 +801,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
           </section>
         )}
 
-        {sections.map((section) => {
+        {visibleSections.map((section) => {
           const roots = rootDecksOf(section.kind)
           return (
             <section
@@ -919,9 +928,15 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
               }}
             >
               <option value="">Escolher…</option>
-              <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
-              <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
-              <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
+              {rootDecksOf('custom').length > 0 && (
+                <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
+              )}
+              {rootDecksOf('tutoria').length > 0 && (
+                <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
+              )}
+              {rootDecksOf('prova').length > 0 && (
+                <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
+              )}
               {allDecksSorted
                 .filter((d) => d.id !== modal.deckId)
                 .map((d) => (
