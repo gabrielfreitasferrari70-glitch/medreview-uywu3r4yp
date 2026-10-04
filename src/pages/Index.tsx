@@ -2976,7 +2976,7 @@ export default function Index() {
           {
             icon: '🩺',
             tag: 'PBL / Tutoria',
-            title: tutorias.find((d) => !d.parent)?.title || 'Tutoria',
+            title: 'Tutoria',
             description:
               'Caso Atual em andamento, tutorias e casos clínicos integrados com repetição espaçada FSRS-5.',
             count: rootsOfKind('tutoria').reduce((n, d) => n + cardsInSubtree(d.id), 0),
@@ -2991,7 +2991,7 @@ export default function Index() {
           {
             icon: '📝',
             tag: 'Módulos',
-            title: provas.find((d) => !d.parent)?.title || 'Prova de Módulo',
+            title: 'Prova de Módulo',
             description: 'Bancos de revisão focados para os módulos e avaliações do curso.',
             count: rootsOfKind('prova').reduce((n, d) => n + cardsInSubtree(d.id), 0),
             onClick: () => openFolderGroup('prova'),
@@ -3001,10 +3001,12 @@ export default function Index() {
         ]
       : []),
     // Minhas Pastas SEMPRE aparece (portal de navegação) — mesmo vazia.
+    // Título FIXO: o card é um portal, NÃO é a pasta capa (renomear uma pasta
+    // dentro não pode mudar o card da home — feedback da Nathalia).
     {
       icon: '📁',
       tag: 'Suas pastas livres',
-      title: customs.find((d) => !d.parent)?.title || 'Minhas Pastas',
+      title: 'Minhas Pastas',
       description: 'Pastas que você criou — organização livre, com subpastas ilimitadas.',
       count: rootsOfKind('custom').reduce((n, d) => n + cardsInSubtree(d.id), 0),
       onClick: () => openFolderGroup('custom'),
