@@ -2475,9 +2475,19 @@ export default function Index() {
       const globalCardList = (catalog.cards || []).map((card) => ({ ...card, is_global: true }))
       setGlobalDecks(globalDeckList)
       setGlobalCards(globalCardList)
+      const ids = new Set([deckId])
+      let changed = true
+      while (changed) {
+        changed = false
+        for (const d of globalDeckList)
+          if (d.parent && ids.has(d.parent) && !ids.has(d.id)) {
+            ids.add(d.id)
+            changed = true
+          }
+      }
       const title = globalDeckList.find((d) => d.id === deckId)?.title || 'Catálogo Geral'
       startStudy(
-        globalCardList.filter((card) => card.deck === deckId),
+        globalCardList.filter((card) => ids.has(card.deck)),
         undefined,
         title,
       )

@@ -209,10 +209,9 @@ export default function MedReviewLibrary({
   const [globalDecks, setGlobalDecks] = useState<Deck[]>([])
   const [globalCards, setGlobalCards] = useState<Card[]>([])
   const [globalSelectedDeckId, setGlobalSelectedDeckId] = useState('')
-  const [globalDeckTitle, setGlobalDeckTitle] = useState('')
-  const [globalCardQ, setGlobalCardQ] = useState('')
-  const [globalCardA, setGlobalCardA] = useState('')
   const [globalError, setGlobalError] = useState('')
+  const [publishableDecks, setPublishableDecks] = useState<any[]>([])
+  const [publishingDeckId, setPublishingDeckId] = useState('')
   const [globalBusy, setGlobalBusy] = useState(false)
   const [globalHistory, setGlobalHistory] = useState<any[]>([])
   const [historyBusy, setHistoryBusy] = useState(false)
@@ -265,44 +264,61 @@ export default function MedReviewLibrary({
       active = false
     }
   }, [])
+  const refreshPublishableDecks = async () => {
+    if (!adminMode) return
+    const result = await manageGlobalCatalog<{ decks: any[] }>('list_publishable_decks', {})
+    setPublishableDecks(result.decks || [])
+  }
+  useEffect(() => {
+    if (adminMode)
+      refreshPublishableDecks().catch((e: any) =>
+        setError(e?.message || 'Não foi possível carregar o status de publicação.'),
+      )
+  }, [adminMode, decks.length])
   const refreshGlobal = async () => {
     const res = await manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>('list_catalog', {})
     setGlobalDecks(res.decks || [])
     setGlobalCards(res.cards || [])
   }
-  const submitGlobalDeck = async () => {
-    if (!globalDeckTitle.trim()) return setGlobalError('Informe o nome da pasta geral.')
-    setGlobalBusy(true)
-    setGlobalError('')
-    try {
-      await manageGlobalCatalog('create_deck', { title: globalDeckTitle, kind: 'custom' })
-      setGlobalDeckTitle('')
-      await refreshGlobal()
-    } catch (e: any) {
-      setGlobalError(e?.response?.data?.message || e?.message || 'Não foi possível criar a pasta.')
-    } finally {
-      setGlobalBusy(false)
-    }
-  }
-  const submitGlobalCard = async () => {
-    if (!globalSelectedDeckId || !globalCardQ.trim() || !globalCardA.trim())
-      return setGlobalError('Escolha uma pasta e preencha frente e verso.')
-    setGlobalBusy(true)
-    setGlobalError('')
-    try {
-      await manageGlobalCatalog('create_card', {
-        deck_id: globalSelectedDeckId,
-        card: { q: globalCardQ, a: globalCardA, group: '', ref: '' },
-      })
-      setGlobalCardQ('')
-      setGlobalCardA('')
-      await refreshGlobal()
-    } catch (e: any) {
-      setGlobalError(
-        e?.response?.data?.message || e?.message || 'Não foi possível adicionar o card.',
+  const togglePublishFolder = async (deckId: string) => {
+    const row = publishableDecks.find((d) => d.id === deckId)
+    if (!row || row.inherited_from) return
+    const enabling = !row.publish_global
+    if (
+      !enabling &&
+      !window.confirm(
+        `Remover “${row.title}” do Catálogo Geral? A cópia pública será removida; os dados privados permanecem intactos.`,
       )
+    )
+      return
+    setPublishingDeckId(deckId)
+    setError('')
+    try {
+      let result: any = await manageGlobalCatalog('set_folder_publication', {
+        deck_id: deckId,
+        publish: enabling,
+      })
+      if (result.needsConfirmation) {
+        const accepted = window.confirm(
+          `Publicar “${result.deckTitle}” para todos? Serão compartilhadas ${result.folders} pasta(s) e ${result.cards} card(s). Seu progresso/histórico e o dos estudantes continua separado.`,
+        )
+        if (!accepted) return
+        result = await manageGlobalCatalog('set_folder_publication', {
+          deck_id: deckId,
+          publish: true,
+          confirmed: true,
+        })
+      }
+      await Promise.all([onRefresh(), refreshPublishableDecks(), refreshGlobal()])
+      setMessage(
+        enabling
+          ? `“${row.title}” publicada para geral.`
+          : `“${row.title}” removida do Catálogo Geral.`,
+      )
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Não foi possível alterar a publicação.')
     } finally {
-      setGlobalBusy(false)
+      setPublishingDeckId('')
     }
   }
   const loadGlobalHistory = async () => {
@@ -798,22 +814,12 @@ export default function MedReviewLibrary({
     )
     if (done) setModal({ type: 'none' })
   }
-  const readFile = async (file?: File) => {
-    if (!file) return
-    try {
-      setImportText(await file.text())
-      setError('')
-      setMessage(`Arquivo carregado: ${file.name}. Confira e clique em Importar.`)
-    } catch {
-      setError('Não foi possível ler o arquivo.')
-    }
-  }
-
   const deckRow = (deck: Deck, isChild: boolean) => {
     const kids = childrenOf(deck.id)
     const count = countOf(deck.id)
     const isOpen = !!expanded[deck.id]
-    const isSeed = !!deck.title.match(/Tutoria \d+/) && deck.kind === 'tutoria'
+    const isSeed = !!deck.title.match(/Tutoria \\\d+/) && deck.kind === 'tutoria'
+    const publication = publishableDecks.find((d) => d.id === deck.id)
     return (
       <div
         key={deck.id}
@@ -861,6 +867,28 @@ export default function MedReviewLibrary({
           {isSeed && <span className="mr-lib-deck-tag">pronta</span>}
         </button>
         <div className="mr-lib-deck-actions">
+          {adminMode &&
+            publication &&
+            (publication.inherited_from ? (
+              <span
+                className="mr-lib-deck-tag"
+                title="Esta pasta é pública porque uma pasta superior foi publicada."
+              >
+                🌐 Pública pela pasta superior
+              </span>
+            ) : (
+              <button
+                className="mr-lib-mini"
+                disabled={publishingDeckId === deck.id}
+                onClick={() => togglePublishFolder(deck.id)}
+              >
+                {publishingDeckId === deck.id
+                  ? 'Salvando…'
+                  : publication.publish_global
+                    ? '🌐 Publicada · Despublicar'
+                    : '🔒 Privada · Publicar para geral'}
+              </button>
+            ))}
           <button className="mr-lib-mini" onClick={() => onStudy(deck.id)}>
             ▶ Estudar
           </button>
@@ -951,16 +979,18 @@ export default function MedReviewLibrary({
             </div>
           )}
           {adminMode && (
-            <div style={{ padding: 14, display: 'grid', gap: 8, gridTemplateColumns: '1fr auto' }}>
-              <input
-                style={{ ...fieldStyle, margin: 0 }}
-                value={globalDeckTitle}
-                placeholder="Nova pasta geral"
-                onChange={(e) => setGlobalDeckTitle(e.target.value)}
-              />
-              <button className="mr-lib-mini" disabled={globalBusy} onClick={submitGlobalDeck}>
-                ＋ Pasta geral
-              </button>
+            <div
+              style={{
+                margin: 12,
+                padding: 12,
+                border: '1px solid #d1fae5',
+                borderRadius: 10,
+                color: '#475569',
+                fontSize: '.8rem',
+              }}
+            >
+              Para compartilhar, localize uma pasta em <strong>Minhas Pastas</strong> e selecione{' '}
+              <strong>“Publicar para geral”</strong>. Pastas não marcadas permanecem privadas.
             </div>
           )}
           {globalDecks.length === 0 ? (
@@ -983,38 +1013,6 @@ export default function MedReviewLibrary({
                   </button>
                   {open && (
                     <div style={{ padding: '0 18px 12px' }}>
-                      {adminMode && (
-                        <div
-                          style={{
-                            display: 'grid',
-                            gap: 8,
-                            margin: '8px 0',
-                            border: '1px solid #d1fae5',
-                            borderRadius: 12,
-                            padding: 12,
-                          }}
-                        >
-                          <input
-                            style={fieldStyle}
-                            value={globalCardQ}
-                            placeholder="Frente / pergunta"
-                            onChange={(e) => setGlobalCardQ(e.target.value)}
-                          />
-                          <textarea
-                            style={{ ...fieldStyle, minHeight: 70 }}
-                            value={globalCardA}
-                            placeholder="Verso / resposta"
-                            onChange={(e) => setGlobalCardA(e.target.value)}
-                          />
-                          <button
-                            className="mr-lib-mini"
-                            disabled={globalBusy}
-                            onClick={submitGlobalCard}
-                          >
-                            ＋ Adicionar card geral
-                          </button>
-                        </div>
-                      )}
                       {list.map((c) => (
                         <article key={c.id} className="mr-lib-card-row">
                           <div className="mr-lib-card-q">{c.q}</div>
