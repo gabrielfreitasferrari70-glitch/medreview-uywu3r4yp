@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { parseCardsFromCsv, type ParsedCsvCard } from '@/lib/csvImport'
 import {
   createCard,
@@ -482,7 +482,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
       const kids = decks.filter((d) => d.parent === deck.id && !d.deleted && !blockedIds.has(d.id))
       const isOpen = !!expanded[deck.id]
       return (
-        <React.Fragment key={deck.id}>
+        <Fragment key={deck.id}>
           <div
             style={{
               display: 'flex',
@@ -547,7 +547,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
               blockedIds,
               depth + 1,
             )}
-        </React.Fragment>
+        </Fragment>
       )
     })
   }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { Fragment, useEffect, useState, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
 import {
   applyInitialSeed,
@@ -3444,7 +3444,7 @@ export default function Index() {
                       )
                       const isOpen = !!deckMoveExpanded[d.id]
                       return (
-                        <React.Fragment key={d.id}>
+                        <Fragment key={d.id}>
                           <div
                             style={{
                               display: 'flex',
@@ -3503,7 +3503,7 @@ export default function Index() {
                             </button>
                           </div>
                           {children.length > 0 && isOpen && renderRows(d.id, depth + 1)}
-                        </React.Fragment>
+                        </Fragment>
                       )
                     })
                 return (
