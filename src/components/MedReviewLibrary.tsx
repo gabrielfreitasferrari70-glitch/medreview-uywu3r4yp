@@ -242,6 +242,20 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
   }
   const childrenOf = (deckId: string) =>
     decks.filter((d) => d.parent === deckId).sort((a, b) => a.order - b.order)
+  const subtreeIdsOf = (deckId: string) => {
+    const seen = new Set<string>([deckId])
+    let grew = true
+    while (grew) {
+      grew = false
+      for (const deck of decks) {
+        if (deck.parent && seen.has(deck.parent) && !seen.has(deck.id) && !deck.deleted) {
+          seen.add(deck.id)
+          grew = true
+        }
+      }
+    }
+    return [...seen].filter((id) => id !== deckId)
+  }
   const sections: {
     key: string
     icon: string
