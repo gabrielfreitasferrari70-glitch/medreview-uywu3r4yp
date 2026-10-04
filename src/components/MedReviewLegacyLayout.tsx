@@ -83,6 +83,10 @@ const legacyCss = `
 .mr-legacy-subdeck-actions button:hover{background:#f0fdf4;border-color:#86efac}
 .mr-legacy-subdeck-actions button.danger{color:#b91c1c;border-color:#fecaca}
 .mr-legacy-subdeck-actions button.danger:hover{background:#fef2f2}
+.mr-legacy-folder-head-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.mr-legacy-button.danger{color:#b91c1c;border-color:#fecaca;background:#fff}
+.mr-legacy-folder-manage{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 16px;padding:12px 14px;border:1px solid #bbf7d0;border-radius:13px;background:#f0fdf4}
+.mr-legacy-folder-manage-label{flex-basis:100%;color:#14532d;font-size:.78rem;font-weight:900}
 .mr-legacy-newfolder-card{justify-content:center;align-items:center;text-align:center;border-style:dashed;border-color:#86efac;color:#15803d;background:rgba(240,253,244,.6)}
 .mr-legacy-newfolder-card:hover{border-color:#16a34a;background:#f0fdf4}
 @media(max-width:720px){.mr-legacy-subdecks{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-legacy-subdeck-actions button{padding:6px 8px}}
@@ -148,12 +152,12 @@ type HomeProps = {
   onOpenGroup: (kind: 'tutoria' | 'prova') => void
   onHome: () => void
   onOpenDeck: (deckId: string) => void
+  onLibrary: () => void
   onClinical: () => void
   onStudyNow: () => void
   onSessionBuilder: () => void
   onQuiz: () => void
   onNewFolder: () => void
-  onLibrary: () => void
   onLogout: () => void
   onSettings: () => void
   onDashboard: () => void
@@ -238,6 +242,7 @@ export function MedReviewLegacyHome(props: HomeProps) {
     const ids = subtreeIdsOf(deckId)
     return cards.filter((c) => ids.has(c.deck) && !c.deleted).length
   }
+
   const title = openDeck
     ? openDeck.title
     : folderKind === 'prova'
@@ -332,15 +337,34 @@ export function MedReviewLegacyHome(props: HomeProps) {
                 </h1>
                 <p>{description}</p>
               </div>
-              <button
-                className="mr-legacy-button"
-                onClick={() =>
-                  openDeckId ? onDeckAddSubfolder?.(openDeckId) : onNewFolderIn(folderKind)
-                }
-              >
-                ＋ Nova Pasta
-              </button>
+              <div className="mr-legacy-folder-head-actions">
+                <button
+                  className="mr-legacy-button"
+                  onClick={() =>
+                    openDeckId ? onDeckAddSubfolder?.(openDeckId) : onNewFolderIn(folderKind)
+                  }
+                >
+                  ＋ Nova Pasta
+                </button>
+              </div>
             </div>
+            {openDeckId && (
+              <div className="mr-legacy-folder-manage" aria-label="Gerenciar a pasta aberta">
+                <span className="mr-legacy-folder-manage-label">Gerenciar esta pasta</span>
+                <button className="mr-legacy-button" onClick={() => onDeckRename?.(openDeckId)}>
+                  ✏️ Renomear pasta
+                </button>
+                <button className="mr-legacy-button" onClick={() => onDeckMove?.(openDeckId)}>
+                  ➡️ Mover pasta
+                </button>
+                <button
+                  className="mr-legacy-button danger"
+                  onClick={() => onDeckDelete?.(openDeckId)}
+                >
+                  🗑️ Excluir pasta
+                </button>
+              </div>
+            )}
             {folderDecks.length ? (
               <div className="mr-legacy-subdecks">
                 {folderDecks.map((deck) => {
@@ -400,32 +424,28 @@ export function MedReviewLegacyHome(props: HomeProps) {
                         </button>
                         <button
                           type="button"
-                          title="Resetar progresso FSRS desta pasta"
-                          onClick={() => onDeckReset?.(deck.id)}
-                        >
-                          ↺ Resetar
-                        </button>
-                        <button
-                          type="button"
-                          title="Mover para dentro de outra pasta"
+                          title="Mover esta pasta"
+                          aria-label={`Mover pasta ${deck.title}`}
                           onClick={() => onDeckMove?.(deck.id)}
                         >
-                          ➡️
+                          ➡️ Mover
                         </button>
                         <button
                           type="button"
-                          title="Renomear"
+                          title="Renomear esta pasta"
+                          aria-label={`Renomear pasta ${deck.title}`}
                           onClick={() => onDeckRename?.(deck.id)}
                         >
-                          ✏️
+                          ✏️ Renomear
                         </button>
                         <button
                           type="button"
                           className="danger"
-                          title="Excluir pasta"
+                          title="Excluir esta pasta"
+                          aria-label={`Excluir pasta ${deck.title}`}
                           onClick={() => onDeckDelete?.(deck.id)}
                         >
-                          🗑️
+                          🗑️ Excluir
                         </button>
                       </span>
                       <span className="mr-legacy-category-foot" style={{ width: '100%' }}>
@@ -450,6 +470,10 @@ export function MedReviewLegacyHome(props: HomeProps) {
               <h1>Bom estudo, futuro colega! 🩺</h1>
               <p className="mr-legacy-copy">
                 Revisão médica ativa com FSRS-5 para retenção clínica de longo prazo.
+              </p>
+              <p className="mr-legacy-copy" style={{ marginTop: 8, fontWeight: 700 }}>
+                Para renomear, mover ou apagar uma pasta, abra “Gerenciar pastas” ou use os botões
+                em cada pasta real.
               </p>
               <div className="mr-legacy-metrics">
                 <div className="mr-legacy-metric">
@@ -509,9 +533,14 @@ export function MedReviewLegacyHome(props: HomeProps) {
                     Navegue pelas disciplinas, casos clínicos e bancos de revisão
                   </p>
                 </div>
-                <button className="mr-legacy-button" onClick={() => onNewFolderIn('custom')}>
-                  ＋ Nova Pasta
-                </button>
+                <div className="mr-legacy-folder-head-actions">
+                  <button className="mr-legacy-button" onClick={() => onNewFolderIn('custom')}>
+                    ＋ Nova Pasta
+                  </button>
+                  <button className="mr-legacy-button" onClick={onLibrary}>
+                    📚 Gerenciar pastas
+                  </button>
+                </div>
               </header>
               <div className="mr-legacy-category-grid">
                 {categories.map((item) => (
@@ -625,18 +654,20 @@ export function MedReviewLegacyHome(props: HomeProps) {
                         </button>
                         <button
                           type="button"
-                          title="Renomear"
+                          title="Renomear esta pasta"
+                          aria-label={`Renomear pasta ${deck.title}`}
                           onClick={() => onDeckRename?.(deck.id)}
                         >
-                          ✏️
+                          ✏️ Renomear
                         </button>
                         <button
                           type="button"
                           className="danger"
-                          title="Excluir pasta"
+                          title="Excluir esta pasta"
+                          aria-label={`Excluir pasta ${deck.title}`}
                           onClick={() => onDeckDelete?.(deck.id)}
                         >
-                          🗑️
+                          🗑️ Excluir
                         </button>
                       </span>
                     </div>

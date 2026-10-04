@@ -2227,7 +2227,24 @@ export default function Index() {
     )
       return
     deleteDeck(deckId)
-      .then(() => loadData())
+      .then(async () => {
+        const parentId = deck.parent || ''
+        await loadData()
+        // Se a pasta excluída estava aberta, sai dela: volta à organizadora pai,
+        // ou ao portal Minhas Pastas quando era uma pasta de nível inicial.
+        if (route.deckId === deckId) {
+          if (parentId) {
+            setRoute({ view: 'home', folderKind: 'custom', deckId: parentId })
+          } else {
+            setRoute({
+              view: 'home',
+              folderKind: deck.kind === 'tutoria' || deck.kind === 'prova' ? deck.kind : 'custom',
+            })
+          }
+        }
+        setMsg(`Pasta “${deck.title}” excluída.`)
+        window.setTimeout(() => setMsg(''), 3500)
+      })
       .catch((e: any) => setMsg('Erro ao excluir: ' + (e?.message || e)))
   }
   const confirmDeckReset = (deckId: string) => {
