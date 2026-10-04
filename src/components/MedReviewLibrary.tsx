@@ -702,7 +702,7 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     const count = countOf(deck.id)
     const isOpen = !!expanded[deck.id]
     const isSeed = !!deck.title.match(/Tutoria \\\d+/) && deck.kind === 'tutoria'
-    const publication = publishableDecks.find((d) => d.id === deck.id)
+
     return (
       <div
         key={deck.id}
