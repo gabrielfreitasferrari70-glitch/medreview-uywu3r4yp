@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { useRealtime } from '@/hooks/use-realtime'
+
 import {
   applyInitialSeed,
   createCard,
@@ -13,7 +13,6 @@ import {
   repairSection,
   resetDeck,
   undoMoveSection,
-  manageGlobalCatalog,
 } from '@/services/medreview'
 import MedReviewLibrary from '@/components/MedReviewLibrary'
 import {
@@ -178,7 +177,6 @@ interface Deck {
   deleted?: boolean
   frontline?: boolean
   mode?: string
-  is_global?: boolean
 }
 interface Card {
   id: string
@@ -197,13 +195,11 @@ interface Card {
   reverse?: boolean
   clinical?: boolean
   __reverse?: boolean
-  is_global?: boolean
 }
 interface Review {
   id: string
   card?: string
   card_ref?: string
-  global_card_ref?: string
   rating: string
   stability: number
   difficulty: number
@@ -323,15 +319,11 @@ function SettingsModal({
   onClose,
   onSaved,
   onRepair,
-  globalConsent,
-  onSetGlobalConsent,
 }: {
   accountId?: string
   onClose: () => void
   onSaved: () => void
   onRepair?: (kind: 'tutoria' | 'prova' | 'custom') => Promise<boolean>
-  globalConsent: boolean
-  onSetGlobalConsent: (value: boolean) => Promise<boolean>
 }) {
   const [val, setVal] = useState(() => getRetention() * 100)
   const [schedulerMode, setSchedulerMode] = useState<SchedulerMode>(
@@ -343,7 +335,6 @@ function SettingsModal({
   const [scheduleError, setScheduleError] = useState('')
   const [saving, setSaving] = useState(false)
   const [repairing, setRepairing] = useState('')
-  const [consentBusy, setConsentBusy] = useState(false)
   const repair = async (kind: 'tutoria' | 'prova' | 'custom') => {
     if (!onRepair) return
     setRepairing(kind)
@@ -554,56 +545,7 @@ function SettingsModal({
               </span>
             </div>
           )}
-          <section
-            style={{
-              margin: '0 0 16px',
-              padding: 12,
-              border: '1px solid #d1fae5',
-              borderRadius: 12,
-              background: '#f8fffb',
-            }}
-          >
-            <strong style={{ display: 'block', color: '#14532d', fontSize: '.85rem' }}>
-              Privacidade do Catálogo Geral
-            </strong>
-            <p
-              style={{
-                margin: '5px 0 10px',
-                color: '#64748b',
-                fontSize: '.76rem',
-                lineHeight: 1.45,
-              }}
-            >
-              Opcional: permite que gabrielfreitasferrari70@gmail.com consulte somente seu progresso
-              e histórico dos cards do Catálogo Geral. Não inclui suas pastas ou cards privados.
-              Você pode revogar quando quiser; a revogação bloqueia consultas futuras.
-            </p>
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                color: '#334155',
-                fontSize: '.8rem',
-                fontWeight: 700,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={globalConsent}
-                disabled={consentBusy}
-                onChange={async (e) => {
-                  setConsentBusy(true)
-                  try {
-                    await onSetGlobalConsent(e.target.checked)
-                  } finally {
-                    setConsentBusy(false)
-                  }
-                }}
-              />
-              Permitir essa consulta administrativa
-            </label>
-          </section>
+
           {scheduleError && (
             <p
               role="alert"
@@ -2073,12 +2015,8 @@ export default function Index() {
   const [decks, setDecks] = useState<Deck[]>([])
   const [cards, setCards] = useState<Card[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
-  const [globalReviews, setGlobalReviews] = useState<Review[]>([])
-  const [globalDecks, setGlobalDecks] = useState<Deck[]>([])
-  const [globalCards, setGlobalCards] = useState<Card[]>([])
-  const [globalConsent, setGlobalConsent] = useState(false)
   const [route, setRoute] = useState<{
-    view: 'home' | 'study' | 'library' | 'globalCatalog'
+    view: 'home' | 'study' | 'library'
     deckId?: string
     folderKind?: 'tutoria' | 'prova' | 'custom'
     sessionTitle?: string
@@ -2131,8 +2069,6 @@ export default function Index() {
   const [deckTitle, setDeckTitle] = useState('')
   const [deckKind, setDeckKind] = useState<'tutoria' | 'prova' | 'custom'>('custom')
   const [deckMode, setDeckMode] = useState<'study' | 'organizer'>('study')
-  const isCatalogAdmin =
-    String(user?.email || '').toLowerCase() === 'gabrielfreitasferrari70@gmail.com'
 
   const retention = useMemo(() => getRetention(), [route, retentionTick])
   const schedulerSettings = useMemo(() => getSchedulerSettings(user?.id), [user?.id, retentionTick])
@@ -2147,14 +2083,10 @@ export default function Index() {
   const loadData = useCallback(async () => {
     if (!pb.authStore.isValid) return
     try {
-      const [d, c, r, gr] = await Promise.all([
+      const [d, c, r] = await Promise.all([
         pb.collection('mr_decks').getFullList({ sort: 'order' }),
         pb.collection('mr_cards').getFullList({ sort: '-created' }),
         pb.collection('mr_reviews').getFullList({ sort: 'reviewed_at' }),
-        pb
-          .collection('mr_global_reviews')
-          .getFullList({ sort: 'reviewed_at' })
-          .catch(() => []),
       ])
       setDecks(
         (d as any[])
@@ -2163,38 +2095,13 @@ export default function Index() {
       )
       setCards((c as any[]).filter((row) => !row.deleted))
       setReviews(r as any[])
-      setGlobalReviews(gr as any[])
-      const [catalog, consent] = await Promise.all([
-        manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>('list_catalog', {}),
-        manageGlobalCatalog<{ consent: boolean }>('get_consent', {}),
-      ])
-      setGlobalDecks(catalog.decks || [])
-      setGlobalCards((catalog.cards || []).map((card) => ({ ...card, is_global: true })))
-      setGlobalConsent(!!consent.consent)
     } catch (e: any) {
       setMsg('Erro ao carregar dados: ' + (e?.message || e))
     }
   }, [])
   const reviewsForCard = (card: Card, cardId = card.id.replace(/::rev$/, '')) =>
-    card.is_global
-      ? globalReviews.filter((r) => r.global_card_ref === cardId)
-      : reviews.filter((r) => (r.card_ref || r.card) === cardId)
-  const stateKey = (card: Card) =>
-    `${card.is_global ? 'global' : 'private'}:${card.id.replace(/::rev$/, '')}`
-  useRealtime(
-    'mr_global_cards',
-    () => {
-      void loadData()
-    },
-    !!user,
-  )
-  useRealtime(
-    'mr_global_decks',
-    () => {
-      void loadData()
-    },
-    !!user,
-  )
+    reviews.filter((r) => (r.card_ref || r.card) === cardId)
+  const stateKey = (card: Card) => card.id.replace(/::rev$/, '')
 
   // Boot: restaura sessão e inicializa biblioteca vazia; seed é idempotente por seed_key.
   useEffect(() => {
@@ -2273,10 +2180,6 @@ export default function Index() {
     setDecks([])
     setCards([])
     setReviews([])
-    setGlobalReviews([])
-    setGlobalDecks([])
-    setGlobalCards([])
-    setGlobalConsent(false)
     setRoute({ view: 'home' })
   }
 
@@ -2465,38 +2368,9 @@ export default function Index() {
   }
   const openFolderGroup = (folderKind: 'tutoria' | 'prova' | 'custom') =>
     setRoute({ view: 'home', folderKind })
-  const openGlobalDeck = async (deckId: string) => {
-    try {
-      const catalog = await manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>(
-        'list_catalog',
-        {},
-      )
-      const globalDeckList = catalog.decks || []
-      const globalCardList = (catalog.cards || []).map((card) => ({ ...card, is_global: true }))
-      setGlobalDecks(globalDeckList)
-      setGlobalCards(globalCardList)
-      const ids = new Set([deckId])
-      let changed = true
-      while (changed) {
-        changed = false
-        for (const d of globalDeckList)
-          if (d.parent && ids.has(d.parent) && !ids.has(d.id)) {
-            ids.add(d.id)
-            changed = true
-          }
-      }
-      const title = globalDeckList.find((d) => d.id === deckId)?.title || 'Catálogo Geral'
-      startStudy(
-        globalCardList.filter((card) => ids.has(card.deck)),
-        undefined,
-        title,
-      )
-    } catch (e: any) {
-      setMsg(e?.message || 'Não foi possível abrir esta pasta global.')
-    }
-  }
+
   const startStudyNow = () => {
-    const allCards = [...cards, ...globalCards]
+    const allCards = cards
     const dueOrNew = allCards.filter((c) => {
       if (c.suspended || c.deleted) return false
       const cs = cardStateFromReviews(reviewsForCard(c))
@@ -2509,7 +2383,7 @@ export default function Index() {
     )
   }
   const startClinicalMode = () => {
-    const clinicalCards = [...cards, ...globalCards].filter(
+    const clinicalCards = cards.filter(
       (c) => !c.suspended && !c.deleted && (c.clinical || /caso clínico|caso clinico/i.test(c.q)),
     )
     if (!clinicalCards.length) {
@@ -2712,7 +2586,7 @@ export default function Index() {
     const fmt = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19)
     try {
       const reviewInput = {
-        ...(card.is_global ? { global_card_ref: realId } : { card_ref: realId }),
+        card_ref: realId,
         rating: quality,
         stability: chosen.newS ?? fsrsInitialStability(chosen.g),
         difficulty: chosen.newD ?? fsrsInitialDifficulty(chosen.g),
@@ -2730,8 +2604,7 @@ export default function Index() {
       }
       const created = await createReview(reviewInput)
       const savedReview = { ...(created as any), ...reviewInput }
-      if (card.is_global) setGlobalReviews((rs) => [...rs, savedReview])
-      else setReviews((rs) => [...rs, savedReview])
+      setReviews((rs) => [...rs, savedReview])
       setStudySession((session) => ({ ...session, [quality]: session[quality] + 1 }))
       setMsg(`Carta agendada para daqui ${chosen.label}`)
       setTimeout(() => setMsg(''), 2500)
@@ -2797,7 +2670,7 @@ export default function Index() {
     )
   }
 
-  const allCards = [...cards, ...globalCards]
+  const allCards = cards
   const totalCards = allCards.length
   const cardStates = new Map(
     allCards.map((c) => [stateKey(c), cardStateFromReviews(reviewsForCard(c))]),
@@ -3277,8 +3150,6 @@ export default function Index() {
         onBack={() => setRoute({ view: 'home' })}
         onRefresh={loadData}
         onStudy={openDeck}
-        onStudyGlobal={openGlobalDeck}
-        adminMode={isCatalogAdmin}
       />
     )
   }
@@ -3387,14 +3258,6 @@ export default function Index() {
       count: totalCards,
       onClick: () => setRoute({ view: 'library' }),
     },
-    {
-      icon: '🌐',
-      tag: 'Compartilhado',
-      title: 'Catálogo Geral',
-      description: 'Cards compartilhados; progresso individual por estudante.',
-      count: globalCards.filter((c) => !c.deleted && !c.suspended).length,
-      onClick: () => setRoute({ view: 'library' }),
-    },
   ]
   return (
     <>
@@ -3440,26 +3303,6 @@ export default function Index() {
           accountId={user?.id}
           onClose={() => setSettingsOpen(false)}
           onSaved={() => setRetentionTick((t) => t + 1)}
-          globalConsent={globalConsent}
-          onSetGlobalConsent={async (value) => {
-            try {
-              const result = await manageGlobalCatalog<{ consent: boolean }>('set_consent', {
-                consent: value,
-              })
-              setGlobalConsent(!!result.consent)
-              setMsg(
-                result.consent
-                  ? 'Acesso ao histórico do Catálogo Geral autorizado.'
-                  : 'Consentimento revogado; novas consultas administrativas bloqueadas. Seu progresso pessoal foi preservado.',
-              )
-              window.setTimeout(() => setMsg(''), 3500)
-              return true
-            } catch (e: any) {
-              setMsg(e?.message || 'Não foi possível alterar o consentimento.')
-              window.setTimeout(() => setMsg(''), 3500)
-              return false
-            }
-          }}
           onRepair={async (kind) => {
             try {
               const pattern = kind === 'tutoria' ? '^Tutoria ' : '^Prova '

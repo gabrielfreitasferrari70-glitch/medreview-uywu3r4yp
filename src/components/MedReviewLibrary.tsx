@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { parseCardsFromCsv, type ParsedCsvCard } from '@/lib/csvImport'
 import {
-  manageGlobalCatalog,
   createCard,
   createDeck,
   deleteCard,
@@ -31,7 +30,6 @@ type Card = {
   choices?: string[] | null
   reverse?: boolean
   clinical?: boolean
-  is_global?: boolean
   deleted?: boolean
 }
 type Props = {
@@ -40,8 +38,6 @@ type Props = {
   onBack: () => void
   onRefresh: () => Promise<void>
   onStudy: (deckId: string) => void
-  onStudyGlobal: (deckId: string) => void
-  adminMode?: boolean
 }
 type ModalState =
   | { type: 'none' }
@@ -197,25 +193,7 @@ function Modal({
   )
 }
 
-export default function MedReviewLibrary({
-  decks,
-  cards,
-  onBack,
-  onRefresh,
-  onStudy,
-  onStudyGlobal,
-  adminMode = false,
-}: Props) {
-  const [globalDecks, setGlobalDecks] = useState<Deck[]>([])
-  const [globalCards, setGlobalCards] = useState<Card[]>([])
-  const [globalSelectedDeckId, setGlobalSelectedDeckId] = useState('')
-  const [globalError, setGlobalError] = useState('')
-  const [publishableDecks, setPublishableDecks] = useState<any[]>([])
-  const [publishingDeckId, setPublishingDeckId] = useState('')
-  const [globalBusy, setGlobalBusy] = useState(false)
-  const [globalHistory, setGlobalHistory] = useState<any[]>([])
-  const [historyBusy, setHistoryBusy] = useState(false)
-  const [historyLoaded, setHistoryLoaded] = useState(false)
+export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onStudy }: Props) {
   const [selectedDeckId, setSelectedDeckId] = useState('')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
@@ -243,101 +221,6 @@ export default function MedReviewLibrary({
     }
   }, [decks, selectedDeckId])
 
-  useEffect(() => {
-    let active = true
-    manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>('list_catalog', {})
-      .then((res) => {
-        if (active) {
-          setGlobalDecks(res.decks || [])
-          setGlobalCards(res.cards || [])
-        }
-      })
-      .catch((e: any) => {
-        if (active)
-          setGlobalError(
-            e?.response?.data?.message ||
-              e?.message ||
-              'Não foi possível carregar o Catálogo Geral.',
-          )
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-  const refreshPublishableDecks = async () => {
-    if (!adminMode) return
-    const result = await manageGlobalCatalog<{ decks: any[] }>('list_publishable_decks', {})
-    setPublishableDecks(result.decks || [])
-  }
-  useEffect(() => {
-    if (adminMode)
-      refreshPublishableDecks().catch((e: any) =>
-        setError(e?.message || 'Não foi possível carregar o status de publicação.'),
-      )
-  }, [adminMode, decks.length])
-  const refreshGlobal = async () => {
-    const res = await manageGlobalCatalog<{ decks: Deck[]; cards: Card[] }>('list_catalog', {})
-    setGlobalDecks(res.decks || [])
-    setGlobalCards(res.cards || [])
-  }
-  const togglePublishFolder = async (deckId: string) => {
-    const row = publishableDecks.find((d) => d.id === deckId)
-    if (!row || row.inherited_from) return
-    const enabling = !row.publish_global
-    if (
-      !enabling &&
-      !window.confirm(
-        `Remover “${row.title}” do Catálogo Geral? A cópia pública será removida; os dados privados permanecem intactos.`,
-      )
-    )
-      return
-    setPublishingDeckId(deckId)
-    setError('')
-    try {
-      let result: any = await manageGlobalCatalog('set_folder_publication', {
-        deck_id: deckId,
-        publish: enabling,
-      })
-      if (result.needsConfirmation) {
-        const accepted = window.confirm(
-          `Publicar “${result.deckTitle}” para todos? Serão compartilhadas ${result.folders} pasta(s) e ${result.cards} card(s). Seu progresso/histórico e o dos estudantes continua separado.`,
-        )
-        if (!accepted) return
-        result = await manageGlobalCatalog('set_folder_publication', {
-          deck_id: deckId,
-          publish: true,
-          confirmed: true,
-        })
-      }
-      await Promise.all([onRefresh(), refreshPublishableDecks(), refreshGlobal()])
-      setMessage(
-        enabling
-          ? `“${row.title}” publicada para geral.`
-          : `“${row.title}” removida do Catálogo Geral.`,
-      )
-    } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Não foi possível alterar a publicação.')
-    } finally {
-      setPublishingDeckId('')
-    }
-  }
-  const loadGlobalHistory = async () => {
-    setHistoryBusy(true)
-    setGlobalError('')
-    try {
-      const result = await manageGlobalCatalog<{ reviews: any[] }>('admin_list_reviews', {})
-      setGlobalHistory(result.reviews || [])
-      setHistoryLoaded(true)
-    } catch (e: any) {
-      setGlobalError(
-        e?.response?.data?.message ||
-          e?.message ||
-          'Não foi possível carregar o histórico autorizado.',
-      )
-    } finally {
-      setHistoryBusy(false)
-    }
-  }
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId)
   const deckCards = useMemo(
     () => cards.filter((card) => card.deck === selectedDeckId),
@@ -867,28 +750,6 @@ export default function MedReviewLibrary({
           {isSeed && <span className="mr-lib-deck-tag">pronta</span>}
         </button>
         <div className="mr-lib-deck-actions">
-          {adminMode &&
-            publication &&
-            (publication.inherited_from ? (
-              <span
-                className="mr-lib-deck-tag"
-                title="Esta pasta é pública porque uma pasta superior foi publicada."
-              >
-                🌐 Pública pela pasta superior
-              </span>
-            ) : (
-              <button
-                className="mr-lib-mini"
-                disabled={publishingDeckId === deck.id}
-                onClick={() => togglePublishFolder(deck.id)}
-              >
-                {publishingDeckId === deck.id
-                  ? 'Salvando…'
-                  : publication.publish_global
-                    ? '🌐 Publicada · Despublicar'
-                    : '🔒 Privada · Publicar para geral'}
-              </button>
-            ))}
           <button className="mr-lib-mini" onClick={() => onStudy(deck.id)}>
             ▶ Estudar
           </button>
@@ -963,110 +824,10 @@ export default function MedReviewLibrary({
           </div>
         )}
 
-        <section className="mr-lib-section">
-          <div className="mr-lib-section-head">
-            <div>
-              <h2>🌐 Catálogo Geral</h2>
-              <p>Conteúdo compartilhado; seu progresso continua individual.</p>
-            </div>
-          </div>
-          {globalError && (
-            <div
-              className="mr-lib-notice"
-              style={{ background: '#fef2f2', color: '#991b1b', margin: 12 }}
-            >
-              {globalError}
-            </div>
-          )}
-          {adminMode && (
-            <div
-              style={{
-                margin: 12,
-                padding: 12,
-                border: '1px solid #d1fae5',
-                borderRadius: 10,
-                color: '#475569',
-                fontSize: '.8rem',
-              }}
-            >
-              Para compartilhar, localize uma pasta em <strong>Minhas Pastas</strong> e selecione{' '}
-              <strong>“Publicar para geral”</strong>. Pastas não marcadas permanecem privadas.
-            </div>
-          )}
-          {globalDecks.length === 0 ? (
-            <div className="mr-lib-empty">O Catálogo Geral ainda está vazio.</div>
-          ) : (
-            globalDecks.map((d) => {
-              const list = globalCards.filter((c) => c.deck === d.id && !c.deleted)
-              const open = globalSelectedDeckId === d.id
-              return (
-                <div key={d.id}>
-                  <button
-                    type="button"
-                    className="mr-lib-deck-name"
-                    style={{ width: '100%', padding: '12px 18px' }}
-                    onClick={() => setGlobalSelectedDeckId(open ? '' : d.id)}
-                  >
-                    <span className="mr-lib-deck-icon">🌐</span>
-                    <span className="mr-lib-deck-title">{d.title}</span>
-                    <span className="mr-lib-deck-tag">{list.length} cards</span>
-                  </button>
-                  {open && (
-                    <div style={{ padding: '0 18px 12px' }}>
-                      {list.map((c) => (
-                        <article key={c.id} className="mr-lib-card-row">
-                          <div className="mr-lib-card-q">{c.q}</div>
-                          <button className="mr-lib-mini" onClick={() => onStudyGlobal(d.id)}>
-                            ▶ Estudar pasta
-                          </button>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </section>
-        {adminMode && (
-          <section className="mr-lib-section">
-            <div className="mr-lib-section-head">
-              <div>
-                <h2>🛡️ Histórico autorizado</h2>
-                <p>Somente revisões de cards globais de estudantes que deram consentimento.</p>
-              </div>
-              <button className="mr-lib-mini" disabled={historyBusy} onClick={loadGlobalHistory}>
-                {historyBusy ? 'Carregando…' : 'Consultar histórico'}
-              </button>
-            </div>
-            {!historyLoaded ? (
-              <div className="mr-lib-empty">
-                A consulta só retorna dados consentidos e pode ser repetida após revogação.
-              </div>
-            ) : globalHistory.length === 0 ? (
-              <div className="mr-lib-empty">Nenhuma revisão consentida disponível.</div>
-            ) : (
-              globalHistory.map((r, i) => (
-                <article
-                  key={r.id || `${r.card_ref}-${r.reviewed_at}-${i}`}
-                  className="mr-lib-card-row"
-                >
-                  <div style={{ flex: 1 }}>
-                    <strong className="mr-lib-card-q">
-                      {r.question || 'Card do Catálogo Geral'}
-                    </strong>
-                    <div className="mr-lib-card-chips">
-                      <span className="mr-lib-card-chip">Estudante {r.student || '—'}</span>
-                      <span className="mr-lib-card-chip">{r.rating}</span>
-                      <span className="mr-lib-card-chip">{r.state}</span>
-                      <span className="mr-lib-card-chip">{r.reviewed_at}</span>
-                    </div>
-                  </div>
-                </article>
-              ))
-            )}
-          </section>
-        )}
+        <div className="mr-lib-notice" style={{ background: '#f0fdf4', color: '#166534' }}>
+          Os cartões-base ficam disponíveis na sua Biblioteca. Seu progresso e suas revisões são
+          pessoais.
+        </div>
 
         {selectedDeck && (
           <section className="mr-lib-panel">
