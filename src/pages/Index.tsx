@@ -239,6 +239,69 @@ function cardStateFromReviews(reviews: Review[]): CardState {
 }
 
 const RETENTION_KEY = 'mr_retention'
+type SchedulerMode = 'automatic' | 'manual'
+type ManualIntervals = Record<Quality, string>
+type SchedulerSettings = { mode: SchedulerMode; intervals: ManualIntervals }
+const SCHEDULER_SETTINGS_KEY = 'mr_scheduler_settings_'
+const DEFAULT_MANUAL_INTERVALS: ManualIntervals = {
+  again: '10 min',
+  hard: '1 dia',
+  good: '2 dias',
+  easy: '3 dias',
+}
+function parseManualInterval(raw: string): { days: number; label: string } | null {
+  const match = String(raw || '')
+    .trim()
+    .toLowerCase()
+    .match(/^(\d+(?:[.,]\d+)?)\s*(m|min|mins|minuto|minutos|d|dia|dias)?$/i)
+  if (!match) return null
+  const amount = Number(match[1].replace(',', '.'))
+  if (!Number.isFinite(amount) || amount <= 0) return null
+  const unit = match[2] || 'd'
+  const isMinutes = unit === 'm' || unit.startsWith('min')
+  const days = isMinutes ? amount / 1440 : amount
+  if (days < 1 / 1440 || days > FSRS_MAX_INTERVAL) return null
+  const amountLabel = String(amount).replace('.', ',')
+  return { days, label: `${amountLabel}${isMinutes ? 'min' : 'd'}` }
+}
+function getSchedulerSettings(accountId?: string): SchedulerSettings {
+  const defaults = {
+    mode: 'automatic' as SchedulerMode,
+    intervals: { ...DEFAULT_MANUAL_INTERVALS },
+  }
+  if (!accountId) return defaults
+  try {
+    const saved = JSON.parse(localStorage.getItem(SCHEDULER_SETTINGS_KEY + accountId) || 'null')
+    if (!saved || (saved.mode !== 'automatic' && saved.mode !== 'manual')) return defaults
+    const intervals = { ...DEFAULT_MANUAL_INTERVALS }
+    for (const quality of ['again', 'hard', 'good', 'easy'] as Quality[]) {
+      if (
+        typeof saved.intervals?.[quality] === 'string' &&
+        parseManualInterval(saved.intervals[quality])
+      ) {
+        intervals[quality] = saved.intervals[quality]
+      }
+    }
+    return { mode: saved.mode, intervals }
+  } catch (e) {
+    return defaults
+  }
+}
+function previewIntervalsForSettings(
+  cs: CardState,
+  retention: number,
+  settings: SchedulerSettings,
+) {
+  const automatic = previewIntervals(cs, retention)
+  if (settings.mode !== 'manual') return automatic
+  const result = { ...automatic }
+  for (const quality of ['again', 'hard', 'good', 'easy'] as Quality[]) {
+    const interval = parseManualInterval(settings.intervals[quality])
+    if (interval)
+      result[quality] = { ...automatic[quality], value: interval.days, label: interval.label }
+  }
+  return result
+}
 function getRetention(): number {
   try {
     const v = parseFloat(localStorage.getItem(RETENTION_KEY) || '')
@@ -251,15 +314,24 @@ function getRetention(): number {
 
 // ===== Painel de configurações (⚙️) =====
 function SettingsModal({
+  accountId,
   onClose,
   onSaved,
   onRepair,
 }: {
+  accountId?: string
   onClose: () => void
   onSaved: () => void
   onRepair?: (kind: 'tutoria' | 'prova' | 'custom') => Promise<boolean>
 }) {
   const [val, setVal] = useState(() => getRetention() * 100)
+  const [schedulerMode, setSchedulerMode] = useState<SchedulerMode>(
+    () => getSchedulerSettings(accountId).mode,
+  )
+  const [manualIntervals, setManualIntervals] = useState<ManualIntervals>(
+    () => getSchedulerSettings(accountId).intervals,
+  )
+  const [scheduleError, setScheduleError] = useState('')
   const [saving, setSaving] = useState(false)
   const [repairing, setRepairing] = useState('')
   const repair = async (kind: 'tutoria' | 'prova' | 'custom') => {
@@ -273,9 +345,35 @@ function SettingsModal({
     }
   }
   const save = () => {
+    setScheduleError('')
+    if (!accountId) {
+      setScheduleError('Entre novamente na sua conta para salvar estas preferências.')
+      return
+    }
+    if (schedulerMode === 'manual') {
+      const invalid = (['again', 'hard', 'good', 'easy'] as Quality[]).find(
+        (quality) => !parseManualInterval(manualIntervals[quality]),
+      )
+      if (invalid) {
+        const labels: Record<Quality, string> = {
+          again: 'Errei',
+          hard: 'Difícil',
+          good: 'Bom',
+          easy: 'Fácil',
+        }
+        setScheduleError(
+          `Informe um intervalo válido para “${labels[invalid]}”, como 20 min ou 3 dias.`,
+        )
+        return
+      }
+    }
     setSaving(true)
     const v = Math.min(97, Math.max(80, val))
     localStorage.setItem(RETENTION_KEY, String(v / 100))
+    localStorage.setItem(
+      SCHEDULER_SETTINGS_KEY + accountId,
+      JSON.stringify({ mode: schedulerMode, intervals: manualIntervals }),
+    )
     setTimeout(() => {
       onSaved()
       onClose()
@@ -346,6 +444,115 @@ function SettingsModal({
           <span>80% — menos cartas/dia</span>
           <span>97% — revisão intensiva</span>
         </div>
+        <section
+          style={{
+            margin: '0 0 16px',
+            padding: 12,
+            border: '1px solid #d1fae5',
+            borderRadius: 12,
+            background: '#f8fffb',
+          }}
+        >
+          <strong style={{ display: 'block', color: '#14532d', fontSize: '.85rem' }}>
+            Como agendar as próximas revisões?
+          </strong>
+          <p style={{ margin: '5px 0 10px', color: '#64748b', fontSize: '.76rem' }}>
+            Automático usa FSRS. Manual usa o tempo escolhido para cada nota.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {(
+              [
+                ['automatic', '⚙️ Automático (FSRS)'],
+                ['manual', '✍️ Manual'],
+              ] as [SchedulerMode, string][]
+            ).map(([mode, label]) => (
+              <label
+                key={mode}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '7px 9px',
+                  border: `1px solid ${schedulerMode === mode ? '#16a34a' : '#cbd5e1'}`,
+                  borderRadius: 9,
+                  background: schedulerMode === mode ? '#f0fdf4' : '#fff',
+                  color: '#334155',
+                  fontSize: '.76rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="scheduler-mode"
+                  checked={schedulerMode === mode}
+                  onChange={() => setSchedulerMode(mode)}
+                  style={{ accentColor: '#16a34a' }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          {schedulerMode === 'manual' && (
+            <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+              {(
+                [
+                  ['again', 'Errei'],
+                  ['hard', 'Difícil'],
+                  ['good', 'Bom'],
+                  ['easy', 'Fácil'],
+                ] as [Quality, string][]
+              ).map(([quality, label]) => (
+                <label
+                  key={quality}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '76px 1fr',
+                    alignItems: 'center',
+                    gap: 8,
+                    color: '#334155',
+                    fontSize: '.8rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>{label}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    aria-label={`Intervalo manual ${label}`}
+                    placeholder="ex.: 20 min ou 3 dias"
+                    value={manualIntervals[quality]}
+                    onChange={(e) => {
+                      setManualIntervals((current) => ({ ...current, [quality]: e.target.value }))
+                      setScheduleError('')
+                    }}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '0.5rem 0.65rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 8,
+                      font: 'inherit',
+                      fontWeight: 500,
+                    }}
+                  />
+                </label>
+              ))}
+              <span style={{ color: '#64748b', fontSize: '.72rem' }}>
+                Aceita “20 min”, “5m”, “3 dias” ou “5d”. Número sem unidade significa dias. Esses
+                tempos valem para as próximas avaliações.
+              </span>
+            </div>
+          )}
+          {scheduleError && (
+            <p
+              role="alert"
+              style={{ margin: '9px 0 0', color: '#b91c1c', fontSize: '.76rem', fontWeight: 700 }}
+            >
+              {scheduleError}
+            </p>
+          )}
+        </section>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={save}
@@ -1861,6 +2068,7 @@ export default function Index() {
   const [deckMode, setDeckMode] = useState<'study' | 'organizer'>('study')
 
   const retention = useMemo(() => getRetention(), [route, retentionTick])
+  const schedulerSettings = useMemo(() => getSchedulerSettings(user?.id), [user?.id, retentionTick])
 
   const ensureSeed = async () => {
     if (!pb.authStore.isValid) return
@@ -2363,7 +2571,7 @@ export default function Index() {
     const realId = card.id.replace(/::rev$/, '')
     const cardReviews = reviews.filter((r) => (r.card_ref || r.card) === realId)
     const cs = cardStateFromReviews(cardReviews)
-    const pv = previewIntervals(cs, retention)
+    const pv = previewIntervalsForSettings(cs, retention, schedulerSettings)
     const chosen = pv[quality]
     const now = new Date()
     const dueDate = new Date(now.getTime() + chosen.value * 86400000)
@@ -2530,7 +2738,7 @@ export default function Index() {
     const cs = cardStateFromReviews(
       reviews.filter((r) => (r.card_ref || r.card) === card.id.replace(/::rev$/, '')),
     )
-    const pv = previewIntervals(cs, retention)
+    const pv = previewIntervalsForSettings(cs, retention, schedulerSettings)
     return (
       <div className="mr-legacy-study-page">
         <MedReviewLegacyStyles />
@@ -2607,7 +2815,11 @@ export default function Index() {
               >
                 📊 Stats
               </button>
-              <span>Retenção alvo: {Math.round(retention * 100)}%</span>
+              <span>
+                {schedulerSettings.mode === 'manual'
+                  ? '✍️ Agendamento manual'
+                  : `Retenção alvo: ${Math.round(retention * 100)}%`}
+              </span>
             </span>
           </div>
           <article className="mr-legacy-study-card" onClick={() => setFlipped((f) => !f)}>
@@ -3080,6 +3292,7 @@ export default function Index() {
       />
       {settingsOpen && (
         <SettingsModal
+          accountId={user?.id}
           onClose={() => setSettingsOpen(false)}
           onSaved={() => setRetentionTick((t) => t + 1)}
           onRepair={async (kind) => {
