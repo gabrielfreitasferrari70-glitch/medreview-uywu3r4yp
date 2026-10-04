@@ -366,10 +366,17 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
     setCardClinical(!!card?.clinical)
     setModal({ type: 'card', deckId, card })
   }
-  const openMoveModal = (card: Card) => setModal({ type: 'move', card })
+  const openMoveModal = (card: Card) => {
+    setMoveTarget('')
+    setMoveCardExpanded({})
+    setModal({ type: 'move', card })
+  }
   const [moveTarget, setMoveTarget] = useState('')
+  const [moveDeckExpanded, setMoveDeckExpanded] = useState<Record<string, boolean>>({})
+  const [moveCardExpanded, setMoveCardExpanded] = useState<Record<string, boolean>>({})
   const openMoveDeckModal = (deckId: string) => {
     setMoveDeckTarget('')
+    setMoveDeckExpanded({})
     setModal({ type: 'moveDeck', deckId })
   }
   const [moveDeckTarget, setMoveDeckTarget] = useState('')
@@ -459,6 +466,91 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
         })),
     [decks],
   )
+  const renderMoveTree = (
+    parentId: string,
+    target: string,
+    setTarget: (id: string) => void,
+    expanded: Record<string, boolean>,
+    setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
+    blockedIds: Set<string> = new Set(),
+    depth = 0,
+  ): React.ReactNode => {
+    const rows = decks
+      .filter((d) => (d.parent || '') === parentId && !d.deleted && !blockedIds.has(d.id))
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+    return rows.map((deck) => {
+      const kids = decks.filter((d) => d.parent === deck.id && !d.deleted && !blockedIds.has(d.id))
+      const isOpen = !!expanded[deck.id]
+      return (
+        <React.Fragment key={deck.id}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '3px 4px 3px ' + (depth * 18 + 4) + 'px',
+            }}
+          >
+            <button
+              type="button"
+              aria-label={`${isOpen ? 'Recolher' : 'Expandir'} ${deck.title}`}
+              aria-expanded={isOpen}
+              disabled={!kids.length}
+              onClick={() => setExpanded((prev) => ({ ...prev, [deck.id]: !prev[deck.id] }))}
+              style={{
+                width: 26,
+                minWidth: 26,
+                height: 30,
+                border: 0,
+                borderRadius: 6,
+                background: kids.length ? '#f0fdf4' : 'transparent',
+                color: '#15803d',
+                cursor: kids.length ? 'pointer' : 'default',
+                fontWeight: 900,
+              }}
+            >
+              {kids.length ? (isOpen ? '▾' : '▸') : '·'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={target === deck.id}
+              onClick={() => setTarget(deck.id)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                textAlign: 'left',
+                padding: '7px 10px',
+                border: `1px solid ${target === deck.id ? '#16a34a' : '#e2e8f0'}`,
+                borderRadius: 8,
+                background: target === deck.id ? '#f0fdf4' : '#fff',
+                color: '#334155',
+                font: '600 .84rem Inter,system-ui,sans-serif',
+                cursor: 'pointer',
+              }}
+            >
+              {deck.kind === 'prova' ? '📝' : '🩺'} {deck.title}
+              {kids.length > 0 && (
+                <span style={{ color: '#64748b', fontSize: '.72rem', marginLeft: 6 }}>
+                  {kids.length} sub
+                </span>
+              )}
+            </button>
+          </div>
+          {kids.length > 0 &&
+            isOpen &&
+            renderMoveTree(
+              deck.id,
+              target,
+              setTarget,
+              expanded,
+              setExpanded,
+              blockedIds,
+              depth + 1,
+            )}
+        </React.Fragment>
+      )
+    })
+  }
   const downloadBackup = () => {
     const data = {
       exported_at: new Date().toISOString(),
@@ -919,32 +1011,55 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             onClose={() => setModal({ type: 'none' })}
           >
             <label className="mr-lib-label">Pasta de destino</label>
-            <select
-              style={fieldStyle}
-              value={moveDeckTarget}
-              onChange={(e) => {
-                setMoveDeckTarget(e.target.value)
-                if (e.target.value) setMoveToRootKind('')
+            <div
+              style={{
+                maxHeight: 300,
+                overflowY: 'auto',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+                padding: 6,
+                marginBottom: 8,
               }}
             >
-              <option value="">Escolher…</option>
-              {rootDecksOf('custom').length > 0 && (
-                <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
-              )}
-              {rootDecksOf('tutoria').length > 0 && (
-                <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
-              )}
-              {rootDecksOf('prova').length > 0 && (
-                <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
-              )}
-              {allDecksSorted
-                .filter((d) => d.id !== modal.deckId)
-                .map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.label}
-                  </option>
+              {(
+                [
+                  ['custom', '📁 Nível inicial — Minhas Pastas'],
+                  ['tutoria', '🩺 Nível inicial — Tutoria'],
+                  ['prova', '📝 Nível inicial — Prova de Módulo'],
+                ] as [string, string][]
+              )
+                .filter(([kind]) => rootDecksOf(kind).length > 0)
+                .map(([kind, label]) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={moveDeckTarget === `@root:${kind}`}
+                    onClick={() => setMoveDeckTarget(`@root:${kind}`)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 10px',
+                      border: `1px solid ${moveDeckTarget === `@root:${kind}` ? '#16a34a' : 'transparent'}`,
+                      borderRadius: 8,
+                      background: moveDeckTarget === `@root:${kind}` ? '#f0fdf4' : '#fff',
+                      color: '#334155',
+                      font: '600 .82rem Inter,system-ui,sans-serif',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
                 ))}
-            </select>
+              {renderMoveTree(
+                '',
+                moveDeckTarget,
+                setMoveDeckTarget,
+                expanded,
+                setExpanded,
+                new Set([modal.deckId, ...subtreeIdsOf(modal.deckId)]),
+              )}
+            </div>
             <p
               className="mr-lib-hint"
               style={{ margin: '2px 0 0', fontSize: '.78rem', color: '#64748b' }}
@@ -1073,18 +1188,18 @@ export default function MedReviewLibrary({ decks, cards, onBack, onRefresh, onSt
             onClose={() => setModal({ type: 'none' })}
           >
             <label className="mr-lib-label">Pasta de destino</label>
-            <select
-              style={fieldStyle}
-              value={moveTarget}
-              onChange={(e) => setMoveTarget(e.target.value)}
+            <div
+              style={{
+                maxHeight: 300,
+                overflowY: 'auto',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+                padding: 6,
+                marginBottom: 8,
+              }}
             >
-              <option value="">Escolher…</option>
-              {allDecksSorted.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+              {renderMoveTree('', moveTarget, setMoveTarget, moveCardExpanded, setMoveCardExpanded)}
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button style={actionStyle} disabled={busy} onClick={submitMove}>
                 {busy ? 'Movendo…' : 'Mover'}

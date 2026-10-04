@@ -2060,6 +2060,7 @@ export default function Index() {
     deckId: string
   } | null>(null)
   const [deckMoveTarget, setDeckMoveTarget] = useState('')
+  const [deckMoveExpanded, setDeckMoveExpanded] = useState<Record<string, boolean>>({})
   const [deckQ, setDeckQ] = useState('')
   const [deckA, setDeckA] = useState('')
   const [deckClinical, setDeckClinical] = useState(false)
@@ -2414,10 +2415,12 @@ export default function Index() {
   }
   const openDeckMoveModal = (deckId: string) => {
     setDeckMoveTarget('')
+    setDeckMoveExpanded({})
     setDeckModal({ type: 'moveDeck', deckId })
   }
   const openSectionMoveModal = (kind: 'tutoria' | 'prova' | 'custom') => {
     setDeckMoveTarget('')
+    setDeckMoveExpanded({})
     setDeckTitle('')
     setDeckModal({ type: 'moveSection', deckId: kind })
   }
@@ -3404,79 +3407,159 @@ export default function Index() {
                 pastas da seção, cada uma com suas subpastas. Nada solto, nada apagado.
               </p>
             )}
-            {(deckModal.type === 'moveDeck' || deckModal.type === 'moveSection') && (
-              <select
-                value={deckMoveTarget}
-                onChange={(e) => setDeckMoveTarget(e.target.value)}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  padding: '0.65rem 0.8rem',
-                  borderRadius: 9,
-                  border: '1.5px solid #cbd5e1',
-                  font: 'inherit',
-                  marginBottom: 8,
-                  background: '#fff',
-                }}
-              >
-                <option value="">Escolher pasta de destino…</option>
-                {/* DINÂMICO: só lista o nível inicial de seções que AINDA têm
-                    pastas na raiz — seção movida não aparece como destino. */}
-                {decks.some((d) => d.kind === 'custom' && !d.parent && !d.deleted) && (
-                  <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
-                )}
-                {decks.some((d) => d.kind === 'tutoria' && !d.parent && !d.deleted) && (
-                  <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
-                )}
-                {decks.some((d) => d.kind === 'prova' && !d.parent && !d.deleted) && (
-                  <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
-                )}
-                {(() => {
-                  // Árvore hierárquica REAL: indentação por profundidade (cadeia
-                  // de pais), sem sufixos de seção. Exclui a própria pasta e
-                  // TODOS os descendentes dela (não pode mover pra dentro de si).
-                  const byParent: Record<string, any[]> = {}
-                  for (const d of decks) {
-                    if (d.deleted) continue
-                    ;(byParent[d.parent || ''] ||= []).push(d)
-                  }
-                  const movingId = deckModal.deckId
-                  const subtreeIds = new Set<string>()
-                  if (movingId && deckModal.type === 'moveDeck') {
-                    subtreeIds.add(movingId)
-                    let grew = true
-                    while (grew) {
-                      grew = false
-                      for (const d of decks) {
-                        if (d.parent && subtreeIds.has(d.parent) && !subtreeIds.has(d.id)) {
-                          subtreeIds.add(d.id)
-                          grew = true
-                        }
+            {(deckModal.type === 'moveDeck' || deckModal.type === 'moveSection') &&
+              (() => {
+                const rootOptions = (['custom', 'tutoria', 'prova'] as const).filter((kind) => {
+                  if (!decks.some((d) => d.kind === kind && !d.parent && !d.deleted)) return false
+                  return !(deckModal.type === 'moveSection' && deckModal.deckId === kind)
+                })
+                const movingId = deckModal.type === 'moveDeck' ? deckModal.deckId : ''
+                const blockedIds = new Set<string>()
+                if (movingId) {
+                  blockedIds.add(movingId)
+                  let grew = true
+                  while (grew) {
+                    grew = false
+                    for (const d of decks) {
+                      if (d.parent && blockedIds.has(d.parent) && !blockedIds.has(d.id)) {
+                        blockedIds.add(d.id)
+                        grew = true
                       }
                     }
                   }
-                  const rows: { id: string; label: string; depth: number }[] = []
-                  const walk = (pid: string, depth: number) => {
-                    for (const d of (byParent[pid] || []).sort(
-                      (a, b) => (a.order || 0) - (b.order || 0),
-                    )) {
-                      if (subtreeIds.has(d.id)) continue
-                      if (deckModal.type === 'moveSection' && !d.parent) continue
-                      rows.push({ id: d.id, label: d.title, depth })
-                      walk(d.id, depth + 1)
-                    }
-                  }
-                  walk('', 0)
-                  return rows.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {'\u00A0'.repeat(r.depth * 4)}
-                      {r.depth > 0 ? '↳ ' : ''}
-                      {r.label}
-                    </option>
-                  ))
-                })()}
-              </select>
-            )}
+                }
+                const renderRows = (parentId: string, depth: number): any =>
+                  decks
+                    .filter(
+                      (d) => (d.parent || '') === parentId && !d.deleted && !blockedIds.has(d.id),
+                    )
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .filter((d) => deckModal.type !== 'moveSection' || !!d.parent)
+                    .map((d) => {
+                      const children = decks.filter(
+                        (c) => c.parent === d.id && !c.deleted && !blockedIds.has(c.id),
+                      )
+                      const isOpen = !!deckMoveExpanded[d.id]
+                      return (
+                        <React.Fragment key={d.id}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: `3px 4px 3px ${depth * 18 + 4}px`,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              aria-label={`${isOpen ? 'Recolher' : 'Expandir'} ${d.title}`}
+                              aria-expanded={isOpen}
+                              disabled={!children.length}
+                              onClick={() =>
+                                setDeckMoveExpanded((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
+                              }
+                              style={{
+                                width: 26,
+                                minWidth: 26,
+                                height: 30,
+                                border: 0,
+                                borderRadius: 6,
+                                background: children.length ? '#f0fdf4' : 'transparent',
+                                color: '#15803d',
+                                cursor: children.length ? 'pointer' : 'default',
+                                fontWeight: 900,
+                              }}
+                            >
+                              {children.length ? (isOpen ? '▾' : '▸') : '·'}
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={deckMoveTarget === d.id}
+                              onClick={() => setDeckMoveTarget(d.id)}
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                textAlign: 'left',
+                                padding: '7px 10px',
+                                border: `1px solid ${deckMoveTarget === d.id ? '#16a34a' : '#e2e8f0'}`,
+                                borderRadius: 8,
+                                background: deckMoveTarget === d.id ? '#f0fdf4' : '#fff',
+                                color: '#334155',
+                                font: '600 .82rem Inter,system-ui,sans-serif',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {d.kind === 'prova' ? '📝' : '🩺'} {d.title}
+                              {children.length > 0 && (
+                                <span
+                                  style={{ color: '#64748b', fontSize: '.72rem', marginLeft: 6 }}
+                                >
+                                  {children.length} sub
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                          {children.length > 0 && isOpen && renderRows(d.id, depth + 1)}
+                        </React.Fragment>
+                      )
+                    })
+                return (
+                  <div style={{ width: '100%' }}>
+                    <p
+                      style={{
+                        margin: '0 0 6px',
+                        color: '#475569',
+                        fontSize: '.8rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Escolha um destino; abra as subpastas pela seta.
+                    </p>
+                    <div
+                      style={{
+                        maxHeight: 260,
+                        overflowY: 'auto',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 10,
+                        padding: 6,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {rootOptions.map((kind) => {
+                        const label =
+                          kind === 'custom'
+                            ? '📁 Nível inicial — Minhas Pastas'
+                            : kind === 'tutoria'
+                              ? '🩺 Nível inicial — Tutoria'
+                              : '📝 Nível inicial — Prova de Módulo'
+                        return (
+                          <button
+                            key={kind}
+                            type="button"
+                            aria-pressed={deckMoveTarget === `@root:${kind}`}
+                            onClick={() => setDeckMoveTarget(`@root:${kind}`)}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 10px',
+                              border: `1px solid ${deckMoveTarget === `@root:${kind}` ? '#16a34a' : 'transparent'}`,
+                              borderRadius: 8,
+                              background: deckMoveTarget === `@root:${kind}` ? '#f0fdf4' : '#fff',
+                              color: '#334155',
+                              font: '600 .82rem Inter,system-ui,sans-serif',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                      {renderRows('', 0)}
+                    </div>
+                  </div>
+                )
+              })()}
             {deckModal.type === 'card' ? (
               <>
                 <textarea
