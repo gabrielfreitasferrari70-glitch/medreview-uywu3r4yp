@@ -3190,9 +3190,17 @@ export default function Index() {
                 }}
               >
                 <option value="">Escolher pasta de destino…</option>
-                <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
-                <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
-                <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
+                {/* DINÂMICO: só lista o nível inicial de seções que AINDA têm
+                    pastas na raiz — seção movida não aparece como destino. */}
+                {decks.some((d) => d.kind === 'custom' && !d.parent && !d.deleted) && (
+                  <option value="@root:custom">📁 Nível inicial — Minhas Pastas</option>
+                )}
+                {decks.some((d) => d.kind === 'tutoria' && !d.parent && !d.deleted) && (
+                  <option value="@root:tutoria">🩺 Nível inicial — Tutoria</option>
+                )}
+                {decks.some((d) => d.kind === 'prova' && !d.parent && !d.deleted) && (
+                  <option value="@root:prova">📝 Nível inicial — Prova de Módulo</option>
+                )}
                 {(() => {
                   // Árvore hierárquica REAL: indentação por profundidade (cadeia
                   // de pais), sem sufixos de seção. Exclui a própria pasta e
@@ -3296,7 +3304,11 @@ export default function Index() {
                 {deckModal.type === 'folder' &&
                   (!deckModal.deckId || deckModal.deckId === '@frontline') && (
                     <select
-                      value={deckModal.deckId === '@frontline' ? '@frontline' : deckKind}
+                      value={
+                        deckModal.deckId === '@frontline' || deckModal.deckId?.startsWith('deck:')
+                          ? deckModal.deckId
+                          : deckKind
+                      }
                       onChange={(e) => {
                         const v = e.target.value
                         if (v === '@frontline') {
